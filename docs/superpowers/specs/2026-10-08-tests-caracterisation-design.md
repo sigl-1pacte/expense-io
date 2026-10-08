@@ -30,6 +30,7 @@ Approches écartées : tests HTTP boîte noire contre un serveur lancé (lents, 
 
 - **`[as-is]`** : tout test qui fige un comportement contraire à une règle attendue (faille, incohérence, absence de validation) a un nom préfixé `[as-is]` et un commentaire qui renvoie au point correspondant de `docs/audit/as-is.md`. Un `grep "\[as-is\]"` liste la dette fonctionnelle connue.
 - Les tests figent la réponse **réelle**, y compris une 500 avec `stack` : on vérifie le statut, et le corps quand il est déterministe (message d'erreur, présence de `stack`).
+- **Erreurs non interceptées** (constat du prototype de planification) : les handlers qui font `return withUserScope(...)` sans `await` — `GET /api/expense-notes`, `GET /api/manager/expense-notes`, `POST /api/manager/expense-notes/:id/{approve,reject}`, `GET /api/hr/expense-notes`, `POST /api/hr/expense-notes/:id/{approve,reject}` — laissent échapper une erreur SQL : `respondError` n'est pas appelé, la promesse du handler est rejetée. Le test Vitest fige ce rejet (`rejects.toThrow`) ; en E2E, Next renvoie alors une 500 générique sans `{ error, stack }`. Les autres handlers (`await`) renvoient bien la 500 JSON avec `stack`.
 - Langue : noms de tests en français, comme le reste du dépôt.
 
 ## Outillage et arborescence
@@ -38,23 +39,31 @@ Dépendances de dev ajoutées : `vitest`, `@vitest/coverage-v8`, `@playwright/te
 
 ```
 tests/
+  support/                 # partagé par Vitest et Playwright
+    env.ts                 # URLs, bases et buckets de test
+    db.ts                  # pool de test, garde-fou *_test/*_e2e, TRUNCATE
+    infra.ts               # création de base, migrations, bucket S3
+    factories.ts           # createCompany / createUser / createNote / createOrg
+    fixtures.ts            # PNG de test
   unit/                    # aucune I/O
     ocr.test.ts
     errors.test.ts
     storage.test.ts
+    test-db-guard.test.ts
   integration/             # vrai Postgres + vrai LocalStack
+    global-setup.ts        # crée expense_io_test, migre, crée le bucket receipts-test
+    setup.ts               # mock de session, TRUNCATE entre chaque test, fermeture des pools
     helpers/
-      global-setup.ts      # crée expense_io_test, migre, crée le bucket receipts-test
-      db.ts                # TRUNCATE entre chaque test, fermeture du pool
-      factories.ts         # createCompany / createUser / createNote
-      session.ts           # actAs(user) / actAsAnonymous()
+      session.ts           # actAs(user) / actAsAnonymous() / actAsGhost()
       http.ts              # construction de Request JSON / multipart / params
-    api/                   # un fichier par route.ts
+      s3.ts                # vérifications d'objets et d'URL présignées
+    api/                   # un ou plusieurs fichiers par route
     actions/auth.test.ts
     lib/db.test.ts
     workflow.test.ts
   e2e/
-    fixtures/              # accès DB, création de comptes, login UI
+    global-setup.ts        # crée expense_io_e2e, migre, crée le bucket receipts-e2e
+    helpers.ts             # login UI, inscription, soumission de note
     *.spec.ts
   fixtures/
     receipt.png            # ticket lisible par Tesseract
@@ -114,7 +123,7 @@ Isolation vis-à-vis du dev : base `expense_io_test` (Vitest), base `expense_io_
 
 | Route | Comportements figés |
 |---|---|
-| `GET /api/expense-notes` | uniquement les notes de l'appelant, quel que soit son rôle · forme du DTO (`amount` number, `expenseDate` `YYYY-MM-DD`, `createdAt` ISO) · tri par défaut `created_at DESC` · `?sort=amount ASC` respecté · `[as-is]` `?sort=` concaténé : une expression SQL arbitraire est exécutée (audit §4) · colonne inconnue → 500 avec `stack` |
+| `GET /api/expense-notes` | uniquement les notes de l'appelant, quel que soit son rôle · forme du DTO (`amount` number, `expenseDate` `YYYY-MM-DD`, `createdAt` ISO) · tri par défaut `created_at DESC` · `?sort=amount ASC` respecté · `[as-is]` `?sort=` concaténé : une expression SQL arbitraire est exécutée (audit §4) · `[as-is]` colonne inconnue ou requêtes multiples → erreur non interceptée |
 | `POST /api/expense-notes` | 201 : ligne en base (`pending`), objet S3, clé `receipts/<seq><ext>` pour PNG/JPEG/WebP/PDF · 400 par champ invalide (messages exacts) · `[as-is]` `expenseDate` non validée côté app → 500 si Postgres la refuse · `[as-is]` panne S3 → note orpheline en base avec `receipt_key = ''` et 500 (audit §5) |
 | `GET /api/expense-notes/:id/receipt-url` | URL valide pour sa propre note · 404 pour la note d'un autre ou une note inexistante |
 | `POST /api/expense-notes/receipt-suggestion` | 400 sans fichier · la suggestion OCR est renvoyée telle quelle · PDF → `{}` |
@@ -179,7 +188,7 @@ Chaque test crée sa propre entreprise (domaine unique `e2e-<id>.test`) et ses c
 | `ocr-suggestion` | vrai Tesseract sur `tests/fixtures/receipt.png` → montant et date pré-remplis |
 | `approval-workflow` | l'employé soumet → le manager voit la note, ouvre le reçu, approuve → l'employé voit `approved` · même parcours avec rejet · la RH valide la note d'un manager racine |
 | `hr-admin` | la RH rattache un employé à un manager → le manager voit désormais ses notes |
-| `api-auth` | JWT réel sur chaque endpoint : sans cookie, cookie falsifié, cookie d'un rôle insuffisant · méthode HTTP non exportée → 405 |
+| `api-auth` | JWT réel sur chaque endpoint : sans cookie, cookie falsifié, cookie d'un rôle insuffisant · méthode HTTP non exportée → 405 · `[as-is]` erreur non interceptée → 500 générique sans `stack`, erreur interceptée → 500 JSON avec `stack` |
 
 `tests/fixtures/receipt.png` est généré par `scripts/generate-receipt-fixture.mjs`, qui capture `receipt.html` (ticket avec `TOTAL TTC` et une date) via Playwright. L'image est commitée ; le script ne sert qu'à la régénérer.
 
@@ -218,7 +227,7 @@ Section « Tests » ajoutée au README : prérequis (Docker), commandes, bases e
 
 | Risque | Parade |
 |---|---|
-| `next-auth` (bêta) refuse de se charger hors de Next quand `actions/auth.ts` importe `AuthError` | vérifié en premier à l'implémentation ; si besoin, mock de `next-auth` exposant une classe `AuthError` |
+| `next-auth` (bêta) refuse de se charger hors de Next quand `actions/auth.ts` importe `AuthError` | **confirmé par le prototype** (`import 'next/server'` sans extension, `ERR_MODULE_NOT_FOUND`) et **résolu** par `server.deps.inline: ['next-auth']` dans le projet Vitest `integration` |
 | `next/server` / `NextRequest` indisponibles dans Vitest | les handlers acceptent une `Request` standard ; `NextRequest` n'est utilisé que comme type |
 | Sortie OCR de Tesseract instable selon la plateforme | ticket fixture à fort contraste, gros caractères ; assertions sur montant et date uniquement |
 | `next build` lent en CI | cache `.next/cache` dans le job `e2e` |
