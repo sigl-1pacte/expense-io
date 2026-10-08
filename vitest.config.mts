@@ -25,7 +25,7 @@ export default defineConfig({
         'src/lib/storage.ts',
       ],
       exclude: ['src/app/api/auth/**'],
-      thresholds: { lines: 90, branches: 85, functions: 90 },
+      thresholds: { lines: 97, branches: 94, functions: 100 },
     },
     projects: [
       {
