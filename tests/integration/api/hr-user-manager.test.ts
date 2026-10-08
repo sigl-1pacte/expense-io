@@ -1,0 +1,183 @@
+import { describe, expect, it } from 'vitest'
+import { PUT } from '@/app/api/hr/users/[id]/manager/route'
+import { createOrg, createUser, findUser, type Org } from '../../support/factories'
+import {
+  NON_UUID_IDS,
+  UNKNOWN_ID,
+  type UserDto,
+  jsonBody,
+  readJson,
+  request,
+  routeParams,
+} from '../helpers/http'
+import { actAs, actAsCaller, actAsGhost, type Caller } from '../helpers/session'
+
+function assign(targetId: string, payload: unknown) {
+  return PUT(jsonBody(`/api/hr/users/${targetId}/manager`, 'PUT', payload), routeParams(targetId))
+}
+
+function assignRaw(targetId: string, init: RequestInit) {
+  return PUT(request(`/api/hr/users/${targetId}/manager`, { method: 'PUT', ...init }), routeParams(targetId))
+}
+
+async function managerIdOf(userId: string): Promise<string | null | undefined> {
+  return (await findUser(userId))?.manager_id
+}
+
+const MULTIPART_BODY = new FormData()
+MULTIPART_BODY.set('managerId', 'ignoré')
+const JSON_HEADERS = { 'content-type': 'application/json' }
+
+describe('PUT /api/hr/users/:id/manager', () => {
+  it.each<Caller>(['anonymous', 'employee', 'manager'])(
+    '[as-is] %s → 403 (audit §3), rattachement inchangé',
+    async (caller) => {
+      const org = await createOrg()
+      const newcomer = await createUser({ company: org.company })
+      actAsCaller(org, caller)
+      const response = await assign(newcomer.id, { managerId: org.manager.id })
+      expect(response.status).toBe(403)
+      expect(await response.json()).toEqual({ error: 'Unauthorized' })
+      expect(await managerIdOf(newcomer.id)).toBeNull()
+    }
+  )
+
+  it('rattache un employé sans manager et renvoie son DTO', async () => {
+    const org = await createOrg()
+    const newcomer = await createUser({ company: org.company, name: 'Paul' })
+    actAs(org.hr)
+    const response = await assign(newcomer.id, { managerId: org.manager.id })
+    expect(response.status).toBe(200)
+    expect(await readJson<UserDto>(response)).toEqual({
+      id: newcomer.id,
+      name: 'Paul',
+      email: newcomer.email,
+      role: 'employee',
+      managerId: org.manager.id,
+    })
+    expect(await managerIdOf(newcomer.id)).toBe(org.manager.id)
+  })
+
+  it('change de manager', async () => {
+    const org = await createOrg()
+    const other = await createUser({ company: org.company, role: 'manager' })
+    actAs(org.hr)
+    expect((await assign(org.employee.id, { managerId: other.id })).status).toBe(200)
+    expect(await managerIdOf(org.employee.id)).toBe(other.id)
+  })
+
+  it('détache avec managerId null', async () => {
+    const org = await createOrg()
+    actAs(org.hr)
+    const response = await assign(org.employee.id, { managerId: null })
+    expect(response.status).toBe(200)
+    expect((await readJson<UserDto>(response)).managerId).toBeNull()
+    expect(await managerIdOf(org.employee.id)).toBeNull()
+  })
+
+  it('rattache un manager à un autre manager', async () => {
+    const org = await createOrg()
+    const boss = await createUser({ company: org.company, role: 'manager' })
+    actAs(org.hr)
+    const response = await assign(org.manager.id, { managerId: boss.id })
+    expect(response.status).toBe(200)
+    expect(await readJson<UserDto>(response)).toMatchObject({ role: 'manager', managerId: boss.id })
+  })
+
+  it.each<[string, (org: Org) => Promise<string>]>([
+    ["cible d'une autre entreprise", async () => (await createOrg()).employee.id],
+    ['cible RH (soi-même)', async (org) => org.hr.id],
+    [
+      'cible RH de la même entreprise',
+      async (org) => (await createUser({ company: org.company, role: 'hr_admin' })).id,
+    ],
+    ['cible inconnue', async () => UNKNOWN_ID],
+  ])('404 : %s', async (_label, targetFor) => {
+    const org = await createOrg()
+    const targetId = await targetFor(org)
+    actAs(org.hr)
+    const response = await assign(targetId, { managerId: org.manager.id })
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({ error: 'Not found' })
+  })
+
+  it.each<[string, (org: Org) => Promise<[string, string]>]>([
+    ['auto-rattachement', async (org) => [org.manager.id, org.manager.id]],
+    [
+      'le manager choisi est un employé',
+      async (org) => [org.employee.id, (await createUser({ company: org.company })).id],
+    ],
+    ['le manager choisi est RH', async (org) => [org.employee.id, org.hr.id]],
+    ['le manager choisi est inconnu', async (org) => [org.employee.id, UNKNOWN_ID]],
+  ])('409 « Invalid manager » : %s', async (_label, pairFor) => {
+    const org = await createOrg()
+    const [targetId, managerId] = await pairFor(org)
+    const before = await managerIdOf(targetId)
+    actAs(org.hr)
+    const response = await assign(targetId, { managerId })
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'Invalid manager' })
+    expect(await managerIdOf(targetId)).toBe(before)
+  })
+
+  it("[as-is] accepte un manager d'une autre entreprise (audit §3)", async () => {
+    const org = await createOrg()
+    const foreign = (await createOrg()).manager
+    actAs(org.hr)
+    expect((await assign(org.employee.id, { managerId: foreign.id })).status).toBe(200)
+    expect(await managerIdOf(org.employee.id)).toBe(foreign.id)
+  })
+
+  it.each<[string, RequestInit]>([
+    ['corps non JSON', { body: 'pas du json', headers: JSON_HEADERS }],
+    ['corps vide', {}],
+    ['objet sans managerId', { body: '{}', headers: JSON_HEADERS }],
+    ['formulaire multipart', { body: MULTIPART_BODY }],
+  ])('[as-is] %s : détachement silencieux', async (_label, init) => {
+    const org = await createOrg()
+    actAs(org.hr)
+    const response = await assignRaw(org.employee.id, init)
+    expect(response.status).toBe(200)
+    expect((await readJson<UserDto>(response)).managerId).toBeNull()
+    expect(await managerIdOf(org.employee.id)).toBeNull()
+  })
+
+  it.each<[unknown, string]>([
+    [42, 'invalid input syntax for type uuid: "42"'],
+    ['', 'invalid input syntax for type uuid: ""'],
+  ])('[as-is] managerId %j de mauvais type → 500 avec stack', async (managerId, message) => {
+    const org = await createOrg()
+    actAs(org.hr)
+    const response = await assign(org.employee.id, { managerId })
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: message, stack: expect.any(String) })
+  })
+
+  it('[as-is] accepte un cycle entre deux managers', async () => {
+    const org = await createOrg()
+    const other = await createUser({ company: org.company, role: 'manager' })
+    actAs(org.hr)
+    expect((await assign(org.manager.id, { managerId: other.id })).status).toBe(200)
+    expect((await assign(other.id, { managerId: org.manager.id })).status).toBe(200)
+    expect(await managerIdOf(org.manager.id)).toBe(other.id)
+    expect(await managerIdOf(other.id)).toBe(org.manager.id)
+  })
+
+  it.each(NON_UUID_IDS)('[as-is] cible « %s » non-UUID → 500 avec stack', async (id) => {
+    const org = await createOrg()
+    actAs(org.hr)
+    const response = await assign(id, { managerId: org.manager.id })
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({
+      error: `invalid input syntax for type uuid: "${id}"`,
+      stack: expect.any(String),
+    })
+  })
+
+  it("session d'une RH supprimée → 404", async () => {
+    const org = await createOrg()
+    actAsGhost('hr_admin')
+    expect((await assign(org.employee.id, { managerId: null })).status).toBe(404)
+    expect(await managerIdOf(org.employee.id)).toBe(org.manager.id)
+  })
+})
