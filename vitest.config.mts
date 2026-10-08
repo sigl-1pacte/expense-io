@@ -6,6 +6,27 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov', 'json-summary'],
+      reportsDirectory: 'coverage',
+      // Périmètre : le code que Vitest exécute réellement. Hors périmètre :
+      // - src/domain, src/ports, src/adapters, src/utils : code mort (audit §2) ;
+      // - src/lib/auth.ts, src/proxy.ts, src/app/api/auth/** : mockés ici,
+      //   couverts par Playwright ;
+      // - pages, layout et composants React : couverts par Playwright ;
+      // - src/types : déclarations seules.
+      include: [
+        'src/app/api/**/*.ts',
+        'src/app/actions/**/*.ts',
+        'src/lib/db.ts',
+        'src/lib/errors.ts',
+        'src/lib/ocr.ts',
+        'src/lib/storage.ts',
+      ],
+      exclude: ['src/app/api/auth/**'],
+      thresholds: { lines: 90, branches: 85, functions: 90 },
+    },
     projects: [
       {
         extends: true,

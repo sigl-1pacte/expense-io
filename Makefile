@@ -3,7 +3,7 @@ SHELL := /bin/bash
 
 COMPOSE := docker compose
 
-.PHONY: help install env up down restart logs migrate ensure-bucket seed dev build start lint typecheck test clean
+.PHONY: help install env up down restart logs migrate ensure-bucket seed dev build start lint typecheck test coverage clean
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -59,6 +59,9 @@ typecheck: ## Vérifie les types
 
 test: up ## Lance les tests unitaires et d'intégration (Vitest)
 	npm test
+
+coverage: up ## Tests Vitest avec rapport de couverture (coverage/index.html)
+	npm run test:coverage
 
 clean: ## Arrête Docker et supprime les volumes — efface les données locales (Postgres/LocalStack)
 	$(COMPOSE) down -v
