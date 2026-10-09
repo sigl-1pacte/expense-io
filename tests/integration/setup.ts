@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeEach, vi } from 'vitest'
 import { closeTestDb, truncateAll } from '../support/db'
 import { TEST_ENV } from '../support/env'
+import { emptyBucket } from '../support/infra'
 
 // Posé avant l'import de chaque fichier de test : src/lib/storage.ts lit
 // S3_BUCKET au chargement du module.
@@ -19,7 +20,7 @@ beforeEach(async () => {
   vi.resetAllMocks()
   // respondError et l'OCR loguent chaque erreur : sortie de test lisible.
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  await truncateAll()
+  await Promise.all([truncateAll(), emptyBucket(TEST_ENV)])
 })
 
 afterEach(() => {

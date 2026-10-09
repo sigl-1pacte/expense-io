@@ -1,7 +1,9 @@
 import path from 'node:path'
 import {
   CreateBucketCommand,
+  DeleteObjectsCommand,
   HeadBucketCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
@@ -60,6 +62,25 @@ export async function ensureBucket(env: S3Env): Promise<void> {
   } catch {
     await client.send(new CreateBucketCommand({ Bucket: env.S3_BUCKET }))
   }
+}
+
+/**
+ * Vide le bucket. Les clés receipts/N repartent de 1 (RESTART IDENTITY) : sans
+ * ce vidage, une assertion sur S3 pourrait passer sur un objet périmé.
+ */
+export async function emptyBucket(env: S3Env): Promise<void> {
+  const client = s3ClientFor(env)
+  let continuationToken: string | undefined
+  do {
+    const page = await client.send(
+      new ListObjectsV2Command({ Bucket: env.S3_BUCKET, ContinuationToken: continuationToken })
+    )
+    const objects = (page.Contents ?? []).flatMap((object) => (object.Key ? [{ Key: object.Key }] : []))
+    if (objects.length > 0) {
+      await client.send(new DeleteObjectsCommand({ Bucket: env.S3_BUCKET, Delete: { Objects: objects } }))
+    }
+    continuationToken = page.NextContinuationToken
+  } while (continuationToken)
 }
 
 export async function putReceipt(
