@@ -47,15 +47,15 @@ async function expectRefused(
 
 test.afterEach(closeContexts)
 
-test('[as-is] sans cookie : 401 côté employé et manager, 403 côté RH (audit §3)', async ({ request }) => {
+test('[as-is] sans cookie : 401 côté employé et manager, mais 403 et non 401 côté RH (audit §3)', async ({ request }) => {
   await expectRefused(request, ENDPOINTS)
 })
 
-test('cookie de session falsifié : traité comme anonyme', async ({ request }) => {
+test('[as-is] cookie de session falsifié : traité comme anonyme, donc 403 et non 401 côté RH (audit §3)', async ({ request }) => {
   await expectRefused(request, ENDPOINTS, { cookie: 'authjs.session-token=jeton-falsifie' })
 })
 
-test('session employé : refusée sur les endpoints manager et RH', async ({ browser }) => {
+test('[as-is] session employé : 401 et non 403 côté manager (audit §3), 403 côté RH', async ({ browser }) => {
   const page = await loginAs(browser, (await createOrg()).employee)
   await expectRefused(page.request, ENDPOINTS.filter((endpoint) => endpoint.area !== 'employee'))
 })
@@ -65,7 +65,7 @@ test('session manager : refusée sur les endpoints RH', async ({ browser }) => {
   await expectRefused(page.request, ENDPOINTS.filter((endpoint) => endpoint.area === 'hr'))
 })
 
-test('session RH : refusée sur les endpoints manager', async ({ browser }) => {
+test('[as-is] session RH : 401 et non 403 sur les endpoints manager (audit §3)', async ({ browser }) => {
   const page = await loginAs(browser, (await createOrg()).hr)
   await expectRefused(page.request, ENDPOINTS.filter((endpoint) => endpoint.area === 'manager'))
 })

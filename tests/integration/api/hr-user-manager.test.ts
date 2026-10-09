@@ -29,18 +29,19 @@ MULTIPART_BODY.set('managerId', 'ignoré')
 const JSON_HEADERS = { 'content-type': 'application/json' }
 
 describe('PUT /api/hr/users/:id/manager', () => {
-  it.each<Caller>(['anonymous', 'employee', 'manager'])(
-    '[as-is] %s → 403 (audit §3), rattachement inchangé',
-    async (caller) => {
-      const org = await createOrg()
-      const newcomer = await createUser({ company: org.company })
-      actAsCaller(org, caller)
-      const response = await assign(newcomer.id, { managerId: org.manager.id })
-      expect(response.status).toBe(403)
-      expect(await response.json()).toEqual({ error: 'Unauthorized' })
-      expect(await managerIdOf(newcomer.id)).toBeNull()
-    }
-  )
+  it.each<[string, Caller]>([
+    ['[as-is] anonyme → 403 et non 401 (audit §3), rattachement inchangé', 'anonymous'],
+    ['mauvais rôle employee → 403, rattachement inchangé', 'employee'],
+    ['mauvais rôle manager → 403, rattachement inchangé', 'manager'],
+  ])('%s', async (_label, caller) => {
+    const org = await createOrg()
+    const newcomer = await createUser({ company: org.company })
+    actAsCaller(org, caller)
+    const response = await assign(newcomer.id, { managerId: org.manager.id })
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    expect(await managerIdOf(newcomer.id)).toBeNull()
+  })
 
   it('rattache un employé sans manager et renvoie son DTO', async () => {
     const org = await createOrg()

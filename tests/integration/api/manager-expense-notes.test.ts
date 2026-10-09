@@ -9,15 +9,16 @@ async function queueIds(): Promise<string[]> {
 }
 
 describe('GET /api/manager/expense-notes', () => {
-  it.each<Caller>(['anonymous', 'employee', 'hr_admin'])(
-    '[as-is] %s → 401 et non 403 (audit §3)',
-    async (caller) => {
-      actAsCaller(await createOrg(), caller)
-      const response = await GET()
-      expect(response.status).toBe(401)
-      expect(await response.json()).toEqual({ error: 'Unauthorized' })
-    }
-  )
+  it.each<[string, Caller]>([
+    ['anonyme → 401', 'anonymous'],
+    ['[as-is] mauvais rôle employee → 401 et non 403 (audit §3)', 'employee'],
+    ['[as-is] mauvais rôle hr_admin → 401 et non 403 (audit §3)', 'hr_admin'],
+  ])('%s', async (_label, caller) => {
+    actAsCaller(await createOrg(), caller)
+    const response = await GET()
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+  })
 
   it('renvoie le DTO des notes en attente des rattachés directs, de la plus ancienne à la plus récente', async () => {
     const org = await createOrg()

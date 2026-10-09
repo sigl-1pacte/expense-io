@@ -16,18 +16,19 @@ describe.each([
     )
   }
 
-  it.each<Caller>(['anonymous', 'employee', 'manager'])(
-    '[as-is] %s → 403 (audit §3), note inchangée',
-    async (caller) => {
-      const org = await createOrg()
-      const note = await createNote({ user: org.manager })
-      actAsCaller(org, caller)
-      const response = await decide(note.id)
-      expect(response.status).toBe(403)
-      expect(await response.json()).toEqual({ error: 'Unauthorized' })
-      expect((await findNote(note.id))?.status).toBe('pending')
-    }
-  )
+  it.each<[string, Caller]>([
+    ['[as-is] anonyme → 403 et non 401 (audit §3), note inchangée', 'anonymous'],
+    ['mauvais rôle employee → 403, note inchangée', 'employee'],
+    ['mauvais rôle manager → 403, note inchangée', 'manager'],
+  ])('%s', async (_label, caller) => {
+    const org = await createOrg()
+    const note = await createNote({ user: org.manager })
+    actAsCaller(org, caller)
+    const response = await decide(note.id)
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    expect((await findNote(note.id))?.status).toBe('pending')
+  })
 
   it(`note d'un manager racine → ${decided}, DTO renvoyé`, async () => {
     const org = await createOrg()

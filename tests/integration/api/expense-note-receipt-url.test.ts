@@ -77,7 +77,7 @@ describe('GET /api/expense-notes/:id/receipt-url', () => {
     })
   })
 
-  it('[as-is] note orpheline (receipt_key vide, audit §5) : URL signée de la racine du bucket, qui liste tous les reçus', async () => {
+  it('[as-is] note orpheline (receipt_key vide, audit §5) : URL signée de la racine du bucket, qui liste tous les reçus (constat hors audit)', async () => {
     await storeReceipt('receipts/recu-d-un-autre.png', PNG_BYTES)
     const { employee } = await createOrg()
     const note = await createNote({ user: employee, receiptKey: '' })

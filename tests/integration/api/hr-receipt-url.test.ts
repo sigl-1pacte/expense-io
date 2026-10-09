@@ -11,7 +11,11 @@ function receiptUrl(id: string) {
 }
 
 describe('GET /api/hr/expense-notes/:id/receipt-url', () => {
-  it.each<Caller>(['anonymous', 'employee', 'manager'])('[as-is] %s → 403 (audit §3)', async (caller) => {
+  it.each<[string, Caller]>([
+    ['[as-is] anonyme → 403 et non 401 (audit §3)', 'anonymous'],
+    ['mauvais rôle employee → 403', 'employee'],
+    ['mauvais rôle manager → 403', 'manager'],
+  ])('%s', async (_label, caller) => {
     const org = await createOrg()
     const note = await createNote({ user: org.manager })
     actAsCaller(org, caller)

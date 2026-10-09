@@ -5,7 +5,11 @@ import { type UserDto, readJson } from '../helpers/http'
 import { actAs, actAsCaller, actAsGhost, type Caller } from '../helpers/session'
 
 describe('GET /api/hr/users', () => {
-  it.each<Caller>(['anonymous', 'employee', 'manager'])('[as-is] %s → 403 (audit §3)', async (caller) => {
+  it.each<[string, Caller]>([
+    ['[as-is] anonyme → 403 et non 401 (audit §3)', 'anonymous'],
+    ['mauvais rôle employee → 403', 'employee'],
+    ['mauvais rôle manager → 403', 'manager'],
+  ])('%s', async (_label, caller) => {
     actAsCaller(await createOrg(), caller)
     const response = await GET()
     expect(response.status).toBe(403)
