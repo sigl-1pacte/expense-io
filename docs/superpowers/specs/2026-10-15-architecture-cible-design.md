@@ -1,6 +1,18 @@
 # Architecture cible (option C) — design
 
-> Refacto Expense.io · 15/10/2026 · base : branche ARLA-9 (`6e31ff7`) · études : [`docs/architecture/options-refacto.md`](../../architecture/options-refacto.md), [`docs/architecture/option-c.html`](../../architecture/option-c.html) · constats : audit QA F1–F46.
+> Refacto Expense.io · 15/10/2026 · base : branche ARLA-9 (`6e31ff7`) · études : [`docs/architecture/options-refacto.md`](../../architecture/options-refacto.md), [`docs/architecture/option-c.html`](../../architecture/option-c.html) · constats : audit QA F1–F46 · consignes de soutenance (notes de cours du 15/10).
+
+### Consignes de soutenance
+
+Ces consignes priment sur le reste de la spec :
+
+- Tout le monde doit pouvoir créer une note de frais.
+- Un manager ne valide que les notes des personnes dont il est le manager direct.
+- Un RH valide les notes des managers racines, jamais les siennes.
+- SonarQube doit tourner sur le dépôt.
+- L'interface utilisateur peut être modifiée librement.
+- L'ordre d'exécution peut changer tant que le contrat d'interface (l'API) ne change pas.
+- De nouvelles fonctionnalités sont possibles si elles ont du sens et restent dans le même domaine.
 
 ## Objectif
 
@@ -13,7 +25,7 @@ Critères de succès :
 3. `dependency-cruiser` ne signale aucune violation des règles de dépendance.
 4. Les constats du périmètre sont corrigés et chacun est couvert par un test de non-régression : F1–F3, F5, F9–F11, F14, F15, F22–F27, F30, F31, F33, F42–F44.
 5. Une décision de note envoie un e-mail à l'employé (visible dans Mailpit). Un message rejoué n'envoie pas de second e-mail, et un SMTP en panne envoie le message en DLQ après 3 essais.
-6. Les mesures « avant / après » sont prises avec le même outillage : `jscpd`, règle ESLint `complexity`, `dependency-cruiser`, couverture, nombre de tests `[as-is]` du périmètre.
+6. Les mesures « avant / après » sont prises avec le même outillage : **SonarQube** (duplication, complexité, code smells, vulnérabilités et hotspots, couverture importée), `dependency-cruiser` et le nombre de tests `[as-is]` du périmètre.
 
 ## Décisions
 
@@ -21,11 +33,15 @@ Critères de succès :
 |---|---|---|
 | D1 Option | **C** : B (modules + hexagonal) + flux asynchrone | seule option qui couvre les trois axes (Architecture, Contrat d'API, Asynchrone & run) |
 | Découpage | une spec cible, **trois plans** (socle, B, async) | vision unique ; plans assez courts pour un agent ; B est livrable seul |
-| D2 Flux async | **notification de décision seule** | effet de bord non critique, aucun changement d'API ni de front ; l'OCR reste synchrone |
+| D2 Flux async | **notification de décision seule** | effet de bord non critique ; seul l'ordre d'exécution change, pas le contrat (consigne de soutenance) ; l'OCR reste synchrone |
 | D3 Broker | **SQS sur LocalStack + outbox + relay** | chaque notion du cours est visible (producer, outbox, broker, ack, DLQ) ; cible de prod réelle |
 | D4 Jointures entre modules | **deux requêtes via l'API publique d'`iam`** ; RLS gardée en défense en profondeur, cohérence testée | frontière de module stricte, règle métier dans le domaine |
 | D5 Vocabulaire | **hexagonal**, un fichier par use case | déjà le vocabulaire du dépôt ; « où va le nouveau code ? » sans ambiguïté |
-| RH seul | soumission refusée : **`409 no-approver`** | pas d'auto-validation (séparation des pouvoirs) |
+| Validateurs | manager → ses subordonnés directs ; RH → managers racines, **plus** employés non rattachés (F33) et autres RH (F14) ; jamais sa propre note | respecte les deux règles de la consigne et débloque les notes sans validateur ; l'extension est un choix argumenté |
+| Soumission | **toujours acceptée**, même sans validateur possible (RH seul de son entreprise) | consigne : tout le monde peut créer une note ; la note reste `pending`, et c'est une limite documentée |
+| Qualité | **SonarQube Community** dans le docker-compose (profil `quality`) + job CI en rapport, sans quality gate bloquant | consigne de soutenance ; remplace `jscpd` et la règle `complexity` pour les mesures avant / après |
+| Interface | les pages peuvent évoluer : affichage des nouvelles erreurs, signalement RH des employés non rattachés | consigne : l'UI est libre ; le contrat d'API, lui, reste fixe |
+| Nouvelles fonctionnalités | **l'e-mail de décision et le signalement RH, rien de plus** | la fonctionnalité nouvelle sera celle du live coding ; chaque ajout serait un écart de contrat de plus à défendre |
 | Effort | **non pris en compte** | la refacto est codée par des agents |
 
 ## Hors périmètre
@@ -33,7 +49,8 @@ Critères de succès :
 - F4, F6, F8 et F38 sont documentés, pas corrigés.
 - L'OCR asynchrone (`202` avec polling) n'est pas fait. Il est mentionné comme évolution possible devant le jury.
 - Le resserrement des validations hors F42 n'est pas fait : virgule décimale, dates `jj/mm/aaaa`, reçu vide, contenu non vérifié, montant hors `numeric(10,2)`. Ces tests restent `[as-is]`, mais leurs 500 perdent la stack.
-- La réécriture des pages React et de `components/` n'est pas faite.
+- Les pages React et `components/` ne sont pas réécrites. Elles sont seulement ajustées (voir [Interface utilisateur](#interface-utilisateur)).
+- Aucune autre fonctionnalité métier n'est ajoutée (par exemple un motif de rejet).
 - La facturation et OpenAI ne sont pas créés (YAGNI). Leur emplacement est documenté dans `conventions.md` : `modules/billing`, avec un port `PaymentProvider`.
 
 ## Architecture
@@ -44,7 +61,7 @@ Critères de succès :
 src/
   app/api/**/route.ts        adapters primaires : parse → use case → HTTP (même place, mêmes réponses)
   app/actions/auth.ts        adapter primaire (server actions signup/login) → iam
-  app/**/page.tsx, components/  inchangés
+  app/**/page.tsx, components/  ajustés à la marge (erreurs, signalement RH), consomment l'API HTTP
   modules/
     expenses/
       domain/          ExpenseNote.ts  errors.ts
@@ -96,7 +113,7 @@ Le JWT ne porte plus que l'`id`. Chaque adapter de route appelle `iam.getActor(s
 
 ### API publique des modules
 
-- **`iam`** : `signUp`, `authenticate`, `getActor`, `listDirectory`, `assignManager`, `approveesOf(actor)` (ids des auteurs dont l'acteur valide les notes), `canDecide(actor, ownerId)`, `contactOf(userId)` (nom et e-mail, pour le worker), `hasApprover(userId)`.
+- **`iam`** : `signUp`, `authenticate`, `getActor`, `listDirectory`, `assignManager`, `approveesOf(actor)` (ids des auteurs dont l'acteur valide les notes), `canDecide(actor, ownerId)`, `contactOf(userId)` (nom et e-mail, pour le worker).
 - **`expenses`** : `submitExpenseNote`, `listMyExpenseNotes`, `listPendingApprovals`, `decideExpenseNote`, `getReceiptUrl`, `suggestFromReceipt`, `sendDecisionEmail`.
 
 ## Règles métier
@@ -115,7 +132,8 @@ canDecide(actor, owner) = actor.id ∈ approversOf(owner)
 
 - La **file RH** (`GET /api/hr/expense-notes`) contient toutes les notes `pending` dont un RH de l'entreprise est validateur, sauf les siennes. Son format ne change pas.
 - La **file manager** (`GET /api/manager/expense-notes`) contient les notes `pending` de ses subordonnés directs.
-- Un **RH seul** dans son entreprise n'a aucun validateur. `submitExpenseNote` vérifie `iam.hasApprover(actor.id)` et lève `NoApprover`, traduit en `409` avec le type `no-approver`.
+- Les **règles de la consigne** sont respectées : un manager ne valide que ses subordonnés directs (pas de transitivité), et un RH valide les managers racines, jamais ses propres notes. L'extension aux employés non rattachés et aux autres RH est un choix de l'équipe, justifié par F14 et F33.
+- Un **RH seul** dans son entreprise n'a aucun validateur. Sa soumission est quand même acceptée (`201`), car la consigne veut que tout le monde puisse créer une note. La note reste `pending` et n'apparaît dans aucune file. C'est une limite connue, documentée dans l'ADR, qui disparaît dès qu'un second RH existe.
 
 ### `assignManager` (F5, F30)
 
@@ -143,12 +161,11 @@ Ce use case remplace les quatre handlers approve et reject (manager et RH). Les 
 Tout se passe dans une seule unité de travail :
 
 1. On valide les entrées, avec les mêmes règles et messages qu'aujourd'hui.
-2. On vérifie `hasApprover`.
-3. On fait l'`INSERT` de la note.
-4. On calcule la clé à partir de `receipt_seq`.
-5. On envoie le reçu à S3.
-6. On met à jour `receipt_key`.
-7. On fait le `COMMIT`.
+2. On fait l'`INSERT` de la note.
+3. On calcule la clé à partir de `receipt_seq`.
+4. On envoie le reçu à S3.
+5. On met à jour `receipt_key`.
+6. On fait le `COMMIT`.
 
 Si l'upload échoue, tout est annulé et on renvoie `502 receipt-upload-failed` : plus aucune note sans reçu. Un objet S3 peut rester orphelin si le `COMMIT` échoue après l'upload. Ce cas est accepté et documenté.
 
@@ -164,6 +181,8 @@ L'entreprise et l'utilisateur sont créés dans une seule transaction. Une viola
 Une note sans clé n'existe plus (F10). Le cas reste malgré tout traité en `404`.
 
 ## Flux asynchrone
+
+**Pourquoi c'est conforme à la consigne :** la décision répond exactement comme aujourd'hui (même code, même corps). Seul l'ordre d'exécution change : l'e-mail part après la réponse, par le worker. Le contrat d'interface est donc intact. Le choix est aussi justifiable sur le fond : un SMTP lent ou en panne ne doit pas faire échouer une décision.
 
 ### Données
 
@@ -270,7 +289,7 @@ Si le Mailer échoue, la transaction est annulée, le message n'est pas supprim�
   | `NotFound` | 404 |
   | `Forbidden` | 403 |
   | `Unauthenticated` | 401 |
-  | `Conflict` (`already-decided`, `no-approver`, `invalid-manager`) | 409 |
+  | `Conflict` (`already-decided`, `invalid-manager`) | 409 |
   | `InvalidInput` | 400 |
   | `ReceiptUploadFailed` | 502 |
   | tout le reste | 500 |
@@ -292,8 +311,7 @@ Si le Mailer échoue, la transaction est annulée, le message n'est pas supprim�
 | endpoints RH | sans session → 403 | 401 |
 | id non UUID, corps illisible | 500 | 400 |
 | `?sort=` | expression SQL libre | liste blanche, sinon tri par défaut |
-| `POST …/approve` et `…/reject`, note déjà décidée | 200 (course) | 409 `already-decided` |
-| `POST /api/expense-notes` par un RH seul | 201, note bloquée | 409 `no-approver` |
+| `POST …/approve` et `…/reject`, décisions concurrentes | les deux en 200 (course F9) | une en 200, l'autre en 409 `Already decided`, comme le cas séquentiel existant |
 | `POST /api/expense-notes`, échec S3 | 500, note orpheline | 502, aucune note |
 | `GET /api/hr/expense-notes` | managers racines seulement | plus complète (F14, F33), même format |
 | `PUT /api/hr/users/{id}/manager` | manager d'une autre entreprise ou cycle → 200 | 409 `invalid-manager` |
@@ -319,7 +337,8 @@ Ces écarts ajoutent des cas d'erreur et corrigent des failles sans modifier auc
 - **Intégration (nouveaux)** :
   - concurrence F9 : approve et reject en parallèle donnent un 200 et un 409 ;
   - F5 et F30 : manager d'une autre entreprise, cycle direct et cycle long ;
-  - F14 et F33 : file RH élargie, et RH seul → 409 ;
+  - F14 et F33 : file RH élargie, un RH ne voit jamais sa propre note, et un RH seul soumet bien (201), sa note restant dans aucune file ;
+  - consigne « manager direct » : un manager ne voit ni ne décide les notes des subordonnés de ses subordonnés ;
   - F11 : échec en milieu d'inscription, aucune entreprise orpheline ;
   - F31 : rôle modifié en base, effet immédiat ;
   - cohérence RLS / `approveesOf` ;
@@ -333,7 +352,24 @@ Ces écarts ajoutent des cas d'erreur et corrigent des failles sans modifier auc
   - LocalStack passe à `s3,sqs` ;
   - on ajoute le service Mailpit ;
   - on ajoute les jobs `dependency-cruiser`, grep « SQL cross-module » et `oasdiff` ;
+  - on ajoute un job SonarQube : un conteneur de service `sonarqube:community`, puis `npm run sonar` avec la couverture lcov de Vitest. Il produit un rapport en artefact et n'est pas bloquant ;
   - les seuils de couverture sont recalés au niveau mesuré après la refacto, sans baisse sur le périmètre existant.
+
+## Interface utilisateur
+
+Ce sont des ajustements ciblés. La consigne laisse l'UI libre, mais aucune refonte n'est prévue.
+
+- Les pages affichent le `detail` des nouvelles réponses d'erreur (`409 Already decided` en cas de décision concurrente, `409 invalid-manager`, `400`), au lieu d'un message générique.
+- La console RH (`AdminConsole`) signale les employés non rattachés, c'est-à-dire ceux dont `managerId` est `null`, avec le rôle `employee`, à partir de `GET /api/hr/users`. Ils sont mis en avant pour inviter à les rattacher.
+- La file RH affiche les notes des employés non rattachés et des autres RH, au même format que celles des managers racines.
+- Les E2E Playwright existants restent verts. Un E2E couvre le signalement RH.
+
+## SonarQube
+
+- Le service `sonarqube` (image `sonarqube:community`) est déclaré dans le profil `quality` du docker-compose et lancé par `docker compose --profile quality up -d sonarqube`.
+- `sonar-project.properties` déclare les sources `src`, les tests `tests`, la couverture `coverage/lcov.info` et les exclusions (`tessdata`, `migrations`, fichiers générés).
+- `npm run sonar` lance `@sonar/scan` avec le jeton lu dans `SONAR_TOKEN`.
+- Le run **avant** se fait sur le commit de base de la refacto, et le run **après** à la fin du plan 3. On garde les captures du tableau de bord et les métriques (bugs, vulnérabilités, hotspots, code smells, duplication, complexité cognitive, couverture) pour l'audit chiffré.
 
 ## Documentation et garde-fous pour les agents
 
@@ -347,15 +383,15 @@ Ces écarts ajoutent des cas d'erreur et corrigent des failles sans modifier auc
   
   Il donne aussi les règles de dépendance, la traduction des erreurs et l'emplacement des futurs modules (`billing`).
 - Un `CLAUDE.md` à la racine renvoie à `conventions.md` et aux commandes de vérification (`lint`, `typecheck`, `test`, `depcruise`, `e2e`).
-- On écrit l'ADR-001 (option C, alternatives A, B et D, conséquences) et on met à jour le README (worker, Mailpit, variables d'environnement).
+- On écrit l'ADR-001 (option C, alternatives A, B et D, conséquences, limite du RH seul) et on met à jour le README (worker, Mailpit, SonarQube, variables d'environnement).
 
 ## Découpage en plans
 
 | Plan | Contenu | Prérequis | Livrable seul ? |
 |---|---|---|---|
-| **1. Socle** | mesures « avant » (`jscpd`, `complexity`, `dependency-cruiser` en mode rapport) ; `openapi.yaml` de l'API actuelle et `oasdiff` en CI ; `shared/config`, `shared/problem`, `shared/logger` ; rôle `expense_app` et RLS complète ; `?sort=` ; secret ; 401/403 ; 400 ; F1 | — | oui |
-| **2. B** | `shared/unit-of-work` et `shared/http` ; module `iam` (`ApprovalPolicy`, `getActor`, `signUp`, `assignManager`) puis module `expenses`, en migrant les routes une par une avec la suite verte à chaque commit ; suppression du code mort ; `dependency-cruiser` bloquant ; `conventions.md`, `CLAUDE.md`, ADR-001 | plan 1 | oui |
-| **3. Async** | migrations `outbox` et `processed_messages`, rôle `expense_worker` ; SQS et Mailpit (compose, CI, `ensure-queues`) ; `EventOutbox` dans `decideExpenseNote` ; worker (relay, consumer) ; contrat AsyncAPI ; tests idempotence, DLQ et E2E Mailpit ; mesures « après » | plan 2 | oui |
+| **1. Socle** | SonarQube (compose, `sonar-project.properties`, job CI) et mesures « avant » (SonarQube, `dependency-cruiser` en mode rapport) ; `openapi.yaml` de l'API actuelle et `oasdiff` en CI ; `shared/config`, `shared/problem`, `shared/logger` ; rôle `expense_app` et RLS complète ; `?sort=` ; secret ; 401/403 ; 400 ; F1 | — | oui |
+| **2. B** | `shared/unit-of-work` et `shared/http` ; module `iam` (`ApprovalPolicy`, `getActor`, `signUp`, `assignManager`) puis module `expenses`, en migrant les routes une par une avec la suite verte à chaque commit ; suppression du code mort ; `dependency-cruiser` bloquant ; ajustements d'UI (erreurs, signalement RH) ; `conventions.md`, `CLAUDE.md`, ADR-001 | plan 1 | oui |
+| **3. Async** | migrations `outbox` et `processed_messages`, rôle `expense_worker` ; SQS et Mailpit (compose, CI, `ensure-queues`) ; `EventOutbox` dans `decideExpenseNote` ; worker (relay, consumer) ; contrat AsyncAPI ; tests idempotence, DLQ et E2E Mailpit ; mesures « après » (SonarQube, `dependency-cruiser`) | plan 2 | oui |
 
 ## Risques
 
