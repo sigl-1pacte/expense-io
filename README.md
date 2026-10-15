@@ -2,6 +2,9 @@
 
 Application de gestion de notes de frais.
 
+La base de connaissance du projet (état des lieux, audit, benchmark, contrat
+d'API, choix d'architecture) est dans [`docs/`](docs/README.md).
+
 ## Prérequis
 
 - Node.js 24+
