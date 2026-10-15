@@ -1,6 +1,6 @@
 # Expense.io — Audit QA & Sécurité (étendu)
 
-_Date : 2026-10-09 (complété le 2026-10-12 : F30–F38) · Portée : séparation inter-entreprises, appartenance & rôle,
+_Date : 2026-10-09 (complété le 2026-10-12 : F30–F38, puis F39–F46 d'après la suite de tests ARLA-9) · Portée : séparation inter-entreprises, appartenance & rôle,
 performance métier, perte/corruption de données, qualité de code, limites de
 ressources, synchrone vs asynchrone, et catégories connexes._
 
@@ -9,7 +9,10 @@ ressources, synchrone vs asynchrone, et catégories connexes._
 rejeu des cas de contrôle d'accès via l'API en utilisant le cookie de session
 réel de chaque rôle. Les comptes `manager`/`hr_admin` (non attribuables depuis
 l'UI) ont été créés directement en base. « Confirmé » = reproduit sur
-l'application en marche ; « Code » = établi par lecture du code.
+l'application en marche ; « Code » = établi par lecture du code ; « Test » =
+reproduit par un test automatisé de la suite de caractérisation ARLA-9 (Vitest
+sur Postgres et LocalStack réels avec session simulée, ou Playwright sur
+l'application lancée), dont le fichier est cité.
 
 Ce document complète le premier rapport (les 16 constats fonctionnels/sécurité
 de base) en élargissant à de nouvelles catégories. Les constats déjà couverts
@@ -18,6 +21,12 @@ sont rappelés en synthèse mais détaillés surtout quand il y a du neuf.
 Les constats F30–F38 ont été ajoutés après une relecture complète du code
 (routes API, authentification, migration, composants) ; ils sont tous au
 statut « Code » et restent à reproduire sur l'application en marche.
+
+Les constats F39–F46 ont été ajoutés le 2026-10-12 à partir de la suite de
+tests de caractérisation ARLA-9 (branche
+`louisbert91/arla-9-tests-de-caracterisation`) : ses tests étiquetés `[as-is]`
+figent des défauts que les constats précédents ne relevaient pas. Ils sont au
+statut « Test », sauf F44 (« Code »).
 
 ---
 
@@ -63,6 +72,14 @@ statut « Code » et restent à reproduire sur l'application en marche.
 | F36 | Sécurité | Énumération des comptes (message de signup, timing du login) | Faible | Code |
 | F37 | Sécurité | Type du reçu déclaré par le client, contenu jamais vérifié | Faible | Code |
 | F38 | Métier | Fonctions manquantes : modifier/annuler une note, motif de rejet, mot de passe oublié | Faible | Code |
+| F39 | Isolation | Note orpheline : l'URL du reçu liste les reçus de toutes les entreprises | Moyen | Test |
+| F40 | Corruption de données | Saisie API corrompue sans erreur (`12,50` → 12, `0.001` → 0, `08/10/2026` → 10 août) | Moyen | Test |
+| F41 | Corruption de données | Corps de requête illisible → employé détaché de son manager (200) | Moyen | Test |
+| F42 | Qualité/API | Entrée malformée (id non UUID, mauvais corps) → 500 avec stack au lieu de 400 | Faible | Test |
+| F43 | Qualité | `return withUserScope(...)` sans `await` : erreurs hors `try/catch` dans 7 routes | Faible | Test |
+| F44 | Isolation | RLS incomplète : policies RH sans filtre d'entreprise, `users`/`companies` sans RLS | Moyen | Code |
+| F45 | Métier | Reçu vide (0 octet) accepté | Faible | Test |
+| F46 | Appartenance/Rôle | Pages `/manager` et `/hr` servies à tout connecté, avec un simple message de refus | Faible | Test |
 
 Gravité : **Critique** = compromission ou corruption directe · **Élevé** = fuite
 inter-entreprises, DoS réaliste ou perte de donnée · **Moyen** = impact métier
@@ -107,6 +124,35 @@ _Correctif : liste blanche (colonne ∈ ensemble fixe + sens `ASC|DESC`)._
 > appel hors périmètre renvoie 404. Le problème d'isolation porte sur la
 > **lecture des reçus** (F1) et sur l'intégrité du rattachement (F5), pas sur
 > l'écriture des décisions.
+
+**F39 — Moyen — note orpheline : l'URL du reçu liste tout le bucket. (Test)**
+Une note dont l'upload a échoué garde `receipt_key = ''` (F10).
+`getReceiptUrl('')` (`lib/storage.ts:35-37`) présigne alors un `GET` sur la
+**racine du bucket** (`/receipts/`), que S3 traite comme un listage : la
+réponse est un `ListBucketResult` avec les clés, tailles et dates des reçus de
+**toutes les entreprises** (`expense-note-receipt-url.test.ts:80`, reproduit
+sur LocalStack). Le propriétaire de la note y accède directement, et tout
+manager y accède via F1 s'il connaît l'id de la note. La signature verrouille
+le chemin : le contenu des reçus n'est pas exposé, seulement leurs
+métadonnées (volume et rythme d'activité des autres sociétés, dans la limite
+de 1 000 clés sur AWS). Sur AWS, le listage suppose aussi que les identifiants
+applicatifs aient `s3:ListBucket`. _Correctif : refuser de présigner une clé
+vide (reçu indisponible), et supprimer la cause, la note orpheline (F10)._
+
+**F44 — Moyen — RLS incomplète, même une fois F2 corrigé. (Code)** Les
+policies `expense_notes_hr_root_manager_select` et `…_update`
+(`migrations/1700000000001_init-schema.sql:70-100`) vérifient que l'appelant
+est `hr_admin` et que l'auteur est un manager racine, mais **pas** qu'ils
+appartiennent à la même entreprise. Aujourd'hui c'est sans effet : la RLS est
+contournée (F2) et la route RH filtre `company_id` en SQL. Mais corriger F2
+seul ne suffit pas : au niveau de la base, toute RH lirait et modifierait les
+notes des managers racines de **toutes** les entreprises. Par ailleurs, la RLS
+ne couvre que `expense_notes` : `users` et `companies` n'ont aucune policy, et
+il manque la policy `UPDATE` propriétaire dont dépend la création de note
+(cf. F2). _Correctif : ajouter `hr.company_id = u.company_id` aux deux
+policies RH, envisager une RLS par `company_id` sur `users` (en tenant compte
+de la connexion et de l'inscription, qui lisent `users` hors contexte
+utilisateur), et tester les policies avec un rôle non superuser._
 
 ---
 
@@ -225,6 +271,32 @@ stack (même mécanisme que F13, cf. F26). Une date future ou absurde
 chaque liste (cf. F18). _Correctif : valider le format `YYYY-MM-DD`, borner la
 date (pas dans le futur, ancienneté maximale selon la politique de frais) et la
 longueur de la description, avant l'insertion._
+
+**F40 — Moyen — saisie corrompue sans erreur via l'API. (Test)** Le montant
+est lu par `Number.parseFloat` (`expense-notes/route.ts:69`), qui s'arrête au
+premier caractère invalide : `12,50` est enregistré **12,00**, et `12abc`
+**12,00**. `0.001` passe le contrôle `amount > 0`, puis Postgres l'arrondit à
+**0,00** : une note à montant nul est créée. La date, non validée (F32), est
+interprétée selon le `DateStyle` de Postgres (`ISO, MDY`) : `08/10/2026`
+(8 octobre) est enregistré **2026-08-10** (10 août). Dans tous ces cas, la
+réponse est 201, sans erreur, et la donnée en base est fausse
+(`expense-notes.test.ts:314-317` et `:342`). L'UI n'est pas touchée
+(`type="number"` et `type="date"` envoient des formats normalisés) : seuls les
+appels directs à l'API le sont, mais c'est justement le contrat public.
+_Correctif : parser strictement (`^\d+(\.\d{1,2})?$`, virgule refusée ou
+convertie explicitement), exiger un montant d'au moins 0,01 après arrondi, et
+n'accepter que `YYYY-MM-DD` (cf. F32)._
+
+**F41 — Moyen — une requête malformée détache l'employé de son manager.
+(Test)** `PUT /api/hr/users/[id]/manager` remplace tout corps illisible par
+`null` (`.catch(() => null)` puis `?? null`, `route.ts:12-13`). Un corps non
+JSON, un corps vide, un objet sans `managerId` ou un formulaire multipart sont
+donc lus comme « aucun manager » : réponse **200**, et le rattachement est
+effacé (`hr-user-manager.test.ts:132-144`). Un client bogué ou une erreur
+d'intégration supprime la hiérarchie en silence ; l'employé redevient racine
+et ses notes ne sont plus visibles de personne (F33). _Correctif : exiger un
+corps JSON valide contenant explicitement la clé `managerId` (`null` pour
+détacher), sinon 400._
 
 ---
 
@@ -372,6 +444,37 @@ peut pas prouver qu'elle ne les réintroduit pas. _Correctif : tests
 d'intégration des routes API par rôle (au minimum un test par constat corrigé),
 exécutés en CI avec lint et typecheck à chaque PR._
 
+**F42 — Faible — entrée malformée → 500 au lieu de 400. (Test)** Les erreurs
+de format ne sont pas validées en entrée : elles remontent de Postgres ou de
+`formData()`. Concrètement :
+- id non UUID sur les routes de reçu (employé, manager, RH) et sur la cible de
+  `PUT /api/hr/users/[id]/manager` (`invalid input syntax for type uuid`) ;
+- `managerId` de mauvais type (`42`, `""`) ;
+- corps JSON, vide ou multipart malformé sur `POST /api/expense-notes` ;
+- corps JSON sur la suggestion OCR.
+
+Toutes ces requêtes renvoient **500 avec la stack** (F26), ce qui pollue les
+journaux d'erreurs et noie les vraies pannes
+(`expense-note-receipt-url.test.ts:70`, `manager-receipt-url.test.ts:63`,
+`hr-receipt-url.test.ts:57`, `hr-user-manager.test.ts:149,167`,
+`expense-notes.test.ts:364-394`, `receipt-suggestion.test.ts:88`).
+_Correctif : valider en entrée les paramètres de route (UUID) et le corps
+(schéma), et renvoyer 400._
+
+**F43 — Faible — erreurs qui échappent au `try/catch`. (Test)** Sept routes
+font `return withUserScope(...)` **sans `await`** :
+`expense-notes/route.ts:44`, `manager/expense-notes/route.ts:25`,
+`hr/expense-notes/route.ts:25`, et les quatre routes `approve`/`reject`
+(ligne 13). Une erreur levée dans la transaction rejette la promesse après la
+sortie du `try`, et `respondError` n'est jamais appelé : Next renvoie sa 500
+générique. Le même type d'erreur donne donc une 500 JSON avec stack sur
+certaines routes et une 500 brute sur d'autres (`api-auth.spec.ts:90-104`,
+`manager-decisions.test.ts:117`, `hr-decisions.test.ts:122`). La gestion
+d'erreurs n'est pas uniforme, et un correctif de F26 dans `respondError` ne
+couvrira pas ces routes. _Correctif : `return await withUserScope(...)`,
+idéalement via un wrapper de route unique qui centralise la gestion
+d'erreurs._
+
 ---
 
 ## 9 · Autres
@@ -413,6 +516,20 @@ corriger ; aucun parcours « mot de passe oublié » ni changement de mot de
 passe. Pas des défauts au sens strict, mais des manques qui bloquent un usage
 réel. _Correctif : à arbitrer avec le métier ; le motif de rejet rejoint la
 piste d'audit de F28._
+
+**F45 — Faible — reçu vide accepté. (Test)** Un fichier de 0 octet passe tous
+les contrôles (`expense-notes/route.ts:81-86`) : la note est créée (201) avec
+un objet S3 vide comme justificatif (`expense-notes.test.ts:295`). Même cause
+que F37 : le contenu du reçu n'est jamais vérifié. _Correctif : taille
+minimale, et vérification de la signature du fichier (F37)._
+
+**F46 — Faible — pages réservées servies avec un simple message. (Test)**
+`proxy.ts` vérifie seulement qu'une session existe. Le rôle n'est contrôlé
+qu'au rendu, par `manager/page.tsx` et `hr/page.tsx`, qui affichent « Accès
+réservé… » sans redirection ni statut 403 (`auth.spec.ts:88-100`). Il n'y a
+pas de fuite, puisque les données passent par l'API qui contrôle le rôle, mais
+le refus n'est pas un vrai refus HTTP. _Correctif : contrôler le rôle dans le
+proxy (redirection) ou renvoyer un 403 depuis la page._
 
 ---
 
