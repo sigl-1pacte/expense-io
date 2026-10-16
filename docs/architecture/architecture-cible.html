@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Architecture cible Expense.io</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Fiche d'architecture validée, même système visuel que option-c.html.
+   En-tête, schéma au centre, flux d'une décision, règles et garde-fous, décisions, alternatives et limites. */
+:root {
+  --bg: #F5F6F8; --surface: #FFFFFF; --sunk: #ECEEF2; --fg: #17202C; --muted: #586273;
+  --line: #D8DCE3; --line-strong: #A6AEBB;
+  --exp: #2563EB; --exp-soft: #E7EEFD;
+  --iam: #D4560B; --iam-soft: #FCEDE2;
+  --pres: #15803D; --pres-soft: #E3F3E8;
+  --async: #7C3AED; --async-soft: #EFE8FD;
+  --mark: #FFE27A; --mark-soft: #FFF8DB; --mark-fg: #3B2F00;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10141B; --surface: #171C25; --sunk: #0C0F14; --fg: #E4E8EF; --muted: #97A1B2;
+    --line: #29303C; --line-strong: #4A5466;
+    --exp: #74A4FF; --exp-soft: #16223A; --iam: #FB9450; --iam-soft: #2D1C10;
+    --pres: #4ADE80; --pres-soft: #11281A; --async: #A98BFA; --async-soft: #211936;
+    --mark: #6B5612; --mark-soft: #251F0C; --mark-fg: #FFE9A3;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10141B; --surface: #171C25; --sunk: #0C0F14; --fg: #E4E8EF; --muted: #97A1B2;
+  --line: #29303C; --line-strong: #4A5466;
+  --exp: #74A4FF; --exp-soft: #16223A; --iam: #FB9450; --iam-soft: #2D1C10;
+  --pres: #4ADE80; --pres-soft: #11281A; --async: #A98BFA; --async-soft: #211936;
+  --mark: #6B5612; --mark-soft: #251F0C; --mark-fg: #FFE9A3;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 .95rem/1.55 var(--font-body); -webkit-font-smoothing: antialiased; }
+.page { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 36px 48px; display: flex; flex-direction: column; gap: 28px; }
+:focus-visible { outline: 2px solid var(--exp); outline-offset: 2px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; }
+code { font-family: var(--font-mono); font-size: .86em; background: var(--sunk); padding: .05em .35em; border-radius: 4px; overflow-wrap: anywhere; }
+b { font-weight: 600; }
+.f { display: inline-block; font: 500 .72rem/1.5 var(--font-mono); color: var(--muted); border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 .35em; white-space: nowrap; vertical-align: .08em; }
+.label { font: 500 .74rem var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+ul.clean { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+ul.clean li { padding-left: 1.05em; position: relative; }
+ul.clean li::before { content: ""; position: absolute; left: 0; top: .7em; width: .45em; height: 2px; background: var(--line-strong); }
+
+/* En-tête */
+.top { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 32px; align-items: end; }
+@media (max-width: 860px) { .top { grid-template-columns: 1fr; } }
+.title { display: flex; flex-direction: column; gap: 12px; }
+.eyebrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.status { font: 600 .7rem var(--font-mono); letter-spacing: .06em; padding: 3px 8px; border-radius: 999px; background: var(--mark); color: var(--mark-fg); }
+h1 { font: 700 clamp(2rem, 4.6vw, 3.2rem)/1.04 var(--font-display); letter-spacing: -.01em; }
+.lead { font-size: 1.08rem; color: var(--muted); max-width: 66ch; }
+.why { background: var(--mark-soft); border: 1px solid var(--mark); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.status.ok { background: var(--pres-soft); color: var(--pres); border: 1px solid var(--pres); }
+.why h2 { font: 600 1.05rem var(--font-display); }
+
+/* Schéma */
+.figure { display: flex; flex-direction: column; gap: 14px; }
+.diagram { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 14px; }
+.diagram svg { display: block; width: 100%; min-width: 900px; height: auto; }
+.dg text { font-family: var(--font-body); font-size: 13px; fill: var(--fg); }
+.dg .lbl { font-weight: 600; font-size: 14px; }
+.dg .sub { fill: var(--muted); font-size: 12px; }
+.dg .sm { font-size: 11px; }
+.dg .mono { font-family: var(--font-mono); font-size: 11.5px; }
+.dg .cap { font-family: var(--font-mono); font-size: 11px; fill: var(--muted); letter-spacing: .06em; }
+.dg .hex { fill: var(--sunk); stroke: var(--fg); stroke-width: 2; }
+.dg .n { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; }
+.dg .n.pres { fill: var(--pres-soft); stroke: var(--pres); }
+.dg .n.async { fill: var(--async-soft); stroke: var(--async); }
+.dg .mod { stroke-width: 1.5; }
+.dg .mod.exp { fill: var(--exp-soft); stroke: var(--exp); }
+.dg .mod.iam { fill: var(--iam-soft); stroke: var(--iam); }
+.dg .dom { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+.dg .mod-lbl { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; }
+.dg .mod-lbl.exp { fill: var(--exp); }
+.dg .mod-lbl.iam { fill: var(--iam); }
+.dg .new { fill: var(--async); font-weight: 600; }
+.dg .port { fill: var(--surface); stroke: var(--fg); stroke-width: 2; }
+.dg .e { fill: none; stroke: var(--muted); stroke-width: 1.5; marker-end: url(#arrow); }
+.dg .e.async { stroke: var(--async); marker-end: url(#arrow-async); }
+.dg .e.loop { stroke: var(--async); stroke-dasharray: 6 4; marker-end: url(#arrow-async); marker-start: url(#arrow-async); }
+.dg .proc { fill: none; stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 6 5; }
+.dg .rim { fill: none; stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.dg .badge circle { fill: var(--async); }
+.dg .badge text { fill: var(--bg); font: 600 11px var(--font-mono); text-anchor: middle; }
+.arrowhead { fill: var(--muted); }
+.arrowhead.async { fill: var(--async); }
+
+.figure-foot { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 28px; }
+@media (max-width: 860px) { .figure-foot { grid-template-columns: 1fr; } }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: st; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; font-size: .9rem; }
+@media (max-width: 640px) { .steps { grid-template-columns: 1fr; } }
+.steps li { counter-increment: st; position: relative; padding-left: 30px; }
+.steps li::before { content: counter(st); position: absolute; left: 0; top: .1em; width: 20px; height: 20px; border-radius: 50%; background: var(--async); color: var(--bg); font: 600 11px/20px var(--font-mono); text-align: center; }
+.reading { font-size: .88rem; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+.reading b { color: var(--fg); }
+
+/* Blocs */
+.blocks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 980px) { .blocks { grid-template-columns: 1fr; } }
+.block { min-width: 0; display: flex; flex-direction: column; gap: 12px; padding-top: 14px; border-top: 2px solid var(--fg); }
+.block h2 { font: 600 1.2rem var(--font-display); }
+.block .small { font-size: .86rem; color: var(--muted); }
+.cmp { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.cmp th, .cmp td { text-align: left; vertical-align: top; padding: 7px 8px 7px 0; border-bottom: 1px solid var(--line); }
+.cmp thead th { font: 500 .72rem var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.cmp tbody th { font-weight: 500; white-space: nowrap; padding-right: 14px; }
+.cmp td { color: var(--muted); }
+.pair { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 860px) { .pair { grid-template-columns: 1fr; } .cmp tbody th { white-space: normal; } }
+
+/* Décisions */
+.decided { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.dec-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 24px; }
+.dec-list div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dec-list b { font: 600 .95rem var(--font-display); }
+.dec-list b span { font: 600 .78rem var(--font-mono); color: var(--muted); margin-right: 6px; }
+.dec-list p { font-size: .85rem; color: var(--muted); }
+.foot { font-size: .78rem; color: var(--muted); }
+@media print { body { background: #fff; } .page { padding-block: 0; gap: 18px; } .diagram, .block { break-inside: avoid; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrowhead" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+    <marker id="arrow-async" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrowhead async" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+</svg>
+
+<main class="page">
+
+  <header class="top">
+    <div class="title">
+      <div class="eyebrow">
+        <span class="label">Expense.io · refacto · architecture cible</span>
+        <span class="status ok">VALIDÉE · 16/10/2026</span>
+      </div>
+      <h1>Monolithe modulaire, hexagonal, avec une outbox d'e-mails</h1>
+      <p class="lead">Un seul code et une seule base, découpés en deux modules métier, <code>expenses</code> et <code>iam</code>. Chaque module protège son métier derrière des ports. L'e-mail de décision est composé dans le cœur pendant la requête, puis livré à part par un petit worker sans code métier. L'API ne change pas.</p>
+    </div>
+    <aside class="why">
+      <h2>L'essentiel</h2>
+      <ul class="clean">
+        <li><b>Toute décision métier se prend dans le cœur</b> : qui valide, à qui écrire, quoi écrire.</li>
+        <li><b>Livrer n'est pas une décision métier</b> : le worker de livraison est de l'infrastructure, hors de l'hexagone.</li>
+        <li><b>L'asynchrone sert la fiabilité</b> : un serveur mail lent ou en panne ne fait jamais échouer une décision, et aucun e-mail n'est perdu.</li>
+      </ul>
+    </aside>
+  </header>
+
+  <section class="figure" aria-label="Schéma de l'architecture cible">
+    <div class="diagram">
+      <svg class="dg" viewBox="0 0 1110 700" role="img" aria-label="Deux process. Le process web contient les adapters d'entrée (pages, routes HTTP, server actions) et le cœur hexagonal (module expenses, module iam, shared). À droite, cinq adapters de sortie derrière des ports : Postgres pour les notes et OutboxMailer qui écrit dans mail_outbox, dans la même transaction, puis S3, Tesseract, et Postgres avec bcrypt pour les utilisateurs. En bas, le process worker contient le worker de livraison, hors de l'hexagone, qui lit et marque mail_outbox et envoie en SMTP direct à Mailpit.">
+        <!-- Process web -->
+        <rect class="proc" x="10" y="48" width="842" height="482" rx="12"/>
+        <text class="cap" x="26" y="70">PROCESS WEB · next start</text>
+        <text class="cap" x="975" y="40" text-anchor="middle">SYSTÈMES EXTERNES</text>
+
+        <!-- Cœur -->
+        <polygon class="hex" points="300,300 380,90 740,90 820,300 740,510 380,510"/>
+        <text class="cap" x="560" y="112" text-anchor="middle">CŒUR MÉTIER</text>
+
+        <!-- Module expenses -->
+        <rect class="mod exp" x="385" y="124" width="350" height="160" rx="8"/>
+        <text class="mod-lbl exp" x="398" y="142">module expenses</text>
+        <text class="sub" x="560" y="168" text-anchor="middle">submit · listMine · listPending · decide</text>
+        <text class="sub" x="560" y="189" text-anchor="middle">getReceiptUrl · suggestFromReceipt</text>
+        <text class="mono new" x="560" y="212" text-anchor="middle">decisionEmail · compose l'e-mail</text>
+        <rect class="dom" x="465" y="230" width="190" height="38" rx="6"/>
+        <text class="sub mono" x="560" y="253" text-anchor="middle">domaine : ExpenseNote</text>
+
+        <!-- Lien entre modules -->
+        <path class="e" d="M560,284 L560,328"/>
+        <text class="sub mono" x="572" y="310">iam/index.ts</text>
+
+        <!-- Module iam -->
+        <rect class="mod iam" x="385" y="330" width="350" height="120" rx="8"/>
+        <text class="mod-lbl iam" x="398" y="348">module iam</text>
+        <text class="lbl" x="560" y="372" text-anchor="middle">ApprovalPolicy</text>
+        <text class="sub sm" x="560" y="393" text-anchor="middle">getActor · signUp · authenticate · assignManager</text>
+        <text class="sub mono" x="560" y="414" text-anchor="middle">approveesOf · canDecide · getContact</text>
+        <text class="sub sm" x="560" y="436" text-anchor="middle">domaine : User · Company</text>
+
+        <!-- shared -->
+        <rect class="n" x="388" y="462" width="344" height="30" rx="6"/>
+        <text class="sub mono" x="560" y="481" text-anchor="middle">shared · unitOfWork · Mailer · problem · logger</text>
+
+        <!-- Entrées -->
+        <rect class="n pres" x="24" y="115" width="96" height="50" rx="8"/>
+        <text class="lbl" x="72" y="137" text-anchor="middle">Pages</text>
+        <text class="sub sm" x="72" y="154" text-anchor="middle">UI React</text>
+
+        <rect class="n" x="140" y="115" width="160" height="50" rx="8"/>
+        <text class="lbl" x="220" y="136" text-anchor="middle">Route handlers</text>
+        <text class="sub sm" x="220" y="154" text-anchor="middle">adapter d'entrée HTTP</text>
+
+        <rect class="n" x="140" y="185" width="160" height="50" rx="8"/>
+        <text class="lbl" x="220" y="206" text-anchor="middle">Server actions</text>
+        <text class="sub sm" x="220" y="224" text-anchor="middle">signup · login</text>
+
+        <path class="e" d="M120,140 L138,140"/>
+        <path class="e" d="M72,165 L72,210 L138,210"/>
+        <path class="e" d="M300,140 L352,140"/>
+        <path class="e" d="M300,210 L325,210"/>
+
+        <!-- Sorties -->
+        <rect class="rim" x="870" y="72" width="212" height="138" rx="10"/>
+        <text class="cap" x="976" y="88" text-anchor="middle">MÊME TRANSACTION</text>
+
+        <rect class="n" x="880" y="98" width="190" height="46" rx="8"/>
+        <text class="sub mono" x="975" y="116" text-anchor="middle">NoteRepository</text>
+        <text class="lbl" x="975" y="135" text-anchor="middle">Postgres · notes</text>
+
+        <rect class="n async" x="880" y="152" width="190" height="46" rx="8"/>
+        <text class="sub mono" x="975" y="170" text-anchor="middle">Mailer → OutboxMailer</text>
+        <text class="lbl new" x="975" y="189" text-anchor="middle">Postgres · mail_outbox</text>
+
+        <rect class="n" x="880" y="222" width="190" height="46" rx="8"/>
+        <text class="sub mono" x="975" y="240" text-anchor="middle">ReceiptStorage</text>
+        <text class="lbl" x="975" y="259" text-anchor="middle">S3 · LocalStack</text>
+
+        <rect class="n" x="880" y="278" width="190" height="46" rx="8"/>
+        <text class="sub mono" x="975" y="296" text-anchor="middle">ReceiptReader</text>
+        <text class="lbl" x="975" y="315" text-anchor="middle">Tesseract</text>
+
+        <rect class="n" x="880" y="334" width="190" height="46" rx="8"/>
+        <text class="sub mono" x="975" y="352" text-anchor="middle">UserRepository · Hasher</text>
+        <text class="lbl" x="975" y="371" text-anchor="middle">Postgres · bcrypt</text>
+
+        <path class="e" d="M760,121 L878,121"/>
+        <path class="e async" d="M780,175 L878,175"/>
+        <path class="e" d="M800,245 L878,245"/>
+        <path class="e" d="M820,301 L878,301"/>
+        <path class="e" d="M812,357 L878,357"/>
+
+        <!-- Ports -->
+        <circle class="port" cx="361" cy="140" r="6"/>
+        <circle class="port" cx="334" cy="210" r="6"/>
+        <circle class="port" cx="753" cy="121" r="6"/>
+        <circle class="port" cx="774" cy="175" r="6"/>
+        <circle class="port" cx="794" cy="245" r="6"/>
+        <circle class="port" cx="815" cy="301" r="6"/>
+        <circle class="port" cx="806" cy="357" r="6"/>
+
+        <!-- Seul lien entre les deux process -->
+        <path class="e loop" d="M1072,175 L1094,175 L1094,553 L460,553 L460,588"/>
+        <text class="sub" x="780" y="545" text-anchor="middle">seul lien entre les process : le worker lit et marque <tspan class="mono">mail_outbox</tspan></text>
+
+        <!-- Process worker -->
+        <rect class="proc" x="10" y="570" width="842" height="118" rx="12"/>
+        <text class="cap" x="26" y="676">PROCESS WORKER · node mail-worker.ts</text>
+        <text class="sub" x="150" y="612" text-anchor="middle">infrastructure,</text>
+        <text class="sub" x="150" y="630" text-anchor="middle">hors de l'hexagone</text>
+
+        <rect class="n async" x="300" y="590" width="320" height="64" rx="8"/>
+        <text class="lbl new" x="460" y="612" text-anchor="middle">Worker de livraison</text>
+        <text class="sub sm" x="460" y="630" text-anchor="middle">réserve un lot (bail) · envoie · marque</text>
+        <text class="sub sm" x="460" y="646" text-anchor="middle">aucun import de modules/ · rôle expense_mailer</text>
+
+        <rect class="n" x="880" y="599" width="190" height="46" rx="8"/>
+        <text class="lbl" x="975" y="619" text-anchor="middle">Mailpit</text>
+        <text class="sub sm" x="975" y="636" text-anchor="middle">serveur SMTP</text>
+
+        <path class="e async" d="M620,622 L878,622"/>
+        <text class="sub mono" x="790" y="612" text-anchor="middle">SMTP direct</text>
+
+        <!-- Étapes -->
+        <g class="badge"><circle cx="326" cy="140" r="10"/><text x="326" y="144">1</text></g>
+        <g class="badge"><circle cx="544" cy="306" r="10"/><text x="544" y="310">2</text></g>
+        <g class="badge"><circle cx="832" cy="175" r="10"/><text x="832" y="179">3</text></g>
+        <g class="badge"><circle cx="1094" cy="420" r="10"/><text x="1094" y="424">4</text></g>
+        <g class="badge"><circle cx="680" cy="622" r="10"/><text x="680" y="626">5</text></g>
+        <g class="badge"><circle cx="560" cy="553" r="10"/><text x="560" y="557">6</text></g>
+      </svg>
+    </div>
+    <div class="figure-foot">
+      <ol class="steps" aria-label="Le flux d'une décision">
+        <li>Le manager approuve : <code>POST …/approve</code>. La réponse <code>200</code> est la même qu'aujourd'hui.</li>
+        <li><code>decide</code> vérifie le droit avec <code>ApprovalPolicy</code> et fait <code>UPDATE … WHERE status = 'pending'</code>.</li>
+        <li>Dans la même transaction, <code>decide</code> récupère le contact avec <code>getContact</code>, compose l'e-mail avec <code>decisionEmail</code> et le remet au port <code>Mailer</code>. <code>OutboxMailer</code> l'écrit dans <code>mail_outbox</code>.</li>
+        <li>Toutes les 1 à 2 s, le worker réserve un lot de lignes dues (<code>SKIP LOCKED</code>, bail d'1 min) et valide aussitôt la transaction.</li>
+        <li>Il envoie chaque e-mail en SMTP direct, hors transaction, avec un <code>Message-ID</code> égal à l'id de la ligne.</li>
+        <li>Il marque chaque ligne <code>sent</code>, ou planifie un nouvel essai (10 s, puis 1 min). Après 3 échecs, la ligne passe en <code>dead</code>.</li>
+      </ol>
+      <div class="reading">
+        <p><b>Comment lire le schéma.</b> Les ronds sur le bord de l'hexagone sont les ports. Tout ce qui est dehors est un adapter, remplaçable sans toucher au métier. Le violet marque le flux de notification.</p>
+        <p><b>Les deux process ne s'appellent jamais.</b> Leur seul lien est la table <code>mail_outbox</code>, qui leur sert de contrat.</p>
+        <p><b>Rôles Postgres.</b> Le process web utilise <code>expense_app</code>, soumis à la RLS. Le worker utilise <code>expense_mailer</code>, qui n'a de droits que sur <code>mail_outbox</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="blocks">
+    <article class="block">
+      <h2>Règles de dépendance</h2>
+      <ul class="clean">
+        <li><code>domain</code> n'importe rien.</li>
+        <li><code>application</code> n'importe que <code>domain</code>, <code>ports</code>, <code>shared</code> et l'<code>index.ts</code> d'un autre module.</li>
+        <li><code>infrastructure</code> implémente les <code>ports</code>.</li>
+        <li>Un module n'en voit un autre que par son <code>index.ts</code>. Le SQL d'<code>expenses</code> ne touche jamais <code>users</code> ni <code>companies</code>.</li>
+        <li><code>app/</code> n'importe que des <code>index.ts</code> et <code>shared</code>. <code>worker/</code> n'importe rien de <code>modules/</code>.</li>
+      </ul>
+      <p class="small">Vérifiées en CI par <code>dependency-cruiser</code> : une violation fait échouer la PR.</p>
+    </article>
+
+    <article class="block">
+      <h2>Garde-fous de l'asynchrone</h2>
+      <ul class="clean">
+        <li><b>Même transaction</b> : <code>OutboxMailer</code> écrit sur la connexion de l'unité de travail. La note et l'e-mail existent ensemble, ou pas du tout.</li>
+        <li><b>Bail</b> : la réservation est validée avant l'envoi, donc aucune transaction ne reste ouverte pendant un appel SMTP. Un crash ne fait repartir que l'e-mail en cours.</li>
+        <li><b>Timeouts SMTP courts</b> : 5 s à la connexion, 10 s sur la socket.</li>
+        <li><b>Traçabilité</b> : le <code>correlationId</code> suit la requête, la ligne d'outbox et les logs JSON du worker.</li>
+        <li><b>Exploitation</b> : un log d'erreur à chaque passage en <code>dead</code>, <code>npm run mail:replay</code>, un arrêt propre sur <code>SIGTERM</code>.</li>
+      </ul>
+    </article>
+
+    <article class="block">
+      <h2>Ce que la refacto corrige</h2>
+      <ul class="clean">
+        <li>Les décisions concurrentes : une seule transition depuis <code>pending</code> <span class="f">F9</span></li>
+        <li>Une seule <code>ApprovalPolicy</code> : manager direct, sinon les RH de l'entreprise, jamais sa propre note <span class="f">F5</span> <span class="f">F14</span> <span class="f">F30</span> <span class="f">F33</span></li>
+        <li>La soumission et l'inscription dans une unité de travail <span class="f">F10</span> <span class="f">F11</span></li>
+        <li>Le rôle relu en base par <code>iam</code> <span class="f">F31</span></li>
+        <li>La notification de décision enfin envoyée <span class="f">F15</span></li>
+        <li>La couche hexagonale branchée, la duplication supprimée <span class="f">F22</span> <span class="f">F23</span> <span class="f">F24</span></li>
+      </ul>
+      <p class="small">S'y ajoute le socle : RLS réellement appliquée, contrôles d'accès, entrées, secrets et erreurs RFC 9457 <span class="f">F1–F3</span> <span class="f">F25–F27</span> <span class="f">F42–F44</span>.</p>
+    </article>
+  </section>
+
+  <section class="decided" aria-label="Décisions">
+    <span class="label">Décisions</span>
+    <div class="dec-list">
+      <div><b><span>D1</span>Option C</b><p>Monolithe modulaire, hexagonal, avec un flux asynchrone.</p></div>
+      <div><b><span>D2</span>Un seul flux</b><p>La notification de décision. L'OCR reste synchrone, car il changerait le contrat.</p></div>
+      <div><b><span>D3</span>Outbox d'e-mails</b><p>Pas de broker : un worker de livraison vide <code>mail_outbox</code>.</p></div>
+      <div><b><span>D4</span>Deux requêtes</b><p>Via l'API publique d'<code>iam</code>. La RLS reste en défense en profondeur.</p></div>
+      <div><b><span>D5</span>Hexagonal</b><p>Un fichier par use case.</p></div>
+    </div>
+  </section>
+
+  <section class="pair">
+    <article class="block">
+      <h2>Alternatives écartées</h2>
+      <table class="cmp">
+        <thead><tr><th>Approche</th><th>Pourquoi non</th></tr></thead>
+        <tbody>
+          <tr><th>Envoi dans la route</th><td>La décision dépend du SMTP, et un crash entre l'<code>UPDATE</code> et l'envoi perd l'e-mail.</td></tr>
+          <tr><th>Envoi sans <code>await</code>, <code>after()</code></th><td>Aucune persistance ni retry : un crash ou un redéploiement perd l'e-mail.</td></tr>
+          <tr><th>Outbox d'événements</th><td>Le worker devrait retrouver l'adresse et rédiger le texte, donc charger le cœur ou contenir du métier.</td></tr>
+          <tr><th>Outbox, relay et SQS</th><td>Un second saut, une DLQ et une table d'idempotence, pour un seul consommateur.</td></tr>
+        </tbody>
+      </table>
+      <p class="small"><b>Évolutions prévues :</b> une outbox d'événements s'ajoutera à côté si un second consommateur doit savoir qu'une note a été tranchée (statistiques, export comptable). SQS viendra si un autre service doit recevoir l'événement. Le worker de livraison ne change pas.</p>
+    </article>
+
+    <article class="block">
+      <h2>Limites assumées</h2>
+      <ul class="clean">
+        <li><b>Au moins une fois</b> : un crash entre l'envoi et le marquage <code>sent</code> renvoie l'e-mail. Le <code>Message-ID</code> permet de repérer le doublon.</li>
+        <li><b>Délai d'envoi</b> : 1 à 2 s après la décision.</li>
+        <li><b>Contenu figé</b> : l'adresse et le texte sont ceux du moment de la décision, ce qui est attendu pour une notification.</li>
+        <li><b>Données personnelles en base</b> : les lignes <code>sent</code> sont purgées après 30 jours.</li>
+        <li><b>Un process de plus</b> : le worker et Mailpit s'ajoutent au <code>docker-compose.yml</code> et à la CI.</li>
+      </ul>
+    </article>
+  </section>
+
+  <p class="foot">Expense.io · 16/10/2026 · spec : <code>docs/specs/2026-10-15-architecture-cible.md</code> · notes d'origine : <code>option-c.html</code>, <code>notification-asynchrone.html</code>, <code>options-refacto.md</code>.</p>
+</main>
+</body>
+</html>

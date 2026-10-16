@@ -8,7 +8,7 @@
 
 **Tech Stack:** Vitest 5.0.3, @vitest/coverage-v8 5.0.3, @playwright/test 1.64.0, pg, node-pg-migrate 9 (API `runner`), @aws-sdk/client-s3, GitHub Actions (checkout@v7, setup-node@v7, cache@v6, upload-artifact@v7).
 
-**Spec:** `docs/superpowers/specs/2026-10-08-tests-caracterisation-design.md`
+**Spec:** `docs/specs/2026-10-08-tests-caracterisation.md`
 
 ## Global Constraints
 
