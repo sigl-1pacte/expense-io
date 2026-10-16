@@ -7,7 +7,7 @@ indique le commit qu'il décrit. Ce fichier-ci dit où en sont les décisions.
 
 ## Où en est-on
 
-_Mis à jour le 16/10/2026._
+_Mis à jour le 16/10/2026 (plans)._
 
 - **Architecture cible : option C**, retenue le 15/10/2026, spec en revue le
   16/10/2026. C'est un monolithe modulaire (modules `expenses` et `iam`),
@@ -18,8 +18,8 @@ _Mis à jour le 16/10/2026._
   Voir la [spec](specs/2026-10-15-architecture-cible.md) et le
   [schéma](architecture/architecture-cible.html).
 - **Calendrier** : refacto du 19 au 26/10, soutenance le 30/10.
-- **Pas encore sur `main`** : la suite de tests de caractérisation (ARLA-9) et
-  les plans de la refacto. Voir [À venir](#à-venir).
+- **Plans de la refacto écrits** (16/10/2026) : trois plans dans [`plans/`](#plans-dimplémentation--plans).
+- **Pas encore sur `main`** : la suite de tests de caractérisation (ARLA-9). Voir [À venir](#à-venir).
 
 ## Par où commencer
 
@@ -66,6 +66,16 @@ Pour découvrir le projet, lire dans cet ordre :
 |---|---|---|---|
 | [`2026-10-15-architecture-cible.md`](specs/2026-10-15-architecture-cible.md) | Que construit la refacto, et pourquoi ? Modules, règles métier, notification, socle, contrat d'API, SonarQube, harnais agent, couverture des 46 constats, découpage en trois plans. | louisbertrand22 | 15 au 16/10/2026 |
 
+### Plans d'implémentation — `plans/`
+
+Exécutés dans l'ordre, tâche par tâche, par des agents (`superpowers:subagent-driven-development`). Chaque tâche : test qui échoue, code, test qui passe, commit.
+
+| Document | Contenu | Auteur | Date |
+|---|---|---|---|
+| [`2026-10-15-architecture-cible-1-socle.md`](plans/2026-10-15-architecture-cible-1-socle.md) | Socle et harnais agent : SonarQube (mesures avant), contrat OpenAPI vérifié en CI, `AGENTS.md`, skills, ADR, erreurs RFC 9457, rôle `expense_app` et RLS d'isolation, F1, F3, F16, F25–F27, F34, F41–F44. 15 tâches. | louisbertrand22 | 16/10/2026 |
+| [`2026-10-15-architecture-cible-2-modules.md`](plans/2026-10-15-architecture-cible-2-modules.md) | Modules `iam` et `expenses` : `ApprovalPolicy`, routes en adapters minces, F4, F5, F9, F10, F14, F17, F19, F22–F24, F30, F31, F33, F39, interface, skill de live coding et sous-agent de revue. 13 tâches. | louisbertrand22 | 16/10/2026 |
+| [`2026-10-15-architecture-cible-3-notification.md`](plans/2026-10-15-architecture-cible-3-notification.md) | Notification de décision : `mail_outbox`, worker de livraison, Mailpit, mesures après (SonarQube, benchmark), seed de démo et répétition du live coding. 8 tâches. | louisbertrand22 | 16/10/2026 |
+
 Les pages HTML sont des présentations : GitHub en affiche le code source.
 Pour les voir, cloner le dépôt et les ouvrir dans un navigateur.
 
@@ -79,7 +89,6 @@ Pour les voir, cloner le dépôt et les ouvrir dans un navigateur.
 Ces documents existent mais n'ont pas encore rejoint `main` :
 
 - la spec et le plan de la suite de tests de caractérisation (ARLA-9), avec la PR ARLA-9 ;
-- les trois plans de la refacto (socle et harnais agent, modules, notification), avec la PR de la refacto.
 
 Restent à écrire :
 
