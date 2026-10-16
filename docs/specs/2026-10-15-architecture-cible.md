@@ -164,8 +164,9 @@ canDecide(actor, owner) = actor.id ∈ approversOf(owner)
 
 ### `assignManager` (F5, F30)
 
-Tout se fait dans une transaction, avec un verrou sur les lignes concernées :
+Tout se fait dans une transaction, **sérialisée par entreprise**.
 
+0. **Verrou d'organigramme.** On commence par `pg_advisory_xact_lock(hashtextextended('org:' || company_id, 0))`. Deux modifications de l'organigramme d'une même entreprise s'exécutent donc l'une après l'autre, et le verrou est relâché au `COMMIT`. Sans lui, en `READ COMMITTED`, « M1 → M2 » et « M2 → M1 » envoyés au même instant passeraient chacun la vérification de cycle, et le cycle existerait quand même. C'est le même type de problème que F9. Les autres entreprises ne sont pas bloquées.
 1. La cible appartient à l'entreprise du RH et a le rôle `employee` ou `manager`. Sinon : `404`.
 2. Si `managerId ≠ null` :
    - le manager est de la même entreprise et a le rôle `manager`, sinon `409 invalid-manager` ;
@@ -316,13 +317,17 @@ Toutes les 1 à 2 secondes, le worker :
 On sépare les rôles : **`ApprovalPolicy` fait seule foi** pour savoir qui voit et décide quelle note. La **RLS** est un filet qui garantit qu'**aucune donnée ne traverse la frontière d'une entreprise**, quel que soit le bug applicatif. La règle métier n'est écrite qu'une fois, en TypeScript, et la RLS ne la recopie pas, donc rien ne peut diverger (voir F22).
 
 - **Le rôle applicatif.** Une migration crée `expense_app`, qui n'est ni superutilisateur, ni `BYPASSRLS`, ni propriétaire des tables. `DATABASE_URL` l'utilise. Les migrations et le seed gardent le rôle propriétaire (`MIGRATION_DATABASE_URL`).
-- **`expense_notes.company_id`.** Une migration ajoute cette colonne, remplie depuis l'auteur pour les notes existantes, puis la rend `NOT NULL` avec une clé étrangère vers `companies`. À la création, elle est renseignée avec l'entreprise de l'acteur, et un trigger refuse une valeur différente de celle de l'auteur. Les policies n'ont donc plus besoin de joindre `users`.
+- **`expense_notes.company_id`, copiée à la création.** La note porte sa propre entreprise, et aucune policy ni requête d'`expenses` ne joint `users` :
+  - À la création, `submitExpenseNote` écrit `company_id = actor.companyId`. L'acteur vient de `iam.getActor`, l'API publique d'`iam`, donc on reste dans la frontière.
+  - La cohérence est garantie par la policy d'insertion elle-même, **sans trigger ni jointure** : `user_id = app.current_user_id()` et `company_id = app.current_company_id()`. Ces deux valeurs sont posées par `runInScope` à partir du même acteur.
+  - L'entreprise d'un utilisateur ne change jamais dans l'application, donc la copie ne peut pas devenir fausse.
+  - **Seule exception, documentée :** la migration qui ajoute la colonne la remplit une fois pour les notes existantes, par une jointure sur `users`. C'est une migration de données ponctuelle, pas du code applicatif, et elle est exécutée par le rôle propriétaire. La colonne passe ensuite `NOT NULL`, avec une clé étrangère vers `companies`.
 - **Les policies, réécrites :**
   - `expense_notes` : lecture et mise à jour limitées à `company_id = app.current_company_id()`. L'insertion n'est permise que si `user_id` est l'acteur et `company_id` son entreprise.
   - `users` et `companies` : lecture limitée à sa propre entreprise. C'est ce qui permet `getContact` dans la portée du manager.
   - L'inscription et l'authentification, qui ont lieu avant toute portée, passent par deux fonctions `SECURITY DEFINER` à la surface minimale : `iam_sign_up(...)` et `iam_credentials_for(email)`.
   - Les anciennes policies `expense_notes_manager_*` et `expense_notes_hr_root_manager_*` sont supprimées.
-- **Le contexte de portée.** `app.current_company_id()` est une fonction SQL qui lit `app.current_company_id`, posé par `runInScope` à côté de `app.current_user_id`.
+- **Le contexte de portée.** `app.current_user_id()` et `app.current_company_id()` sont des fonctions SQL qui lisent les réglages de transaction posés par `runInScope(actor)`. `runInScope` reçoit l'acteur (`{ id, companyId }`) déjà résolu par `iam` : il ne dépend donc d'aucun module.
 - **Les index (F16).** On ajoute `expense_notes(user_id, created_at)`, `expense_notes(company_id, status)`, `users(manager_id)` et `users(company_id)`. Le gain est mesuré avec `EXPLAIN` sur les quatre requêtes de liste, et les résultats vont dans l'audit chiffré.
 
 ### Entrées et secrets (F3, F25, F34)
@@ -514,7 +519,7 @@ Chacun des 46 constats de l'audit QA est soit **traité** (avec le plan qui le c
 | F27 401 et 403 incohérents | Faible | traité · plan 1 | `shared/http` |
 | F28 Décisions irréversibles, sans piste d'audit | Faible | hors périmètre | fonctionnalité |
 | F29 Défauts d'affichage | Faible | hors périmètre | cosmétique ; l'UI reste libre pour le live coding |
-| F30 Cycle dans l'organigramme | Élevé | traité · plan 2 | `assignManager` (`WITH RECURSIVE`) |
+| F30 Cycle dans l'organigramme | Élevé | traité · plan 2 | `assignManager` (`WITH RECURSIVE`, sous un verrou d'organigramme par entreprise) |
 | F31 Rôle figé dans le JWT | Moyen | traité · plan 2 | `getActor` relu à chaque requête |
 | F32 `expenseDate` non validée | Moyen | hors périmètre | resserrement des validations ; la 500 perd sa stack |
 | F33 Employé sans manager, notes sans validateur | Moyen | traité · plan 2 | `ApprovalPolicy` ; suppose F4 |
@@ -553,6 +558,7 @@ F35 (« aucun test ni CI ») est déjà réglé par ARLA-9 : plus de 140 tests, 
 - **Intégration (nouveaux) :**
   - concurrence F9 : approve et reject en parallèle donnent un 200 et un 409 ;
   - F5 et F30 : manager d'une autre entreprise, cycle direct, cycle long ;
+  - F30 en concurrence : « M1 → M2 » et « M2 → M1 » envoyés en parallèle donnent un 200 et un 409, et l'organigramme reste sans cycle ; une chaîne de trois rattachements parallèles qui fermerait une boucle donne aussi au moins un 409 ;
   - F14 et F33 : file RH élargie, un RH ne voit jamais sa propre note, un RH seul soumet bien (201) ;
   - consigne « manager direct » : rien de visible ni de décidable au-delà des subordonnés directs ;
   - F4 : une inscription en `@gmail.com` (et chaque domaine de la liste) est refusée, et aucune entreprise n'est créée ;

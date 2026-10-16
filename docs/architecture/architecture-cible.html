@@ -340,7 +340,7 @@ h1 { font: 700 clamp(2rem, 4.6vw, 3.2rem)/1.04 var(--font-display); letter-spaci
       <ul class="clean">
         <li>Les décisions concurrentes : une seule transition depuis <code>pending</code> <span class="f">F9</span></li>
         <li>Qui valide quoi : une seule <code>ApprovalPolicy</code>, qui fait foi. C'est le manager direct, sinon les RH de l'entreprise, jamais sa propre note <span class="f">F14</span> <span class="f">F33</span></li>
-        <li>L'organigramme : <code>assignManager</code> vérifie la même entreprise et l'absence de cycle, dans la même transaction que l'écriture <span class="f">F5</span> <span class="f">F30</span></li>
+        <li>L'organigramme : <code>assignManager</code> vérifie la même entreprise et l'absence de cycle, sous un verrou d'organigramme par entreprise, dans la même transaction que l'écriture <span class="f">F5</span> <span class="f">F30</span></li>
         <li>Un rôle RH fiable : les domaines de messagerie publique ne fondent plus d'entreprise <span class="f">F4</span></li>
         <li>La soumission : le reçu d'abord sur S3, puis la note dans une transaction courte, sans note orpheline <span class="f">F10</span> <span class="f">F39</span>. L'inscription se fait dans une seule transaction <span class="f">F11</span></li>
         <li>L'OCR : un seul moteur réutilisé, une concurrence plafonnée et des fichiers limités à 10 Mo <span class="f">F17</span> <span class="f">F19</span></li>
@@ -358,7 +358,7 @@ h1 { font: 700 clamp(2rem, 4.6vw, 3.2rem)/1.04 var(--font-display); letter-spaci
       <div><b><span>D1</span>Option C</b><p>Monolithe modulaire, hexagonal, avec un flux asynchrone.</p></div>
       <div><b><span>D2</span>Un seul flux</b><p>La notification de décision. L'OCR reste synchrone, par choix de périmètre, et il est atténué par F17 et F19.</p></div>
       <div><b><span>D3</span>Outbox d'e-mails</b><p>Pas de broker : un worker de livraison vide <code>mail_outbox</code>.</p></div>
-      <div><b><span>D4</span>Deux requêtes</b><p>Via l'API publique d'<code>iam</code>. <code>ApprovalPolicy</code> fait seule foi pour les droits, et la RLS n'assure que l'isolation entre entreprises.</p></div>
+      <div><b><span>D4</span>Deux requêtes</b><p>Via l'API publique d'<code>iam</code>. <code>ApprovalPolicy</code> fait seule foi pour les droits, et la RLS n'assure que l'isolation entre entreprises, grâce à un <code>company_id</code> copié sur la note à sa création, sans jointure sur <code>users</code>.</p></div>
       <div><b><span>D5</span>Hexagonal</b><p>Un fichier par use case.</p></div>
     </div>
   </section>
