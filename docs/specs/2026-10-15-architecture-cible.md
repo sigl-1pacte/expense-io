@@ -17,7 +17,7 @@ Refacto technique d'Expense.io, entre le 19 et le 26/10/2026, avant la soutenanc
 Sources :
 - [`options-refacto.md`](../architecture/options-refacto.md) et [`option-c.html`](../architecture/option-c.html) pour le choix de l'option ;
 - `notification-asynchrone.html` (Maxime) pour le flux de notification ;
-- l'audit QA F1–F46 ;
+- l'audit QA F1–F46 ([`docs/audit/AUDIT.md`](../audit/AUDIT.md)) et le benchmark de référence ([`docs/audit/baseline.md`](../audit/baseline.md)) ;
 - les consignes de soutenance ci-dessous.
 
 ### Consignes de soutenance
@@ -221,7 +221,7 @@ L'OCR reste synchrone (D2). Ses risques sont traités **dans l'adapter `Tesserac
 
 ### Pourquoi ce flux est asynchrone
 
-La justification est la **fiabilité**, pas la vitesse : la route d'approbation répond déjà en 7 ms (médiane). Un vrai serveur SMTP ajoute de la latence, a des quotas et des pannes, et nodemailer attend par défaut jusqu'à 2 min à la connexion et 10 min sur une socket inactive. Enregistrer la décision et envoyer l'e-mail touchent deux systèmes qu'on ne peut pas rendre atomiques : un crash entre les deux perd l'e-mail ou annonce une décision qui n'a pas eu lieu.
+La justification est la **fiabilité**, pas la vitesse : la route d'approbation répond déjà en 7 ms en médiane ([`baseline.md`](../audit/baseline.md)). Un vrai serveur SMTP ajoute de la latence, a des quotas et des pannes, et nodemailer attend par défaut jusqu'à 2 min à la connexion et 10 min sur une socket inactive. Enregistrer la décision et envoyer l'e-mail touchent deux systèmes qu'on ne peut pas rendre atomiques : un crash entre les deux perd l'e-mail ou annonce une décision qui n'a pas eu lieu.
 
 Le flux respecte la consigne : la décision répond exactement comme aujourd'hui, et seul l'ordre d'exécution change.
 
@@ -359,7 +359,7 @@ On sépare les rôles : **`ApprovalPolicy` fait seule foi** pour savoir qui voit
 
 ## Contrat d'API
 
-- `docs/contracts/openapi.yaml` décrit **d'abord** l'API actuelle (contract first). Il est écrit au début du plan 1, avant toute correction.
+- [`docs/api/openapi.yaml`](../api/openapi.yaml) décrit déjà l'API actuelle (contract first, commit `28033e1`). C'est la référence de `oasdiff`, et le plan 1 commence par vérifier qu'il correspond bien au code de base.
 - En CI, `oasdiff breaking` compare le fichier de la branche avec celui de `main`.
 - **Écarts volontaires**, chacun documenté dans l'OpenAPI et le CHANGELOG. Ils ajoutent des cas d'erreur et corrigent des failles, sans modifier aucune réponse en succès d'un client légitime : c'est une version **MINOR**.
 
@@ -438,11 +438,12 @@ La consigne l'impose : SonarQube **doit** tourner sur le dépôt. C'est la premi
 | `docs/runbooks/` | procédures d'exploitation | `<composant>-<action>.md` |
 | `docs/architecture/` | études d'options, schéma cible, `conventions.md` | libre |
 | `docs/audit/` | as-is, mesures avant / après | libre |
-| `docs/contracts/` | `openapi.yaml` | — |
+| `docs/api/` | `openapi.yaml`, le contrat d'API | — |
 
 - Chaque dossier typé a un `README.md` (rôle, conventions) et un `<type>-template.md`. `docs/README.md` sert d'index et décrit le cycle spec → plan → implémentation → runbook.
 - Les documents sont rédigés **en français**, comme le reste du dépôt.
-- Les specs et le plan existants d'ARLA-9 ont déjà été déplacés depuis `docs/superpowers/`.
+- La spec et le plan d'ARLA-9 sont déplacés de `docs/superpowers/` vers `docs/specs/` et `docs/plans/` sur la branche de la refacto.
+- `docs/README.md` reste l'index de la base de connaissance : il gagne une ligne par type de document, sans changer sa section « Où en est-on ».
 - ADR à créer dans le plan 1 :
   - **0001** structure de la doc et harnais agent ;
   - **0002** monolithe modulaire hexagonal (option C, alternatives A, B et D, limite du RH seul) ;
