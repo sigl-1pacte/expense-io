@@ -156,7 +156,7 @@ h1 { font: 700 clamp(2rem, 4.6vw, 3.2rem)/1.04 var(--font-display); letter-spaci
         <span class="status ok">VALIDÉE · 16/10/2026</span>
       </div>
       <h1>Monolithe modulaire, hexagonal, avec une outbox d'e-mails</h1>
-      <p class="lead">Un seul code et une seule base, découpés en deux modules métier, <code>expenses</code> et <code>iam</code>. Chaque module protège son métier derrière des ports. L'e-mail de décision est composé dans le cœur pendant la requête, puis livré à part par un petit worker sans code métier. L'API ne change pas.</p>
+      <p class="lead">Un seul code et une seule base, découpés en deux modules métier, <code>expenses</code> et <code>iam</code>. Chaque module protège son métier derrière des ports. L'e-mail de décision est composé dans le cœur pendant la requête, puis livré à part par un petit worker sans code métier. Le contrat d'API est inchangé, sauf les réponses d'erreur, ce que vérifient la suite ARLA-9 et <code>oasdiff</code>.</p>
     </div>
     <aside class="why">
       <h2>L'essentiel</h2>
@@ -274,7 +274,7 @@ h1 { font: 700 clamp(2rem, 4.6vw, 3.2rem)/1.04 var(--font-display); letter-spaci
 
         <rect class="n async" x="300" y="590" width="320" height="64" rx="8"/>
         <text class="lbl new" x="460" y="612" text-anchor="middle">Worker de livraison</text>
-        <text class="sub sm" x="460" y="630" text-anchor="middle">réserve un lot (bail) · envoie · marque</text>
+        <text class="sub sm" x="460" y="630" text-anchor="middle">réserve 5 lignes (bail 2 min) · envoie · marque</text>
         <text class="sub sm" x="460" y="646" text-anchor="middle">aucun import de modules/ · rôle expense_mailer</text>
 
         <rect class="n" x="880" y="599" width="190" height="46" rx="8"/>
@@ -298,7 +298,7 @@ h1 { font: 700 clamp(2rem, 4.6vw, 3.2rem)/1.04 var(--font-display); letter-spaci
         <li>Le manager approuve : <code>POST …/approve</code>. La réponse <code>200</code> est la même qu'aujourd'hui.</li>
         <li><code>decide</code> vérifie le droit avec <code>ApprovalPolicy</code> et fait <code>UPDATE … WHERE status = 'pending'</code>.</li>
         <li>Dans la même transaction, <code>decide</code> récupère le contact avec <code>getContact</code>, compose l'e-mail avec <code>decisionEmail</code> et le remet au port <code>Mailer</code>. <code>OutboxMailer</code> l'écrit dans <code>mail_outbox</code>.</li>
-        <li>Toutes les 1 à 2 s, le worker réserve un lot de lignes dues (<code>SKIP LOCKED</code>, bail d'1 min) et valide aussitôt la transaction.</li>
+        <li>Toutes les 1 à 2 s, le worker réserve un lot de lignes dues (lot de 5, <code>SKIP LOCKED</code>, bail de 2 min) et valide aussitôt la transaction.</li>
         <li>Il envoie chaque e-mail en SMTP direct, hors transaction, avec un <code>Message-ID</code> égal à l'id de la ligne.</li>
         <li>Il marque chaque ligne <code>sent</code>, ou planifie un nouvel essai (10 s, puis 1 min). Après 3 échecs, la ligne passe en <code>dead</code>.</li>
       </ol>
@@ -328,6 +328,7 @@ h1 { font: 700 clamp(2rem, 4.6vw, 3.2rem)/1.04 var(--font-display); letter-spaci
       <ul class="clean">
         <li><b>Même transaction</b> : <code>OutboxMailer</code> écrit sur la connexion de l'unité de travail. La note et l'e-mail existent ensemble, ou pas du tout.</li>
         <li><b>Bail</b> : la réservation est validée avant l'envoi, donc aucune transaction ne reste ouverte pendant un appel SMTP. Un crash ne fait repartir que l'e-mail en cours.</li>
+        <li><b>Bail plus long qu'un lot</b> : le pire cas d'un lot vaut 5 × (5 s + 10 s) = 75 s, pour un bail de 2 min. Le worker refuse de démarrer si la règle n'est pas respectée.</li>
         <li><b>Timeouts SMTP courts</b> : 5 s à la connexion, 10 s sur la socket.</li>
         <li><b>Traçabilité</b> : le <code>correlationId</code> suit la requête, la ligne d'outbox et les logs JSON du worker.</li>
         <li><b>Exploitation</b> : un log d'erreur à chaque passage en <code>dead</code>, <code>npm run mail:replay</code>, un arrêt propre sur <code>SIGTERM</code>.</li>
@@ -338,13 +339,16 @@ h1 { font: 700 clamp(2rem, 4.6vw, 3.2rem)/1.04 var(--font-display); letter-spaci
       <h2>Ce que la refacto corrige</h2>
       <ul class="clean">
         <li>Les décisions concurrentes : une seule transition depuis <code>pending</code> <span class="f">F9</span></li>
-        <li>Une seule <code>ApprovalPolicy</code> : manager direct, sinon les RH de l'entreprise, jamais sa propre note <span class="f">F5</span> <span class="f">F14</span> <span class="f">F30</span> <span class="f">F33</span></li>
-        <li>La soumission et l'inscription dans une unité de travail <span class="f">F10</span> <span class="f">F11</span></li>
+        <li>Qui valide quoi : une seule <code>ApprovalPolicy</code>, qui fait foi. C'est le manager direct, sinon les RH de l'entreprise, jamais sa propre note <span class="f">F14</span> <span class="f">F33</span></li>
+        <li>L'organigramme : <code>assignManager</code> vérifie la même entreprise et l'absence de cycle, dans la même transaction que l'écriture <span class="f">F5</span> <span class="f">F30</span></li>
+        <li>Un rôle RH fiable : les domaines de messagerie publique ne fondent plus d'entreprise <span class="f">F4</span></li>
+        <li>La soumission : le reçu d'abord sur S3, puis la note dans une transaction courte, sans note orpheline <span class="f">F10</span> <span class="f">F39</span>. L'inscription se fait dans une seule transaction <span class="f">F11</span></li>
+        <li>L'OCR : un seul moteur réutilisé, une concurrence plafonnée et des fichiers limités à 10 Mo <span class="f">F17</span> <span class="f">F19</span></li>
         <li>Le rôle relu en base par <code>iam</code> <span class="f">F31</span></li>
         <li>La notification de décision enfin envoyée <span class="f">F15</span></li>
         <li>La couche hexagonale branchée, la duplication supprimée <span class="f">F22</span> <span class="f">F23</span> <span class="f">F24</span></li>
       </ul>
-      <p class="small">S'y ajoute le socle : RLS réellement appliquée, contrôles d'accès, entrées, secrets et erreurs RFC 9457 <span class="f">F1–F3</span> <span class="f">F25–F27</span> <span class="f">F42–F44</span>.</p>
+      <p class="small">S'y ajoute le socle : une RLS d'isolation entre entreprises réellement appliquée, les index, les contrôles d'accès, les entrées, les secrets et les erreurs RFC 9457 <span class="f">F1–F3</span> <span class="f">F16</span> <span class="f">F25–F27</span> <span class="f">F34</span> <span class="f">F41–F44</span>. Les 46 constats sont repris un par un dans la spec, traités ou écartés avec leur raison.</p>
     </article>
   </section>
 
@@ -352,9 +356,9 @@ h1 { font: 700 clamp(2rem, 4.6vw, 3.2rem)/1.04 var(--font-display); letter-spaci
     <span class="label">Décisions</span>
     <div class="dec-list">
       <div><b><span>D1</span>Option C</b><p>Monolithe modulaire, hexagonal, avec un flux asynchrone.</p></div>
-      <div><b><span>D2</span>Un seul flux</b><p>La notification de décision. L'OCR reste synchrone, car il changerait le contrat.</p></div>
+      <div><b><span>D2</span>Un seul flux</b><p>La notification de décision. L'OCR reste synchrone, par choix de périmètre, et il est atténué par F17 et F19.</p></div>
       <div><b><span>D3</span>Outbox d'e-mails</b><p>Pas de broker : un worker de livraison vide <code>mail_outbox</code>.</p></div>
-      <div><b><span>D4</span>Deux requêtes</b><p>Via l'API publique d'<code>iam</code>. La RLS reste en défense en profondeur.</p></div>
+      <div><b><span>D4</span>Deux requêtes</b><p>Via l'API publique d'<code>iam</code>. <code>ApprovalPolicy</code> fait seule foi pour les droits, et la RLS n'assure que l'isolation entre entreprises.</p></div>
       <div><b><span>D5</span>Hexagonal</b><p>Un fichier par use case.</p></div>
     </div>
   </section>
@@ -382,6 +386,8 @@ h1 { font: 700 clamp(2rem, 4.6vw, 3.2rem)/1.04 var(--font-display); letter-spaci
         <li><b>Contenu figé</b> : l'adresse et le texte sont ceux du moment de la décision, ce qui est attendu pour une notification.</li>
         <li><b>Données personnelles en base</b> : les lignes <code>sent</code> sont purgées après 30 jours.</li>
         <li><b>Un process de plus</b> : le worker et Mailpit s'ajoutent au <code>docker-compose.yml</code> et à la CI.</li>
+        <li><b>Reçu S3 orphelin</b> : possible si l'insertion de la note échoue après l'envoi. Sans risque (bucket privé, rien ne le référence), et nettoyé par <code>npm run receipts:orphans</code>.</li>
+        <li><b>RH seul dans son entreprise</b> : sa note est acceptée mais n'a aucun validateur tant qu'un second RH n'existe pas.</li>
       </ul>
     </article>
   </section>

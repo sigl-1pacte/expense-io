@@ -35,22 +35,22 @@ Elles priment sur le reste de la spec :
 
 ## Objectifs
 
-Refondre Expense.io en **monolithe modulaire hexagonal, avec une outbox d'e-mails**, et rendre le dépôt **prêt pour les agents** (*agentic ready*). L'API garde le même comportement, sauf les corrections d'erreurs listées dans [Contrat d'API](#contrat-dapi).
+Refondre Expense.io en **monolithe modulaire hexagonal, avec une outbox d'e-mails**, et rendre le dépôt **prêt pour les agents** (*agentic ready*). **Le contrat d'API est inchangé, sauf les réponses d'erreur** listées dans [Contrat d'API](#contrat-dapi). C'est vérifié par la suite ARLA-9 et par `oasdiff`.
 
 Critères de succès :
 
 1. La suite ARLA-9 reste verte à chaque commit. Seuls les tests `[as-is]` du périmètre changent : ils basculent vers le comportement corrigé (convention ARLA-9).
 2. `oasdiff breaking` ne signale que les écarts volontaires listés dans [Contrat d'API](#contrat-dapi).
 3. `dependency-cruiser` ne signale aucune violation des [règles de dépendance](#règles-de-dépendance).
-4. Les constats du périmètre sont corrigés, et chacun est couvert par un test de non-régression : F1–F3, F5, F9–F11, F14, F15, F22–F27, F30, F31, F33, F42–F44.
+4. Les constats marqués « traité » dans la [couverture de l'audit](#couverture-de-laudit) sont corrigés, et chacun est couvert par au moins un test de non-régression.
 5. Une décision de note envoie un e-mail à l'employé, visible dans Mailpit. Un crash du worker ne perd aucun e-mail, et un SMTP en panne fait passer la ligne en `dead` après 3 essais.
 6. **SonarQube analyse le dépôt** : en local, et en CI sur chaque PR et chaque push sur `main`. On garde un run « avant » sur la base de la refacto et un run « après » à la fin du plan 3 pour l'audit chiffré.
 7. **Une fonctionnalité s'ajoute en un prompt.** Lors d'une répétition, un agent qui part d'un dépôt propre et d'une seule phrase du type « ajoute X » livre une fonctionnalité qui passe `npm run verify`, sans autre intervention qu'une validation finale.
 
 ## Hors périmètre
 
-- F4, F6, F8 et F38 sont documentés, pas corrigés.
-- L'OCR asynchrone (`202` avec polling) n'est pas fait, car il ajouterait un endpoint et changerait le contrat. Il est présenté comme évolution possible.
+- Les constats marqués « hors périmètre » dans la [couverture de l'audit](#couverture-de-laudit), chacun avec sa raison.
+- L'OCR asynchrone (`202` avec polling). C'est un **choix de périmètre**, appuyé sur la consigne « le contrat ne change pas » : un endpoint `202` ajouterait une ressource et changerait le parcours du front. La conséquence est assumée : l'OCR reste dans le process web. Elle est atténuée par F17 et F19 (voir [OCR](#suggestfromreceipt-f17-f19)).
 - On ne resserre pas les validations au-delà de F42 : virgule décimale, dates `jj/mm/aaaa`, reçu vide, contenu non vérifié, montant hors `numeric(10,2)`. Ces tests restent `[as-is]`, mais leurs 500 perdent la stack.
 - Les pages React et `components/` sont seulement ajustées (voir [Interface utilisateur](#interface-utilisateur)), pas réécrites.
 - Aucune autre fonctionnalité métier n'est ajoutée. La fonctionnalité nouvelle sera celle du live coding.
@@ -62,11 +62,13 @@ Critères de succès :
 | Sujet | Décision | Raison |
 |---|---|---|
 | D1 Option | **C** : modules et hexagonal, avec un flux asynchrone | seule option qui couvre les trois axes (Architecture, Contrat d'API, Asynchrone & run) |
-| D2 Flux async | **notification de décision seule** | seul l'ordre d'exécution change, pas le contrat (consigne) ; l'OCR reste synchrone |
+| D2 Flux async | **notification de décision seule** | seul l'ordre d'exécution change, pas le contrat (consigne) ; l'OCR reste synchrone par choix de périmètre, atténué par F17 et F19 |
 | D3 Mécanisme | **outbox d'e-mails (`mail_outbox`) et worker de livraison, sans broker** | voir [Notification de décision](#notification-de-décision) ; validé le 16/10 |
-| D4 Jointures entre modules | **deux requêtes via l'API publique d'`iam`** ; RLS gardée en défense en profondeur, cohérence testée | frontière de module stricte, règle métier dans le domaine |
+| D4 Jointures entre modules | **deux requêtes via l'API publique d'`iam`** | frontière de module stricte, règle métier dans le domaine |
+| Source de vérité des droits | **`ApprovalPolicy` fait seule foi** pour « qui voit et décide quoi ». La **RLS n'assure que l'isolation** entre entreprises et l'accès de l'auteur à ses notes, avec une colonne `company_id` sur `expense_notes` pour éviter toute jointure sur `users` | une règle écrite une seule fois ne peut pas diverger (leçon de F22) ; la RLS garde la garantie critique (F1, F2, F44) sans recopier le métier |
+| F4 | **les domaines de messagerie publique ne fondent jamais d'entreprise** : l'inscription est refusée avec un message clair | la règle « le RH valide les notes sans validateur » suppose un rôle RH fiable ; ferme le cas « premier inscrit en @gmail.com » |
 | D5 Vocabulaire | **hexagonal**, un fichier par use case | déjà le vocabulaire du dépôt ; « où va le nouveau code ? » sans ambiguïté |
-| Validateurs | manager → ses subordonnés directs ; RH → managers racines, **plus** employés non rattachés (F33) et autres RH (F14) ; jamais sa propre note | respecte les deux règles de la consigne et débloque les notes sans validateur |
+| Validateurs | manager → ses subordonnés directs ; RH → managers racines, **plus** employés non rattachés (F33) et autres RH (F14) ; jamais sa propre note | respecte les deux règles de la consigne et débloque les notes sans validateur ; suppose la correction de F4 (ligne ci-dessus) |
 | Soumission | **toujours acceptée**, même sans validateur possible (RH seul de son entreprise) | consigne ; la note reste `pending`, c'est une limite documentée |
 | Qualité | **SonarQube Community**, en local (profil `quality` du compose) et **obligatoire en CI** ; le quality gate est publié mais pas bloquant | consigne de soutenance ; sert aux mesures avant / après |
 | Harnais agent | **`AGENTS.md` comme source unique**, importé par `CLAUDE.md` ; skills au standard Agent Skills dans `.agents/skills/` ; `docs/` organisé par type de document | inspiré de cnp-dev ; lisible par tous les agents, guide le live coding |
@@ -125,7 +127,7 @@ Elles sont vérifiées en CI par `dependency-cruiser`, et une violation fait éc
 
 ### Unité de travail
 
-`shared/unit-of-work.ts` expose `runInScope(actorId, fn)`. La fonction ouvre une transaction, pose `app.current_user_id` et passe à `fn` un contexte qui fournit les repositories et le `Mailer`, **tous sur la même connexion**. La note, le reçu et l'e-mail sont donc écrits dans une seule transaction. Les use cases ne voient que l'interface `UnitOfWork`, sans type `pg`.
+`shared/unit-of-work.ts` expose `runInScope(actorId, fn)`. La fonction ouvre une transaction, pose `app.current_user_id` et passe à `fn` un contexte qui fournit les repositories et le `Mailer`, **tous sur la même connexion**. La note et son e-mail sont donc écrits dans une seule transaction. S3 reste hors transaction, et l'ordre d'écriture est fixé dans [`submitExpenseNote`](#submitexpensenote-f10). Les use cases ne voient que l'interface `UnitOfWork`, sans type `pg`.
 
 ### Acteur
 
@@ -185,20 +187,29 @@ Ce use case remplace les quatre handlers approve et reject (manager et RH). Les 
 
 ### `submitExpenseNote` (F10)
 
-Tout se passe dans une seule unité de travail :
+Postgres et S3 ne partagent pas de transaction. C'est la même double écriture que pour l'e-mail, et on la règle explicitement : **le reçu d'abord, la note ensuite**, sans transaction ouverte pendant l'appel réseau.
 
-1. on valide les entrées, avec les mêmes règles et messages qu'aujourd'hui ;
-2. on fait l'`INSERT` de la note ;
-3. on calcule la clé à partir de `receipt_seq` ;
-4. on envoie le reçu à S3 ;
-5. on met à jour `receipt_key` ;
-6. on fait le `COMMIT`.
+1. On valide les entrées, avec les mêmes règles et messages qu'aujourd'hui. La taille est contrôlée avant de lire le corps (F34, voir [Entrées](#entrées-et-secrets-f3-f25-f34)).
+2. On réserve le numéro du reçu avec `NoteRepository.nextReceiptSeq()` (`SELECT nextval(…)`). Le format des clés ne change pas.
+3. On envoie le reçu à S3, hors transaction. En cas d'échec : `502 receipt-upload-failed`, et rien n'est écrit en base.
+4. Dans une unité de travail courte, on fait l'`INSERT` de la note, avec `receipt_seq` et `receipt_key` déjà connus, puis le `COMMIT`.
 
-Si l'upload échoue, tout est annulé et on renvoie `502 receipt-upload-failed`. Il n'y a donc plus de note sans reçu. Un objet S3 peut rester orphelin si le `COMMIT` échoue après l'upload : c'est accepté et documenté.
+Il n'y a donc plus de note sans reçu (F10, F39). Si l'`INSERT` échoue après l'upload, l'objet S3 reste orphelin. C'est sans risque, car aucune note ne le référence et le bucket est privé. On l'accepte, et le script `npm run receipts:orphans` liste et supprime les objets sans note de plus de 24 h. Il est décrit dans un runbook.
 
-### `signUp` (F11)
+### `signUp` (F4, F11, F12)
 
-L'entreprise et l'utilisateur sont créés dans une seule transaction. Une violation d'unicité sur l'email donne le message existant « Un compte existe déjà avec cet email. », et plus un 500. Les règles de validation et de rôle restent celles d'aujourd'hui.
+- **F4.** Un domaine de messagerie publique ne fonde jamais d'entreprise. La liste (gmail, googlemail, outlook, hotmail, live, yahoo, icloud, me, proton, protonmail, gmx, free, orange, laposte, wanadoo, sfr) vit dans le domaine `iam` (`Company.isPublicEmailDomain`). L'inscription est refusée avec « Utilise ton adresse professionnelle : les adresses de messagerie publique ne peuvent pas créer d'entreprise. ». C'est une server action et pas une route d'API, donc le contrat est inchangé. Le seed et les fabriques de test utilisent déjà des domaines d'entreprise.
+- **Limite.** On ne vérifie pas qu'un domaine d'entreprise appartient bien à celui qui l'inscrit en premier : le modèle « un domaine = une entreprise » (F6) reste hors périmètre.
+- **F11.** L'entreprise et l'utilisateur sont créés dans une seule transaction.
+- **F12.** Une violation d'unicité sur l'email donne le message existant « Un compte existe déjà avec cet email. », et plus un 500.
+- Les autres règles de validation et de rôle restent celles d'aujourd'hui.
+
+### `suggestFromReceipt` (F17, F19)
+
+L'OCR reste synchrone (D2). Ses risques sont traités **dans l'adapter `TesseractReceiptReader`**, sans toucher au use case ni au contrat :
+
+- **F17.** Un seul moteur Tesseract est créé au premier appel et réutilisé ensuite, avec le cache de langue activé, au lieu d'un moteur créé et détruit à chaque requête. Le nombre d'OCR simultanés est plafonné (2 par défaut, `OCR_MAX_CONCURRENCY`). Au-delà, les demandes attendent dans une file en mémoire, avec un délai maximal de 30 s puis `503`, et un en-tête `Retry-After`.
+- **F19.** La taille du reçu soumis à l'OCR est plafonnée à 10 Mo, comme à la création. Au-delà, on renvoie `400` avec le même message qu'à la création (« Fichier trop volumineux »).
 
 ### `getReceiptUrl` (F1)
 
@@ -254,10 +265,10 @@ Toutes les 1 à 2 secondes, le worker :
 
 1. **réserve un lot** dans une transaction courte, aussitôt validée :
    ```sql
-   UPDATE mail_outbox SET next_attempt_at = now() + interval '1 minute'
+   UPDATE mail_outbox SET next_attempt_at = now() + interval '2 minutes'
    WHERE id IN (SELECT id FROM mail_outbox
                 WHERE status = 'pending' AND next_attempt_at <= now()
-                ORDER BY created_at LIMIT 20 FOR UPDATE SKIP LOCKED)
+                ORDER BY created_at LIMIT 5 FOR UPDATE SKIP LOCKED)
    RETURNING *;
    ```
 2. **envoie** chaque e-mail **hors transaction**, avec `Message-ID: <id@expense.io>` et des timeouts nodemailer courts (5 s à la connexion et au greeting, 10 s sur la socket) ;
@@ -266,6 +277,8 @@ Toutes les 1 à 2 secondes, le worker :
    - en cas d'échec, `attempts + 1`, `last_error`, `next_attempt_at` repoussé de 10 s après le premier échec puis d'1 min, et `status = 'dead'` au troisième échec.
 
 **Ce que le bail apporte.** Aucune transaction ni aucun verrou ne restent ouverts pendant un appel SMTP. Si le worker plante, seul l'e-mail en cours peut repartir, et seulement à l'expiration du bail. Plusieurs workers peuvent tourner en parallèle sans se gêner.
+
+**Règle : le bail dure plus longtemps que le pire cas d'un lot.** Le pire cas vaut taille du lot × (timeout de connexion + timeout de socket), soit 5 × (5 s + 10 s) = 75 s, pour un bail de 2 min. Sinon, un second worker réserverait des lignes encore en cours d'envoi et les enverrait une seconde fois. Les trois valeurs sont configurables (`MAIL_BATCH_SIZE`, `MAIL_LEASE_SECONDS` et les timeouts SMTP), et le worker **refuse de démarrer** si la règle n'est pas respectée.
 
 **Exploitation :**
 - un log JSON d'erreur (avec `correlationId`) à chaque passage en `dead` ;
@@ -298,19 +311,26 @@ Toutes les 1 à 2 secondes, le worker :
 
 ## Socle commun
 
-### Isolation (F2, F44)
+### Isolation (F2, F44) : la RLS n'assure que le cloisonnement
 
-- Une migration crée le rôle `expense_app`, qui n'est ni superutilisateur, ni `BYPASSRLS`, ni propriétaire des tables. `DATABASE_URL` l'utilise. Les migrations et le seed gardent le rôle propriétaire (`MIGRATION_DATABASE_URL`).
-- Les policies RH filtrent sur `hr.company_id = owner.company_id`.
-- Les policies de lecture et de décision côté validateur reprennent la règle d'`ApprovalPolicy`. La file RH élargie (F14, F33) est donc visible sous RLS.
-- RLS est activée sur `users` et `companies` : chacun lit les membres de son entreprise, ce qui permet `getContact` dans la portée du manager. L'inscription et l'authentification passent par des fonctions `SECURITY DEFINER` à la surface minimale.
-- La mise à jour de `receipt_key` passe dans le scope RLS.
-- On ajoute des index sur `expense_notes.user_id`, `users.manager_id` et `users.company_id`.
+On sépare les rôles : **`ApprovalPolicy` fait seule foi** pour savoir qui voit et décide quelle note. La **RLS** est un filet qui garantit qu'**aucune donnée ne traverse la frontière d'une entreprise**, quel que soit le bug applicatif. La règle métier n'est écrite qu'une fois, en TypeScript, et la RLS ne la recopie pas, donc rien ne peut diverger (voir F22).
 
-### Entrées et secrets (F3, F25)
+- **Le rôle applicatif.** Une migration crée `expense_app`, qui n'est ni superutilisateur, ni `BYPASSRLS`, ni propriétaire des tables. `DATABASE_URL` l'utilise. Les migrations et le seed gardent le rôle propriétaire (`MIGRATION_DATABASE_URL`).
+- **`expense_notes.company_id`.** Une migration ajoute cette colonne, remplie depuis l'auteur pour les notes existantes, puis la rend `NOT NULL` avec une clé étrangère vers `companies`. À la création, elle est renseignée avec l'entreprise de l'acteur, et un trigger refuse une valeur différente de celle de l'auteur. Les policies n'ont donc plus besoin de joindre `users`.
+- **Les policies, réécrites :**
+  - `expense_notes` : lecture et mise à jour limitées à `company_id = app.current_company_id()`. L'insertion n'est permise que si `user_id` est l'acteur et `company_id` son entreprise.
+  - `users` et `companies` : lecture limitée à sa propre entreprise. C'est ce qui permet `getContact` dans la portée du manager.
+  - L'inscription et l'authentification, qui ont lieu avant toute portée, passent par deux fonctions `SECURITY DEFINER` à la surface minimale : `iam_sign_up(...)` et `iam_credentials_for(email)`.
+  - Les anciennes policies `expense_notes_manager_*` et `expense_notes_hr_root_manager_*` sont supprimées.
+- **Le contexte de portée.** `app.current_company_id()` est une fonction SQL qui lit `app.current_company_id`, posé par `runInScope` à côté de `app.current_user_id`.
+- **Les index (F16).** On ajoute `expense_notes(user_id, created_at)`, `expense_notes(company_id, status)`, `users(manager_id)` et `users(company_id)`. Le gain est mesuré avec `EXPLAIN` sur les quatre requêtes de liste, et les résultats vont dans l'audit chiffré.
+
+### Entrées et secrets (F3, F25, F34)
 
 - `?sort=` passe par une liste blanche : `created_at`, `expense_date` ou `amount`, combiné avec `asc` ou `desc`, avec `created_at desc` par défaut. Une valeur hors liste est ignorée, et on applique le tri par défaut.
 - `AUTH_SECRET` est lu par `shared/config.ts`, et le démarrage échoue s'il manque.
+- **F34.** `shared/http.ts` refuse le corps **avant** de le lire si `Content-Length` est absent ou dépasse la limite de la route : 10 Mo et quelques kilo-octets pour les envois de reçus, 64 Ko pour le JSON. La réponse est un `400` avec le message existant « Fichier trop volumineux », ou « Corps de requête invalide » pour le JSON.
+- **F41.** `PUT /api/hr/users/{id}/manager` exige un corps JSON valide qui contient explicitement la clé `managerId` (`null` pour détacher). Sinon, la route renvoie `400`, au lieu de détacher l'employé en silence.
 
 ### Erreurs (F26, F27, F42, F43)
 
@@ -325,6 +345,7 @@ Toutes les 1 à 2 secondes, le worker :
   | `Conflict` (`already-decided`, `invalid-manager`) | 409 |
   | `InvalidInput` | 400 |
   | `ReceiptUploadFailed` | 502 |
+  | `Unavailable` (OCR saturé) | 503, avec `Retry-After` |
   | tout le reste | 500 |
 
 - Une réponse 500 ne contient jamais de stack : la stack est seulement journalisée, avec le `correlationId`.
@@ -349,6 +370,10 @@ Toutes les 1 à 2 secondes, le worker :
 | `GET /api/hr/expense-notes` | managers racines seulement | plus complète (F14, F33), même format |
 | `PUT /api/hr/users/{id}/manager` | manager d'une autre entreprise ou cycle → 200 | 409 `invalid-manager` |
 | `…/receipt-url` côté manager | note de n'importe quelle entreprise | 404 hors équipe |
+| `PUT /api/hr/users/{id}/manager`, corps illisible ou sans `managerId` | 200, employé détaché (F41) | 400 |
+| `POST /api/expense-notes/receipt-suggestion`, fichier de plus de 10 Mo | accepté (F19) | 400 « Fichier trop volumineux » |
+| `POST /api/expense-notes/receipt-suggestion`, OCR saturé plus de 30 s | attente illimitée (F17) | 503 avec `Retry-After` |
+| `POST` avec `Content-Length` absent ou trop grand | corps lu en entier (F34) | 400 avant lecture |
 
 ## Interface utilisateur
 
@@ -454,11 +479,74 @@ Le sous-agent `revue-architecture` relit un diff contre les règles de dépendan
 
 Avant la soutenance, on fait au moins une répétition chronométrée, depuis un clone propre, avec une fonctionnalité du domaine qu'on ne livre pas (par exemple un motif de rejet). On note la durée, les écarts à la recette et les corrections à apporter à `AGENTS.md` ou aux skills. Les corrections sont commitées, la fonctionnalité est jetée.
 
+## Couverture de l'audit
+
+Chacun des 46 constats de l'audit QA est soit **traité** (avec le plan qui le corrige), soit **hors périmètre** (avec la raison). Les constats hors périmètre sont repris tels quels dans l'audit chiffré « après ».
+
+| Constat | Gravité | Statut | Où / pourquoi |
+|---|---|---|---|
+| F1 Reçus lisibles d'une autre entreprise | Critique | traité · plan 1 | contrôle d'accès sur `receipt-url` et RLS d'isolation, puis `canDecide` au plan 2 |
+| F2 RLS contournée (superuser) | Critique | traité · plan 1 | rôle `expense_app` |
+| F3 Injection via `?sort=` | Critique | traité · plan 1 | liste blanche |
+| F4 Premier inscrit d'un domaine = RH | Élevé | traité · plan 2 | domaines de messagerie publique refusés ; l'usurpation d'un domaine d'entreprise reste possible (F6) |
+| F5 Manager d'une autre entreprise | Élevé | traité · plan 2 | `assignManager` |
+| F6 Un domaine = une entreprise | Moyen | hors périmètre | modèle d'identité d'entreprise (invitations, vérification du domaine) : une fonctionnalité, pas une refacto |
+| F7 Email sensible à la casse | Moyen | hors périmètre | correction de données et de comportement, sans effet sur l'architecture ; à planifier après |
+| F8 Un employé ne devient jamais manager | Faible | hors périmètre | fonctionnalité manquante |
+| F9 Décisions concurrentes | Élevé | traité · plan 2 | `UPDATE … WHERE status = 'pending'` |
+| F10 Note sans reçu | Moyen | traité · plan 2 | reçu d'abord, note ensuite |
+| F11 Entreprise orpheline à l'inscription | Moyen | traité · plan 2 | une transaction |
+| F12 Course sur l'email à l'inscription | Faible | traité · plan 2 | violation d'unicité traduite en message |
+| F13 Montant hors `numeric(10,2)` | Moyen | hors périmètre | resserrement des validations ; la 500 perd sa stack (F26) |
+| F14 Notes d'un RH sans validateur | Moyen | traité · plan 2 | `ApprovalPolicy` ; le RH seul reste une limite documentée |
+| F15 Notification jamais envoyée | Moyen | traité · plan 3 | outbox d'e-mails |
+| F16 Aucun index | Élevé | traité · plan 1 | quatre index, gain mesuré avec `EXPLAIN` |
+| F17 OCR : moteur recréé à chaque appel | Élevé | traité · plan 2 | moteur réutilisé, concurrence plafonnée ; l'OCR reste synchrone (D2) |
+| F18 Pas de pagination | Moyen | hors périmètre | changerait la forme des réponses, donc le contrat (consigne) |
+| F19 OCR sans limite de taille | Élevé | traité · plan 2 | plafond de 10 Mo |
+| F20 Pas de limitation de débit | Moyen | hors périmètre | sujet transverse d'infrastructure (reverse proxy ou passerelle), pas du code applicatif |
+| F21 OCR et hachage dans la requête | Moyen | partiel | OCR atténué par F17 et F19 ; l'OCR asynchrone est écarté par choix de périmètre (D2) ; bcrypt reste dans la requête (coût voulu) |
+| F22 Couche hexagonale morte | Moyen | traité · plan 2 | modules branchés, code mort supprimé |
+| F23 `toExpenseNote` dupliqué | Faible | traité · plan 2 | un seul mapper dans `expenses` |
+| F24 Utilitaires morts | Faible | traité · plan 2 | supprimés |
+| F25 Secret en dur | Critique | traité · plan 1 | `shared/config` |
+| F26 Stack dans les 500 | Élevé | traité · plan 1 | `shared/problem` |
+| F27 401 et 403 incohérents | Faible | traité · plan 1 | `shared/http` |
+| F28 Décisions irréversibles, sans piste d'audit | Faible | hors périmètre | fonctionnalité |
+| F29 Défauts d'affichage | Faible | hors périmètre | cosmétique ; l'UI reste libre pour le live coding |
+| F30 Cycle dans l'organigramme | Élevé | traité · plan 2 | `assignManager` (`WITH RECURSIVE`) |
+| F31 Rôle figé dans le JWT | Moyen | traité · plan 2 | `getActor` relu à chaque requête |
+| F32 `expenseDate` non validée | Moyen | hors périmètre | resserrement des validations ; la 500 perd sa stack |
+| F33 Employé sans manager, notes sans validateur | Moyen | traité · plan 2 | `ApprovalPolicy` ; suppose F4 |
+| F34 Corps lu avant le contrôle de taille | Moyen | traité · plan 1 | `Content-Length` vérifié dans `shared/http` |
+| F35 Aucun test ni CI | Moyen | déjà traité | ARLA-9, puis complété par cette refacto |
+| F36 Énumération des comptes | Faible | hors périmètre | sécurité, faible ; à planifier après |
+| F37 Type du reçu non vérifié | Faible | hors périmètre | resserrement des validations |
+| F38 Fonctions métier manquantes | Faible | hors périmètre | candidates au live coding |
+| F39 Note orpheline exposant le bucket | Moyen | traité · plan 2 | plus de note sans clé (F10) et `404` |
+| F40 Saisie corrompue sans erreur | Moyen | hors périmètre | resserrement des validations |
+| F41 Corps illisible = employé détaché | Moyen | traité · plan 1 | `400` si `managerId` est absent |
+| F42 Entrée malformée → 500 | Faible | traité · plan 1 | `400` |
+| F43 `withUserScope` sans `await` | Faible | traité · plan 1 | `return await` |
+| F44 RLS incomplète | Moyen | traité · plan 1 | RLS d'isolation sur toutes les tables métier |
+| F45 Reçu vide accepté | Faible | hors périmètre | resserrement des validations |
+| F46 Pages `/manager` et `/hr` servies à tous | Faible | hors périmètre | UI, sans risque de données (les API refusent) |
+
+**Bilan.** Les 4 constats critiques et les 8 constats élevés sont traités. Pour F17, la correction reste une atténuation, puisque l'OCR reste synchrone. Parmi les constats hors périmètre, aucun n'est critique ni élevé.
+
 ## Tests
+
+**Stratégie.** L'hexagonal sert d'abord à ça :
+- les use cases sont testés unitairement avec de faux adapters (en mémoire) ;
+- les routes sont testées en intégration, rôle par rôle, contre un vrai Postgres et un vrai S3 ;
+- chaque constat traité a **au moins un test** qui échouerait s'il revenait.
+
+F35 (« aucun test ni CI ») est déjà réglé par ARLA-9 : plus de 140 tests, et une CI avec lint, Vitest et Playwright sur chaque PR. La refacto s'appuie dessus et la complète.
 
 - **Unitaires (nouveaux) :**
   - `ExpenseNote` (transitions) ;
-  - `ApprovalPolicy` (manager, employé non rattaché, manager racine, RH, RH seul) et détection de cycle ;
+  - `ApprovalPolicy` : un cas par ligne du tableau des validateurs (employé rattaché, employé non rattaché, manager racine, RH, RH seul), plus la détection de cycle ;
+  - `Company.isPublicEmailDomain` (F4) ;
   - `decisionEmail` (destinataire, objet, montant formaté) ;
   - chaque use case, avec des repositories, un `InMemoryMailer` et un `iam` en mémoire.
 - **Intégration (existants) :** ils restent en place et importent les mêmes `route.ts`. Les `[as-is]` du périmètre basculent vers le comportement corrigé : 401/403, stack, `?sort=`, note orpheline, UUID → 400, corps illisible → 400, utilisateur supprimé → 401.
@@ -467,10 +555,13 @@ Avant la soutenance, on fait au moins une répétition chronométrée, depuis un
   - F5 et F30 : manager d'une autre entreprise, cycle direct, cycle long ;
   - F14 et F33 : file RH élargie, un RH ne voit jamais sa propre note, un RH seul soumet bien (201) ;
   - consigne « manager direct » : rien de visible ni de décidable au-delà des subordonnés directs ;
-  - F11 : un échec en milieu d'inscription ne laisse aucune entreprise orpheline ;
+  - F4 : une inscription en `@gmail.com` (et chaque domaine de la liste) est refusée, et aucune entreprise n'est créée ;
+  - F11 et F12 : un échec en milieu d'inscription ne laisse aucune entreprise orpheline, et deux inscriptions simultanées avec le même email donnent un compte et un message, sans 500 ;
   - F31 : un rôle modifié en base prend effet immédiatement ;
-  - cohérence RLS / `approveesOf` sur un organigramme généré ;
-  - rôle `expense_app` : la RLS est réellement appliquée ;
+  - F10 et F39 : un échec S3 n'écrit aucune note, et un échec de l'`INSERT` après l'upload laisse un objet que `receipts:orphans` détecte ;
+  - F17 et F19 : un reçu de plus de 10 Mo est refusé avant l'OCR ; deux OCR successifs réutilisent le même moteur ; au-delà du plafond de concurrence, la demande attend puis reçoit `503` ;
+  - F34 et F41 : un `Content-Length` trop grand est refusé sans lire le corps, et un corps sans `managerId` donne `400` sans modifier l'organigramme ;
+  - isolation RLS : connecté en `expense_app`, aucune requête ne voit de note, d'utilisateur ou d'entreprise d'une autre entreprise, quel que soit le rôle, même en SQL direct sans filtre applicatif ;
   - `getContact` fonctionne dans la portée RLS du manager ;
   - outbox :
     - une décision refusée n'écrit aucune ligne dans `mail_outbox`, une décision acceptée en écrit exactement une ;
@@ -478,6 +569,7 @@ Avant la soutenance, on fait au moins une répétition chronométrée, depuis un
   - worker :
     - une ligne `pending` est envoyée (API Mailpit) puis marquée `sent` ;
     - un crash simulé après la réservation : la ligne est renvoyée à l'expiration du bail ;
+    - le worker refuse de démarrer si le bail est plus court que le pire cas d'un lot ;
     - un SMTP en panne fait passer la ligne en `dead` après 3 essais ;
     - deux workers en parallèle n'envoient jamais deux fois la même ligne ;
     - les lignes `sent` de plus de 30 jours sont purgées ;
@@ -495,8 +587,8 @@ Avant la soutenance, on fait au moins une répétition chronométrée, depuis un
 
 | Plan | Contenu | Prérequis | Livrable seul ? |
 |---|---|---|---|
-| **1. Socle et harnais agent** | **SonarQube en premier** (compose, `sonar-project.properties`, job CI, run « avant ») ; `dependency-cruiser` en mode rapport ; harnais agent (`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `docs/` par type avec READMEs, gabarits, ADR 0001–0004 et runbooks, `utiliser-la-doc`, `verifier-avant-de-livrer`, `agents:sync`, `.claude/settings.json`, `make dev`, `npm run verify`) ; `openapi.yaml` de l'API actuelle et `oasdiff` ; `shared/config`, `shared/problem`, `shared/logger` ; rôle `expense_app` et RLS complète ; `?sort=` ; secret ; 401/403 ; 400 ; F1 | — | oui |
-| **2. Modules** | `shared/unit-of-work` et `shared/http` ; module `iam` puis module `expenses`, en migrant les routes une par une avec la suite verte à chaque commit ; suppression du code mort ; `dependency-cruiser` bloquant ; ajustements d'UI ; `conventions.md`, skill `ajouter-une-fonctionnalite`, sous-agent `revue-architecture` | plan 1 | oui |
+| **1. Socle et harnais agent** | **SonarQube en premier** (compose, `sonar-project.properties`, job CI, run « avant ») ; `dependency-cruiser` en mode rapport ; harnais agent (`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `docs/` par type avec READMEs, gabarits, ADR 0001–0004 et runbooks, `utiliser-la-doc`, `verifier-avant-de-livrer`, `agents:sync`, `.claude/settings.json`, `make dev`, `npm run verify`) ; `openapi.yaml` de l'API actuelle et `oasdiff` ; `shared/config`, `shared/problem`, `shared/logger` ; rôle `expense_app`, `expense_notes.company_id` et RLS d'isolation ; index (F16) ; `?sort=` ; secret ; 401/403 ; 400 ; F1, F34, F41. Pendant ce plan, les routes existantes gardent leur filtrage SQL des droits : la RLS n'est qu'un filet d'isolation. | — | oui |
+| **2. Modules** | `shared/unit-of-work` et `shared/http` ; module `iam` (dont `ApprovalPolicy`, `assignManager`, F4 dans `signUp`) puis module `expenses` (dont l'ordre S3 puis note, et F17 et F19 dans `TesseractReceiptReader`), en migrant les routes une par une avec la suite verte à chaque commit ; suppression du code mort ; `dependency-cruiser` bloquant ; ajustements d'UI ; `conventions.md`, skill `ajouter-une-fonctionnalite`, sous-agent `revue-architecture` | plan 1 | oui |
 | **3. Notification** | migration `mail_outbox` et rôle `expense_mailer` ; `shared/mail` (`Mailer`, `OutboxMailer`, `InMemoryMailer`) ; `decisionEmail` et branchement dans `decideExpenseNote` ; worker de livraison (bail, retry, `dead`, purge, `replay`, `SIGTERM`) ; Mailpit dans le compose et la CI ; skill `envoyer-un-email` ; tests et E2E Mailpit ; run SonarQube « après » ; **répétition du live coding** | plan 2 | oui |
 
 Le harnais agent est posé dès le plan 1 pour que les agents qui exécutent les plans 2 et 3 en profitent déjà. Le skill de live coding vient avec le plan 2, une fois que les modules existent et qu'il peut citer du vrai code.
@@ -505,6 +597,7 @@ Le harnais agent est posé dès le plan 1 pour que les agents qui exécutent les
 
 | Risque | Parade |
 |---|---|
+| La migration de `expense_notes.company_id` rencontre des notes dont l'auteur a disparu | la migration les compte et échoue avec un message explicite plutôt que d'inventer une entreprise ; aucune n'existe dans le seed ni dans les tests |
 | Passer au rôle non superutilisateur révèle des requêtes qui dépendaient du contournement de la RLS | faire ce passage tôt dans le plan 1, la suite ARLA-9 servant de détecteur ; ajouter des policies ciblées, jamais `BYPASSRLS` |
 | Les tests d'intégration mockent `@/lib/auth` | `lib/auth.ts` reste le point d'entrée ; seul son contenu délègue à `iam` |
 | Next.js et `tsx` résolvent différemment l'alias `@/` | le worker n'importe que `shared/config` et `shared/logger`, et un test de démarrage du worker en CI le vérifie |
