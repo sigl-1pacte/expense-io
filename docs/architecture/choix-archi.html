@@ -1,0 +1,1187 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Options d'architecture Expense.io</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout : une suite de planches plein écran, une question par planche, barre de navigation fixe.
+   Couleurs de domaine reprises de docs/audit/as-is.md (bleu notes, orange permissions, vert présentation). */
+:root {
+  --bg: #F5F6F8;
+  --surface: #FFFFFF;
+  --sunk: #ECEEF2;
+  --fg: #17202C;
+  --muted: #586273;
+  --line: #D8DCE3;
+  --line-strong: #A6AEBB;
+
+  --exp: #2563EB;   --exp-soft: #E7EEFD;
+  --iam: #D4560B;   --iam-soft: #FCEDE2;
+  --pres: #15803D;  --pres-soft: #E3F3E8;
+  --async: #7C3AED; --async-soft: #EFE8FD;
+
+  --mark: #FFE27A;  --mark-soft: #FFF8DB; --mark-fg: #3B2F00;
+  --good: #15803D;  --mid: #B45309;       --bad: #B91C1C;
+  --sev-crit: #9F1239; --sev-high: #DC2626; --sev-mid: #F2A007; --sev-low: #9AA5B5;
+
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --bar-h: 52px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10141B; --surface: #171C25; --sunk: #0C0F14; --fg: #E4E8EF; --muted: #97A1B2;
+    --line: #29303C; --line-strong: #4A5466;
+    --exp: #74A4FF; --exp-soft: #16223A; --iam: #FB9450; --iam-soft: #2D1C10;
+    --pres: #4ADE80; --pres-soft: #11281A; --async: #A98BFA; --async-soft: #211936;
+    --mark: #6B5612; --mark-soft: #251F0C; --mark-fg: #FFE9A3;
+    --good: #4ADE80; --mid: #FBBF24; --bad: #F87171;
+    --sev-crit: #FB7185; --sev-high: #F87171; --sev-mid: #FBBF24; --sev-low: #5E6B7E;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10141B; --surface: #171C25; --sunk: #0C0F14; --fg: #E4E8EF; --muted: #97A1B2;
+  --line: #29303C; --line-strong: #4A5466;
+  --exp: #74A4FF; --exp-soft: #16223A; --iam: #FB9450; --iam-soft: #2D1C10;
+  --pres: #4ADE80; --pres-soft: #11281A; --async: #A98BFA; --async-soft: #211936;
+  --mark: #6B5612; --mark-soft: #251F0C; --mark-fg: #FFE9A3;
+  --good: #4ADE80; --mid: #FBBF24; --bad: #F87171;
+  --sev-crit: #FB7185; --sev-high: #F87171; --sev-mid: #FBBF24; --sev-low: #5E6B7E;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-snap-type: y proximity; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 1rem/1.55 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--exp); outline-offset: 2px; border-radius: 4px; }
+
+/* ---------- Barre de navigation ---------- */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar-inner {
+  height: var(--bar-h);
+  max-width: 1200px; margin: 0 auto; padding-inline: 16px;
+  display: flex; align-items: center; gap: 16px;
+}
+.brand { font: 600 .95rem var(--font-display); letter-spacing: .01em; white-space: nowrap; }
+.brand span { color: var(--muted); font-weight: 500; }
+.where { flex: 1; min-width: 0; color: var(--muted); font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.counter { font: 500 .85rem var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.nav-btn {
+  appearance: none; border: 1px solid var(--line-strong); background: var(--surface); color: var(--fg);
+  width: 34px; height: 30px; border-radius: 6px; font: 500 1rem var(--font-mono); cursor: pointer;
+}
+.nav-btn:hover { border-color: var(--fg); }
+.progress { height: 2px; background: var(--line); }
+.progress > div { height: 100%; width: 0; background: var(--fg); transition: width .25s ease; }
+@media (prefers-reduced-motion: reduce) { .progress > div { transition: none; } }
+
+/* ---------- Planches ---------- */
+.slide {
+  min-height: 100svh;
+  scroll-snap-align: start;
+  display: flex; align-items: center;
+  padding: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 32px) 16px 56px;
+  border-bottom: 1px solid var(--line);
+}
+.slide-inner { width: 100%; max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+@media (max-width: 760px) {
+  html { scroll-snap-type: none; }
+  .slide { min-height: auto; padding-top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 28px); }
+  .where { display: none; }
+}
+
+.eyebrow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin: 0; font: 500 .78rem var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+}
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 { font: 700 clamp(2.5rem, 6.2vw, 4.4rem)/1.02 var(--font-display); letter-spacing: -.012em; max-width: 18ch; }
+h2 { font: 600 clamp(1.75rem, 3.5vw, 2.7rem)/1.1 var(--font-display); letter-spacing: -.005em; max-width: 30ch; }
+h3 { font: 600 1.12rem/1.3 var(--font-display); letter-spacing: .005em; }
+p { margin: 0; }
+.lead { font-size: 1.15rem; line-height: 1.55; color: var(--muted); max-width: 68ch; }
+.head { display: flex; flex-direction: column; gap: 14px; }
+.source { font-size: .8rem; color: var(--muted); }
+code, .mono { font-family: var(--font-mono); font-size: .88em; }
+code { background: var(--sunk); padding: .05em .35em; border-radius: 4px; }
+.f {
+  display: inline-block; font: 500 .74rem/1.5 var(--font-mono); color: var(--muted);
+  border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 .35em; white-space: nowrap; vertical-align: .08em;
+}
+ul.clean { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+ul.clean li { padding-left: 1.1em; position: relative; }
+ul.clean li::before { content: ""; position: absolute; left: 0; top: .68em; width: .45em; height: 2px; background: var(--line-strong); }
+
+.status {
+  font: 600 .72rem var(--font-mono); letter-spacing: .06em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line-strong);
+}
+.status.out { color: var(--muted); }
+.status.cand { color: var(--exp); border-color: var(--exp); }
+.status.prop { background: var(--mark); color: var(--mark-fg); border-color: transparent; }
+
+.cols { display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.cols > * { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.col-title { font: 500 .78rem var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.col-title.good { color: var(--good); border-color: var(--good); }
+.col-title.bad { color: var(--bad); border-color: var(--bad); }
+
+.verdict {
+  border-left: 3px solid var(--line-strong); padding: 4px 0 4px 16px; max-width: 80ch;
+}
+.verdict strong { font-family: var(--font-display); font-weight: 600; }
+.quote {
+  font: 500 clamp(1.15rem, 2vw, 1.4rem)/1.4 var(--font-display); max-width: 52ch;
+  padding: 18px 20px; background: var(--sunk); border-radius: 10px;
+}
+
+/* ---------- Titre ---------- */
+.toc { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 6px 28px; margin: 0; padding: 0; list-style: none; counter-reset: toc 1; }
+.toc li { counter-increment: toc; }
+.toc a {
+  display: flex; gap: 12px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); text-decoration: none;
+}
+.toc a::before { content: counter(toc, decimal-leading-zero); font: 500 .78rem var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.toc a:hover { border-color: var(--fg); }
+.legend { display: flex; flex-wrap: wrap; gap: 10px 22px; font-size: .88rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.sw { width: 14px; height: 14px; border-radius: 3px; border: 2px solid; display: inline-block; }
+.sw.exp { border-color: var(--exp); background: var(--exp-soft); }
+.sw.iam { border-color: var(--iam); background: var(--iam-soft); }
+.sw.pres { border-color: var(--pres); background: var(--pres-soft); }
+.sw.async { border-color: var(--async); background: var(--async-soft); }
+.sw.dash { border-style: dashed; border-color: var(--line-strong); }
+
+/* ---------- Cadre ---------- */
+.constraints { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 32px; }
+.constraint { display: flex; flex-direction: column; gap: 6px; padding: 16px 0; border-top: 1px solid var(--line); min-width: 0; }
+.constraint .src { font: 400 .78rem var(--font-mono); color: var(--muted); }
+.constraint.changed h3::after {
+  content: "nouveau"; margin-left: 10px; font: 600 .66rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
+  background: var(--mark); color: var(--mark-fg); padding: 2px 6px; border-radius: 999px; vertical-align: .2em;
+}
+
+/* ---------- As-is ---------- */
+.split { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 40px; align-items: start; }
+@media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+.facts { display: flex; flex-direction: column; gap: 16px; }
+.fact { display: grid; grid-template-columns: 4.2rem 1fr; gap: 14px; align-items: baseline; }
+.fact b { font: 700 1.9rem/1 var(--font-display); font-variant-numeric: tabular-nums; text-align: right; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 16px; }
+.big { font: 700 3.4rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.sev { display: flex; height: 30px; border-radius: 6px; overflow: hidden; gap: 2px; }
+.sev > div { min-width: 0; }
+.sev-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; font-size: .9rem; }
+.sev-legend span { display: flex; align-items: center; gap: 8px; }
+.sev-legend b { font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-weight: 500; }
+.dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+
+/* ---------- Périmètre ---------- */
+.scope { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 20px; }
+.scope > section { min-width: 0; padding: 20px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; gap: 14px; }
+.scope > section.out { background: transparent; border-style: dashed; }
+.scope .tag { font: 500 .74rem var(--font-mono); color: var(--muted); }
+.note { font-size: .92rem; color: var(--muted); max-width: 90ch; }
+
+/* ---------- Notions ---------- */
+.defs { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; }
+.def { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.def .q { font: 500 1.05rem var(--font-display); color: var(--muted); }
+.def .scale { font: 500 .75rem var(--font-mono); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.matrix-title { font: 600 1rem var(--font-display); }
+.matrix { display: grid; grid-template-columns: 9rem minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.matrix .axis { font: 500 .78rem var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: flex; align-items: center; }
+.matrix .axis.col { justify-content: flex-start; padding-left: 4px; }
+.cell { border: 1px solid var(--line); border-radius: 10px; padding: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cell h3 { font-size: 1rem; }
+.cell p { font-size: .92rem; color: var(--muted); }
+.cell .axes { display: none; font: 500 .7rem var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.cell.hit { background: var(--mark-soft); border-color: var(--mark); }
+@media (max-width: 700px) {
+  .matrix { grid-template-columns: 1fr; }
+  .matrix .axis { display: none; }
+  .cell .axes { display: block; }
+}
+
+/* ---------- Schémas ---------- */
+.diagram { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 14px; }
+.diagram svg { display: block; width: 100%; min-width: 760px; height: auto; }
+.diagram-caption { font-size: .85rem; color: var(--muted); }
+.dg text { font-family: var(--font-body); font-size: 13px; fill: var(--fg); }
+.dg .lbl { font-weight: 600; font-size: 14px; }
+.dg .sub { fill: var(--muted); font-size: 12px; }
+.dg .mono { font-family: var(--font-mono); font-size: 11.5px; }
+.dg .cap { font-family: var(--font-mono); font-size: 11.5px; fill: var(--muted); letter-spacing: .04em; }
+.dg .n { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; }
+.dg .n.exp { fill: var(--exp-soft); stroke: var(--exp); }
+.dg .n.iam { fill: var(--iam-soft); stroke: var(--iam); }
+.dg .n.pres { fill: var(--pres-soft); stroke: var(--pres); }
+.dg .n.async { fill: var(--async-soft); stroke: var(--async); }
+.dg .n.dlq { stroke: var(--bad); }
+.dg .mod { stroke-width: 1.5; }
+.dg .mod.exp { fill: var(--exp-soft); stroke: var(--exp); }
+.dg .mod.iam { fill: var(--iam-soft); stroke: var(--iam); }
+.dg .mod-lbl.exp { fill: var(--exp); font-weight: 600; font-family: var(--font-mono); font-size: 12px; }
+.dg .mod-lbl.iam { fill: var(--iam); font-weight: 600; font-family: var(--font-mono); font-size: 12px; }
+.dg .grp { fill: none; stroke: var(--line-strong); stroke-width: 1.25; stroke-dasharray: 6 5; }
+.dg .grp.async { stroke: var(--async); }
+.dg .grp-lbl.async { fill: var(--async); }
+.dg .e { fill: none; stroke: var(--muted); stroke-width: 1.5; marker-end: url(#arrow); }
+.dg .e.dash { stroke-dasharray: 5 4; }
+.dg .db { fill: var(--sunk); stroke: var(--line-strong); stroke-width: 1.5; }
+.dg .rim { fill: none; stroke: var(--line-strong); stroke-width: 1.5; }
+.dg .badge circle { fill: var(--async); }
+.dg .badge text { fill: var(--bg); font: 600 11px var(--font-mono); text-anchor: middle; }
+.arrowhead { fill: var(--muted); }
+
+.steps-legend { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 8px 28px; counter-reset: st; font-size: .92rem; }
+.steps-legend li { counter-increment: st; position: relative; padding-left: 32px; }
+.steps-legend li::before {
+  content: counter(st); position: absolute; left: 0; top: .1em; width: 20px; height: 20px; border-radius: 50%; background: var(--async); color: var(--bg);
+  font: 600 11px/20px var(--font-mono); text-align: center;
+}
+
+pre.tree {
+  margin: 0; padding: 16px; background: var(--sunk); border-radius: 10px; overflow-x: auto;
+  font: 400 .8rem/1.6 var(--font-mono); color: var(--fg);
+}
+pre.tree .c { color: var(--muted); }
+
+.mini-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.mini-table th, .mini-table td { text-align: left; vertical-align: top; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); }
+.mini-table th { font-weight: 600; white-space: nowrap; }
+
+/* ---------- Comparaison ---------- */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table.cmp { width: 100%; min-width: 860px; border-collapse: collapse; font-size: .9rem; }
+table.cmp th, table.cmp td { padding: 11px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+table.cmp thead th { font: 600 .95rem var(--font-display); border-bottom: 1px solid var(--line-strong); }
+table.cmp thead th small { display: block; font: 400 .78rem var(--font-body); color: var(--muted); }
+table.cmp tbody th { font-weight: 500; color: var(--muted); width: 17%; }
+table.cmp tr > :nth-child(4) { background: var(--mark-soft); }
+table.cmp tr:last-child > * { border-bottom: 0; }
+.lv { display: block; position: relative; padding-left: 17px; }
+.lv::before { content: ""; position: absolute; left: 0; top: .5em; width: 9px; height: 9px; border-radius: 50%; }
+.keys .lv { display: inline-block; }
+.lv.g::before { background: var(--good); }
+.lv.m::before { background: var(--mid); }
+.lv.b::before { background: var(--bad); }
+.verdict-row td { font: 600 .9rem var(--font-display); }
+.keys { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: .85rem; color: var(--muted); }
+
+/* ---------- Décisions ---------- */
+.proposal { background: var(--mark-soft); border: 1px solid var(--mark); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+.proposal h3 { font-size: 1.3rem; }
+.decisions { display: flex; flex-direction: column; }
+.decision { display: grid; grid-template-columns: 3rem minmax(0, 15rem) minmax(0, 1fr); gap: 16px; padding: 14px 0; border-top: 1px solid var(--line); align-items: baseline; }
+.decision .id { font: 600 .95rem var(--font-mono); color: var(--muted); }
+.decision h3 { font-size: 1.05rem; }
+.decision p { color: var(--muted); font-size: .95rem; }
+.decision.main .id { color: var(--fg); }
+@media (max-width: 760px) {
+  .decision { grid-template-columns: 2.6rem minmax(0, 1fr); }
+  .decision p { grid-column: 2; }
+}
+
+/* ---------- Suite ---------- */
+.timeline { list-style: none; margin: 0; padding: 0; counter-reset: tl; display: flex; flex-direction: column; }
+.timeline li { counter-increment: tl; display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); gap: 14px; position: relative; padding-bottom: 16px; }
+.timeline li::before {
+  content: counter(tl); width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line-strong); background: var(--surface);
+  font: 600 .8rem/25px var(--font-mono); text-align: center; position: relative; z-index: 1;
+}
+.timeline li::after { content: ""; position: absolute; left: 13.5px; top: 28px; bottom: 0; width: 1.5px; background: var(--line); }
+.timeline li:last-child::after { display: none; }
+.timeline li.now::before { background: var(--mark); color: var(--mark-fg); border-color: transparent; }
+.timeline .when { font: 500 .78rem var(--font-mono); color: var(--muted); }
+.timeline h3 { font-size: 1.02rem; }
+.timeline p { color: var(--muted); font-size: .92rem; }
+.measures { display: flex; flex-direction: column; gap: 10px; }
+.measures li { font-size: .95rem; }
+
+footer.end { text-align: left; padding: 28px 16px 40px; font-size: .8rem; color: var(--muted); max-width: 1152px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrowhead" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">Expense.io <span>· choix d'architecture</span></div>
+    <div class="where" id="where">Titre</div>
+    <div class="counter" id="counter">01 / 12</div>
+    <button class="nav-btn" id="prev" type="button" aria-label="Planche précédente">‹</button>
+    <button class="nav-btn" id="next" type="button" aria-label="Planche suivante">›</button>
+  </div>
+  <div class="progress"><div id="progress"></div></div>
+</header>
+
+<main>
+
+<!-- 01 · Titre -->
+<section class="slide" id="titre" data-title="Titre">
+  <div class="slide-inner">
+    <div class="head">
+      <p class="eyebrow">Refacto technique · code du 19 au 26/10 · soutenance le 30/10</p>
+      <h1>Quelle architecture pour la refacto&nbsp;?</h1>
+      <p class="lead">Quatre options étudiées, un périmètre déjà tranché. Il reste à choisir l'option et quelques sous-choix pour écrire l'ADR-001.</p>
+    </div>
+    <ol class="toc" aria-label="Sommaire">
+      <li><a href="#cadre">Le cadre</a></li>
+      <li><a href="#as-is">D'où on part</a></li>
+      <li><a href="#perimetre">Le périmètre</a></li>
+      <li><a href="#notions">Modulaire ou hexagonal</a></li>
+      <li><a href="#option-a">Option A · couches</a></li>
+      <li><a href="#option-b">Option B · modulaire</a></li>
+      <li><a href="#option-c">Option C · B + async</a></li>
+      <li><a href="#option-d">Option D · microservices</a></li>
+      <li><a href="#comparaison">Comparaison</a></li>
+      <li><a href="#decisions">À décider ensemble</a></li>
+      <li><a href="#suite">La suite</a></li>
+    </ol>
+    <div class="legend" aria-label="Code couleur des schémas">
+      <span><i class="sw exp"></i>Notes de frais · module <code>expenses</code></span>
+      <span><i class="sw iam"></i>Permissions · module <code>iam</code></span>
+      <span><i class="sw pres"></i>Présentation</span>
+      <span><i class="sw async"></i>Asynchrone · worker</span>
+      <span><i class="sw dash"></i>Frontière de déploiement</span>
+    </div>
+    <p class="source">Navigation : flèches ← → ou barre d'espace. Sources : <code>docs/architecture/options-refacto.md</code>, <code>docs/audit/as-is.md</code>, audit QA (F1–F46).</p>
+  </div>
+</section>
+
+<!-- 02 · Cadre -->
+<section class="slide" id="cadre" data-title="Le cadre">
+  <div class="slide-inner">
+    <div class="head">
+      <p class="eyebrow">Le cadre</p>
+      <h2>Ce que l'architecture doit respecter</h2>
+    </div>
+    <div class="constraints">
+      <div class="constraint">
+        <h3>L'API ne casse pas</h3>
+        <p>Routes, codes et corps de réponse en succès restent identiques. Les fichiers <code>api/**/route.ts</code> restent en place.</p>
+        <span class="src">kick-off, slides 4 et 10</span>
+      </div>
+      <div class="constraint">
+        <h3>100 % des E2E verts</h3>
+        <p>La refacto avance par petits pas, chacun validé par la suite de caractérisation ARLA-9.</p>
+        <span class="src">barème, Contraintes techniques /5</span>
+      </div>
+      <div class="constraint changed">
+        <h3>Codée par des agents</h3>
+        <p>L'effort n'est plus un critère de choix. La capacité de l'architecture à guider un agent en devient un.</p>
+        <span class="src">décision d'équipe</span>
+      </div>
+      <div class="constraint">
+        <h3>Live coding avec l'IA</h3>
+        <p>Une feature inconnue à coder en direct. L'architecture doit dire sans hésiter où va le nouveau code.</p>
+        <span class="src">barème, Co-conception IA /3</span>
+      </div>
+      <div class="constraint">
+        <h3>Audit chiffré avant / après</h3>
+        <p>Chaque option doit produire des mesures comparables, avec le même outillage avant et après.</p>
+        <span class="src">barème, Audit /5</span>
+      </div>
+      <div class="constraint">
+        <h3>Un owner par axe</h3>
+        <p>Architecture, Contrat d'API, Asynchrone &amp; run. Une option qui laisse un axe vide l'affaiblit.</p>
+        <span class="src">kick-off, slides 8 et 12</span>
+      </div>
+    </div>
+    <p class="note">Échelle : SaaS B2B, aucune contrainte de charge connue. Rien ne justifie aujourd'hui un système distribué (cours 2, tradeoffs).</p>
+  </div>
+</section>
+
+<!-- 03 · As-is -->
+<section class="slide" id="as-is" data-title="D'où on part">
+  <div class="slide-inner">
+    <div class="head">
+      <p class="eyebrow">D'où on part</p>
+      <h2>Un monolithe Next.js où les règles métier vivent dans le SQL des routes</h2>
+    </div>
+    <div class="split">
+      <div class="facts">
+        <div class="fact"><b>1</b><p>seul process Node.js, entièrement synchrone. Il sert l'UI, l'API, l'OCR et l'upload des reçus.</p></div>
+        <div class="fact"><b>13</b><p>route handlers écrivent leur propre SQL. La règle « qui valide quoi » y est recopiée, avec 4 handlers approve/reject quasi identiques.</p></div>
+        <div class="fact"><b>7</b><p>copies du mapping ligne → DTO d'une note de frais.</p></div>
+        <div class="fact"><b>0</b><p>import de la couche hexagonale existante (<code>domain/</code>, <code>ports/</code>, <code>adapters/</code>, <code>utils/</code>) : elle est morte.</p></div>
+        <div class="fact"><b>140+</b><p>tests de caractérisation (Vitest et Playwright), lancés en CI sur chaque PR. C'est le filet de sécurité de la refacto.</p></div>
+      </div>
+      <div class="panel" aria-label="Constats d'audit par gravité">
+        <div>
+          <div class="big">46</div>
+          <p class="source">constats d'audit (as-is, audit QA, tests ARLA-9)</p>
+        </div>
+        <div class="sev" role="img" aria-label="4 critiques, 8 élevés, 20 moyens, 14 faibles">
+          <div style="flex-grow:4;background:var(--sev-crit)"></div>
+          <div style="flex-grow:8;background:var(--sev-high)"></div>
+          <div style="flex-grow:20;background:var(--sev-mid)"></div>
+          <div style="flex-grow:14;background:var(--sev-low)"></div>
+        </div>
+        <div class="sev-legend">
+          <span><i class="dot" style="background:var(--sev-crit)"></i><b>4</b> critiques</span>
+          <span><i class="dot" style="background:var(--sev-high)"></i><b>8</b> élevés</span>
+          <span><i class="dot" style="background:var(--sev-mid)"></i><b>20</b> moyens</span>
+          <span><i class="dot" style="background:var(--sev-low)"></i><b>14</b> faibles</span>
+        </div>
+        <p class="note">Les critiques : un manager lit les reçus d'une autre entreprise <span class="f">F1</span>, RLS contournée <span class="f">F2</span>, injection via <code>?sort=</code> <span class="f">F3</span>, secret d'authentification en dur <span class="f">F25</span>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 · Périmètre -->
+<section class="slide" id="perimetre" data-title="Le périmètre">
+  <div class="slide-inner">
+    <div class="head">
+      <p class="eyebrow">Le périmètre · tranché</p>
+      <h2>Ce que la refacto corrige, et ce qu'elle laisse au produit</h2>
+    </div>
+    <div class="scope">
+      <section>
+        <div>
+          <h3>Socle commun</h3>
+          <p class="tag">corrigé quelle que soit l'option</p>
+        </div>
+        <ul class="clean">
+          <li>Rôle Postgres non superuser, policies RH filtrées par entreprise <span class="f">F2</span> <span class="f">F44</span></li>
+          <li>Rattachement vérifié sur le reçu côté manager, manager choisi dans la même entreprise <span class="f">F1</span> <span class="f">F5</span></li>
+          <li>Liste blanche pour <code>?sort=</code>, secret lu depuis l'environnement <span class="f">F3</span> <span class="f">F25</span></li>
+          <li>Plus de stack dans les réponses, 400 sur entrée invalide, 401/403 cohérents <span class="f">F26</span> <span class="f">F27</span> <span class="f">F42</span> <span class="f">F43</span></li>
+          <li>Index sur les clés étrangères <span class="f">F16</span></li>
+        </ul>
+      </section>
+      <section>
+        <div>
+          <h3>Règles de validation</h3>
+          <p class="tag">corrigées, et portées par l'architecture</p>
+        </div>
+        <ul class="clean">
+          <li>Deux décisions simultanées : une seule gagne <span class="f">F9</span></li>
+          <li>Note et reçu, entreprise et compte : créés ensemble ou pas du tout <span class="f">F10</span> <span class="f">F11</span></li>
+          <li>Toute note a un validateur, y compris celle d'un employé sans manager ou d'une RH <span class="f">F14</span> <span class="f">F33</span></li>
+          <li>Pas de cycle dans l'organigramme <span class="f">F30</span></li>
+          <li>Rôle relu en base au lieu d'être figé dans le JWT <span class="f">F31</span></li>
+        </ul>
+      </section>
+      <section class="out">
+        <div>
+          <h3>Hors périmètre</h3>
+          <p class="tag">documenté, à arbitrer côté produit</p>
+        </div>
+        <ul class="clean">
+          <li>Le premier inscrit d'un domaine devient RH <span class="f">F4</span></li>
+          <li>Une entreprise à plusieurs domaines <span class="f">F6</span></li>
+          <li>Promouvoir un employé en manager <span class="f">F8</span></li>
+          <li>Modifier ou annuler une note, motif de rejet, mot de passe oublié <span class="f">F38</span></li>
+        </ul>
+      </section>
+    </div>
+    <p class="note">Pas encore classés : validation des montants et des dates <span class="f">F13</span> <span class="f">F32</span> <span class="f">F40</span> <span class="f">F41</span>, limites de ressources <span class="f">F18</span> <span class="f">F19</span> <span class="f">F20</span> <span class="f">F34</span> et coût de l'OCR <span class="f">F17</span>. Leur traitement dépend en partie de l'option retenue.</p>
+  </div>
+</section>
+
+<!-- 05 · Notions -->
+<section class="slide" id="notions" data-title="Modulaire ou hexagonal">
+  <div class="slide-inner">
+    <div class="head">
+      <p class="eyebrow">Deux notions à ne pas confondre</p>
+      <h2>Monolithe modulaire et hexagonal répondent à deux questions différentes</h2>
+    </div>
+    <div class="defs">
+      <div class="def">
+        <span class="scale">Entre les domaines</span>
+        <h3>Monolithe modulaire</h3>
+        <p class="q">Comment découpe-t-on l'application&nbsp;?</p>
+        <p>Par domaine métier : <code>expenses</code> pour les notes de frais, <code>iam</code> pour les utilisateurs et les droits. Un module ne touche à un autre que par son API publique (<code>index.ts</code>). On garde un seul déployable, une seule base, et des appels en mémoire.</p>
+      </div>
+      <div class="def">
+        <span class="scale">Dans un composant</span>
+        <h3>Hexagonal (ports &amp; adapters)</h3>
+        <p class="q">Qui dépend de qui&nbsp;?</p>
+        <p>Le métier, au centre, ne connaît aucune technologie. Il déclare ses besoins sous forme de ports (<code>NoteRepository</code>, <code>ReceiptStorage</code>). Des adapters les implémentent avec Postgres, S3 ou Tesseract. Une route HTTP est un adapter d'entrée.</p>
+      </div>
+    </div>
+    <p class="matrix-title">Une même règle, « ce manager peut-il valider cette note&nbsp;? », écrite de quatre façons</p>
+    <div class="matrix">
+      <div></div>
+      <div class="axis col">Pas hexagonal</div>
+      <div class="axis col">Hexagonal</div>
+
+      <div class="axis">Pas modulaire</div>
+      <div class="cell">
+        <span class="axes">Pas modulaire · pas hexagonal</span>
+        <h3>As-is et option A</h3>
+        <p>La règle est un <code>WHERE u.manager_id = $2</code>, recopié dans 7 routes et dans la RLS.</p>
+      </div>
+      <div class="cell">
+        <span class="axes">Pas modulaire · hexagonal</span>
+        <h3><code>src/domain</code>, <code>ports</code>, <code>adapters</code> actuels</h3>
+        <p>Un seul hexagone pour toute l'application. <code>canManage()</code> est pure, mais notes et utilisateurs sont mélangés. Jamais branché.</p>
+      </div>
+
+      <div class="axis">Modulaire</div>
+      <div class="cell">
+        <span class="axes">Modulaire · pas hexagonal</span>
+        <h3>Modules, SQL direct</h3>
+        <p>La règle existe une seule fois, dans <code>iam.canDecide()</code>, mais elle est écrite en SQL : on ne la teste qu'avec une base.</p>
+      </div>
+      <div class="cell hit">
+        <span class="axes">Modulaire · hexagonal</span>
+        <h3>Option B</h3>
+        <p>Chaque module est son propre hexagone. <code>canDecide()</code> est une fonction pure du domaine <code>iam</code>, testable sans base, appelée par <code>expenses</code> via l'API publique de <code>iam</code>.</p>
+      </div>
+    </div>
+    <p class="note">Le modulaire, c'est le plan de l'immeuble et les portes de chaque appartement. L'hexagonal, c'est l'aménagement intérieur, avec des prises standard où l'on branche n'importe quel appareil.</p>
+  </div>
+</section>
+
+<!-- 06 · Option A -->
+<section class="slide" id="option-a" data-title="Option A · couches">
+  <div class="slide-inner">
+    <div class="head">
+      <p class="eyebrow">Option A <span class="status out">ÉCARTÉE</span></p>
+      <h2>Monolithe en couches, nettoyé</h2>
+      <p class="lead">On garde la forme actuelle et on la range : routes, puis services, puis repositories SQL. La couche hexagonale morte est supprimée.</p>
+    </div>
+    <div class="diagram">
+      <svg class="dg" viewBox="0 0 960 240" role="img" aria-label="Schéma de l'option A : pages, route handlers, services et repositories SQL, PostgreSQL et S3">
+        <rect class="n pres" x="10" y="95" width="120" height="56" rx="8"/>
+        <text class="lbl" x="70" y="128" text-anchor="middle">Pages React</text>
+
+        <rect class="n" x="170" y="95" width="160" height="56" rx="8"/>
+        <text class="lbl" x="250" y="119" text-anchor="middle">Route handlers</text>
+        <text class="sub mono" x="250" y="138" text-anchor="middle">api/**/route.ts</text>
+
+        <rect class="n iam" x="380" y="15" width="190" height="50" rx="8"/>
+        <text class="lbl" x="475" y="36" text-anchor="middle">http/guard</text>
+        <text class="sub" x="475" y="54" text-anchor="middle">requireRole · requireSession</text>
+
+        <rect class="n exp" x="380" y="100" width="190" height="46" rx="8"/>
+        <text class="lbl" x="475" y="128" text-anchor="middle">expense-notes/service</text>
+
+        <rect class="n iam" x="380" y="180" width="190" height="46" rx="8"/>
+        <text class="lbl" x="475" y="208" text-anchor="middle">users/service</text>
+
+        <rect class="n" x="610" y="15" width="190" height="50" rx="8"/>
+        <text class="lbl" x="705" y="45" text-anchor="middle">lib/storage · lib/ocr</text>
+
+        <rect class="n exp" x="610" y="100" width="190" height="46" rx="8"/>
+        <text class="lbl" x="705" y="128" text-anchor="middle">expense-notes/repository</text>
+
+        <rect class="n iam" x="610" y="180" width="190" height="46" rx="8"/>
+        <text class="lbl" x="705" y="208" text-anchor="middle">users/repository</text>
+
+        <path class="db" d="M845,128 a52.5,8 0 0 1 105,0 v64 a52.5,8 0 0 1 -105,0 z"/>
+        <path class="rim" d="M845,128 a52.5,8 0 0 0 105,0"/>
+        <text class="lbl" x="897" y="168" text-anchor="middle">PostgreSQL</text>
+
+        <path class="db" d="M845,18 a52.5,8 0 0 1 105,0 v48 a52.5,8 0 0 1 -105,0 z"/>
+        <path class="rim" d="M845,18 a52.5,8 0 0 0 105,0"/>
+        <text class="lbl" x="897" y="50" text-anchor="middle">S3</text>
+
+        <path class="e" d="M130,123 L168,123"/>
+        <path class="e" d="M330,110 L378,47"/>
+        <path class="e" d="M330,123 L378,123"/>
+        <path class="e" d="M330,136 L378,200"/>
+        <path class="e" d="M570,123 L608,123"/>
+        <path class="e" d="M570,203 L608,203"/>
+        <path class="e" d="M555,100 L630,67"/>
+        <path class="e" d="M800,123 L843,152"/>
+        <path class="e" d="M800,203 L843,184"/>
+        <path class="e" d="M800,40 L843,40"/>
+      </svg>
+    </div>
+    <div class="cols">
+      <div>
+        <p class="col-title good">Ce qu'elle règle</p>
+        <ul class="clean">
+          <li>La duplication : une fonction <code>decide()</code> remplace les 4 handlers, un seul mapper remplace les 7 copies.</li>
+          <li>Les contrôles d'accès, centralisés dans <code>guard.ts</code>.</li>
+        </ul>
+      </div>
+      <div>
+        <p class="col-title bad">Ce qu'elle ne règle pas</p>
+        <ul class="clean">
+          <li>Le métier reste dans le SQL : aucune règle n'est testable sans base.</li>
+          <li>Les domaines restent mêlés : le service des notes connaît la hiérarchie.</li>
+          <li>Rien côté asynchrone.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="verdict"><strong>Pourquoi on l'écarte.</strong> Son seul vrai argument était le coût (3 à 4 jours-personne). Avec des agents, il ne pèse plus. Et A guide mal un agent : on sait où mettre une route, pas où mettre une règle métier.</p>
+  </div>
+</section>
+
+<!-- 07 · Option B -->
+<section class="slide" id="option-b" data-title="Option B · modulaire">
+  <div class="slide-inner">
+    <div class="head">
+      <p class="eyebrow">Option B <span class="status cand">CANDIDATE</span></p>
+      <h2>Monolithe modulaire, hexagonal dans chaque module</h2>
+      <p class="lead">Un seul déployable, découpé en deux modules métier. Chaque module suit l'hexagonale : domaine pur, use cases, ports et adapters. Les routes Next.js deviennent des adapters minces.</p>
+    </div>
+    <div class="diagram">
+      <svg class="dg" viewBox="0 0 960 400" role="img" aria-label="Schéma de l'option B : un monolithe contenant les modules expenses et iam, des adapters secondaires, PostgreSQL et S3">
+        <rect class="grp" x="150" y="8" width="650" height="384" rx="12"/>
+        <text class="cap" x="166" y="30">MONOLITHE NEXT.JS · UN SEUL DÉPLOYABLE</text>
+
+        <rect class="n pres" x="10" y="172" width="110" height="56" rx="8"/>
+        <text class="lbl" x="65" y="205" text-anchor="middle">Pages React</text>
+
+        <rect class="n" x="170" y="172" width="140" height="56" rx="8"/>
+        <text class="lbl" x="240" y="196" text-anchor="middle">Route handlers</text>
+        <text class="sub" x="240" y="214" text-anchor="middle">adapters d'entrée</text>
+
+        <rect class="mod exp" x="345" y="44" width="260" height="168" rx="10"/>
+        <text class="mod-lbl exp" x="360" y="66">module expenses</text>
+        <rect class="n" x="360" y="78" width="230" height="40" rx="6"/>
+        <text class="lbl" x="475" y="95" text-anchor="middle">use cases</text>
+        <text class="sub" x="475" y="111" text-anchor="middle">submit · decide · list · receipt</text>
+        <rect class="n" x="360" y="128" width="110" height="40" rx="6"/>
+        <text class="lbl" x="415" y="145" text-anchor="middle">domaine</text>
+        <text class="sub mono" x="415" y="161" text-anchor="middle">ExpenseNote</text>
+        <rect class="n" x="480" y="128" width="110" height="40" rx="6"/>
+        <text class="lbl" x="535" y="145" text-anchor="middle">ports</text>
+        <text class="sub mono" x="535" y="161" text-anchor="middle" style="font-size:11px">NoteRepository</text>
+        <text class="sub mono" x="475" y="196" text-anchor="middle" style="font-size:11px">+ ReceiptStorage · ReceiptReader</text>
+
+        <rect class="mod iam" x="345" y="236" width="260" height="144" rx="10"/>
+        <text class="mod-lbl iam" x="360" y="258">module iam</text>
+        <rect class="n" x="360" y="268" width="230" height="44" rx="6"/>
+        <text class="lbl" x="475" y="287" text-anchor="middle">ApprovalPolicy</text>
+        <text class="sub" x="475" y="304" text-anchor="middle">API publique : qui peut valider ?</text>
+        <rect class="n" x="360" y="322" width="230" height="44" rx="6"/>
+        <text class="lbl" x="475" y="341" text-anchor="middle">use cases</text>
+        <text class="sub" x="475" y="358" text-anchor="middle">signup · login · assignManager</text>
+
+        <rect class="n" x="640" y="150" width="140" height="110" rx="8"/>
+        <text class="lbl" x="710" y="177" text-anchor="middle">adapters</text>
+        <text class="sub" x="710" y="199" text-anchor="middle">Pg · S3</text>
+        <text class="sub" x="710" y="217" text-anchor="middle">Tesseract</text>
+        <text class="sub" x="710" y="235" text-anchor="middle">Auth.js · bcrypt</text>
+
+        <path class="db" d="M840,88 a55,8 0 0 1 110,0 v64 a55,8 0 0 1 -110,0 z"/>
+        <path class="rim" d="M840,88 a55,8 0 0 0 110,0"/>
+        <text class="lbl" x="895" y="128" text-anchor="middle">PostgreSQL</text>
+
+        <path class="db" d="M840,253 a55,8 0 0 1 110,0 v54 a55,8 0 0 1 -110,0 z"/>
+        <path class="rim" d="M840,253 a55,8 0 0 0 110,0"/>
+        <text class="lbl" x="895" y="288" text-anchor="middle">S3</text>
+
+        <path class="e" d="M120,200 L168,200"/>
+        <path class="e" d="M310,188 L358,102"/>
+        <path class="e" d="M310,212 L358,338"/>
+        <path class="e" d="M475,212 L475,266"/>
+        <path class="e dash" d="M640,178 L592,152"/>
+        <path class="e" d="M780,186 L838,132"/>
+        <path class="e" d="M780,232 L838,272"/>
+      </svg>
+    </div>
+    <p class="diagram-caption">Flèche pleine : appel. Flèche pointillée : l'adapter implémente un port du module (les ports de <code>iam</code> ne sont pas dessinés).</p>
+    <div class="cols">
+      <div>
+        <p class="col-title">Arborescence</p>
+<pre class="tree">src/
+  app/api/**/route.ts   <span class="c"># parse → use case → HTTP</span>
+  modules/
+    expenses/
+      domain/           <span class="c">ExpenseNote.ts</span>
+      application/      <span class="c">decide-expense-note.ts …</span>
+      ports/            <span class="c">NoteRepository.ts …</span>
+      infrastructure/   <span class="c">PgNoteRepository.ts …</span>
+      index.ts          <span class="c"># API publique</span>
+    iam/                <span class="c"># même structure</span>
+  shared/               <span class="c">errors · unit-of-work</span></pre>
+      </div>
+      <div>
+        <p class="col-title">Règles vérifiées en CI</p>
+        <ul class="clean">
+          <li><code>domain</code> n'importe rien.</li>
+          <li><code>application</code> n'importe que <code>domain</code> et <code>ports</code>.</li>
+          <li><code>infrastructure</code> implémente les ports.</li>
+          <li>Un module n'en importe un autre que par son <code>index.ts</code>.</li>
+          <li><code>app/</code> n'importe que des <code>index.ts</code>.</li>
+        </ul>
+        <p class="note">Contrôlé par <code>dependency-cruiser</code>. Le nombre de violations est aussi une mesure avant / après.</p>
+      </div>
+      <div>
+        <p class="col-title good">Ce que B règle dans le périmètre</p>
+        <ul class="clean">
+          <li>L'agrégat porte la transition <code>pending → décidée</code>, appliquée par un <code>UPDATE … WHERE status = 'pending'</code> <span class="f">F9</span></li>
+          <li>Une seule <code>ApprovalPolicy</code> <span class="f">F5</span> <span class="f">F14</span> <span class="f">F30</span> <span class="f">F33</span></li>
+          <li>La soumission passe par une unité de travail <span class="f">F10</span></li>
+          <li><code>iam</code> relit le rôle en base <span class="f">F31</span></li>
+          <li>Fin de la duplication et de la couche morte</li>
+        </ul>
+      </div>
+    </div>
+    <div class="cols">
+      <p class="verdict"><strong>Limite.</strong> Rien d'asynchrone. L'axe « Asynchrone &amp; run » se réduit à une décision documentée de ne pas en faire.</p>
+      <p class="verdict"><strong>Point de design.</strong> La file du manager fait <code>expense_notes ⨝ users</code>, une jointure entre deux modules. Il faudra choisir comment la traiter (voir D4).</p>
+    </div>
+  </div>
+</section>
+
+<!-- 08 · Option C -->
+<section class="slide" id="option-c" data-title="Option C · B + async">
+  <div class="slide-inner">
+    <div class="head">
+      <p class="eyebrow">Option C <span class="status prop">PROPOSÉE PAR L'ÉTUDE</span></p>
+      <h2>B, plus un flux asynchrone : outbox, file et worker</h2>
+      <p class="lead">On part de B. Un second process, le worker, prend en charge les effets de bord qui ne doivent pas bloquer la réponse HTTP. Premier flux : la notification de décision, prévue (<code>NotificationPort</code>) mais jamais appelée <span class="f">F15</span>.</p>
+    </div>
+    <div class="diagram">
+      <svg class="dg" viewBox="0 0 960 380" role="img" aria-label="Schéma de l'option C : décision écrite avec un événement dans l'outbox, relayée vers SQS par le worker, puis consommée pour envoyer un e-mail">
+        <rect class="n pres" x="10" y="30" width="110" height="50" rx="8"/>
+        <text class="lbl" x="65" y="60" text-anchor="middle">Pages React</text>
+
+        <rect class="n" x="160" y="30" width="130" height="50" rx="8"/>
+        <text class="lbl" x="225" y="52" text-anchor="middle">Route handler</text>
+        <text class="sub mono" x="225" y="69" text-anchor="middle">POST …/approve</text>
+
+        <rect class="n exp" x="330" y="30" width="170" height="50" rx="8"/>
+        <text class="lbl" x="415" y="52" text-anchor="middle">DecideExpenseNote</text>
+        <text class="sub" x="415" y="69" text-anchor="middle" style="font-size:11px">use case · module expenses</text>
+
+        <path class="db" d="M545,26 a75,8 0 0 1 150,0 v62 a75,8 0 0 1 -150,0 z"/>
+        <path class="rim" d="M545,26 a75,8 0 0 0 150,0"/>
+        <text class="lbl" x="620" y="60" text-anchor="middle">PostgreSQL</text>
+        <text class="sub mono" x="620" y="78" text-anchor="middle">notes · outbox</text>
+
+        <rect class="grp async" x="525" y="172" width="190" height="192" rx="10"/>
+        <text class="cap grp-lbl async" x="620" y="354" text-anchor="middle">WORKER · PROCESS SÉPARÉ</text>
+        <rect class="n async" x="540" y="188" width="160" height="48" rx="8"/>
+        <text class="lbl" x="620" y="217" text-anchor="middle">relay outbox</text>
+        <rect class="n async" x="540" y="270" width="160" height="48" rx="8"/>
+        <text class="lbl" x="620" y="290" text-anchor="middle">consumer</text>
+        <text class="sub mono" x="620" y="307" text-anchor="middle">SendDecisionEmail</text>
+
+        <rect class="n" x="760" y="214" width="180" height="56" rx="8"/>
+        <text class="lbl" x="850" y="238" text-anchor="middle">SQS expense-events</text>
+        <text class="sub" x="850" y="256" text-anchor="middle">LocalStack en local</text>
+
+        <rect class="n dlq" x="760" y="320" width="180" height="44" rx="8"/>
+        <text class="lbl" x="850" y="347" text-anchor="middle">DLQ</text>
+
+        <rect class="n" x="320" y="270" width="160" height="48" rx="8"/>
+        <text class="lbl" x="400" y="290" text-anchor="middle">SMTP</text>
+        <text class="sub" x="400" y="307" text-anchor="middle">Mailpit en local</text>
+
+        <path class="e" d="M120,55 L158,55"/>
+        <path class="e" d="M290,55 L328,55"/>
+        <path class="e" d="M500,55 L543,55"/>
+        <path class="e" d="M620,96 L620,186"/>
+        <path class="e" d="M700,212 L758,232"/>
+        <path class="e" d="M760,254 L702,286"/>
+        <path class="e" d="M540,294 L482,294"/>
+        <path class="e dash" d="M850,270 L850,318"/>
+        <text class="sub" x="860" y="299">après 3 échecs</text>
+
+        <g class="badge"><circle cx="139" cy="55" r="10"/><text x="139" y="59">1</text></g>
+        <g class="badge"><circle cx="521" cy="55" r="10"/><text x="521" y="59">2</text></g>
+        <g class="badge"><circle cx="620" cy="141" r="10"/><text x="620" y="145">3</text></g>
+        <g class="badge"><circle cx="729" cy="222" r="10"/><text x="729" y="226">4</text></g>
+        <g class="badge"><circle cx="731" cy="270" r="10"/><text x="731" y="274">5</text></g>
+        <g class="badge"><circle cx="511" cy="294" r="10"/><text x="511" y="298">6</text></g>
+      </svg>
+    </div>
+    <ol class="steps-legend">
+      <li>Le manager approuve une note.</li>
+      <li>Le use case met à jour la note et écrit l'événement dans l'outbox, dans la même transaction.</li>
+      <li>Le relay du worker lit les événements de l'outbox.</li>
+      <li>Il publie <code>expense.note-decided.v1</code> sur la file.</li>
+      <li>Le consumer reçoit le message.</li>
+      <li>Il envoie l'e-mail, puis supprime le message (ack).</li>
+    </ol>
+    <div class="cols">
+      <div>
+        <p class="col-title">Garde-fous (cours 2, slide 40)</p>
+        <ul class="clean">
+          <li><strong>Outbox</strong> : la note et l'événement sont écrits ensemble, ou pas du tout.</li>
+          <li><strong>Idempotence</strong> : une table <code>processed_messages</code> ; un message rejoué n'envoie pas de second e-mail.</li>
+          <li><strong>Contrat versionné</strong>, décrit en AsyncAPI ou JSON Schema.</li>
+          <li><strong>Traçabilité</strong> : un <code>correlationId</code> suit la requête, l'outbox puis le worker.</li>
+          <li><strong>DLQ</strong> après 3 échecs.</li>
+        </ul>
+      </div>
+      <div>
+        <p class="col-title">Quels flux justifient l'asynchrone&nbsp;?</p>
+        <table class="mini-table">
+          <tr><th>Notification</th><td>Effet de bord non critique, aucune réponse d'API ne change. Un SMTP lent ne doit pas faire échouer une décision. <span class="f">F15</span></td></tr>
+          <tr><th>OCR</th><td>Sort Tesseract du process web, noté Élevé dans l'audit. Coût : un nouvel endpoint <code>202</code> suivi par polling (changement MINOR) et l'UI à adapter. <span class="f">F17</span> <span class="f">F19</span> <span class="f">F21</span></td></tr>
+        </table>
+      </div>
+      <div>
+        <p class="col-title">Broker</p>
+        <table class="mini-table">
+          <tr><th>SQS + outbox</th><td>Proposé. Aucune nouvelle infra (LocalStack est déjà là), chaque notion du cours est visible, et c'est une vraie cible AWS.</td></tr>
+          <tr><th>pg-boss</th><td>Plus simple : file dans Postgres, envoi dans la même transaction. Mais le broker se confond avec la base, la démonstration est moins lisible.</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 09 · Option D -->
+<section class="slide" id="option-d" data-title="Option D · microservices">
+  <div class="slide-inner">
+    <div class="head">
+      <p class="eyebrow">Option D <span class="status out">ÉCARTÉE</span></p>
+      <h2>Microservices</h2>
+      <p class="lead">Un BFF Next.js garde les routes <code>/api/*</code> publiques, devant un service des notes et un service des permissions, chacun avec sa base, plus un bus et un worker.</p>
+    </div>
+    <div class="diagram">
+      <svg class="dg" viewBox="0 0 960 290" role="img" aria-label="Schéma de l'option D : BFF, expense-service et permission-service avec leurs bases, bus et worker">
+        <rect class="n pres" x="10" y="140" width="110" height="50" rx="8"/>
+        <text class="lbl" x="65" y="170" text-anchor="middle">Pages React</text>
+
+        <rect class="n" x="160" y="140" width="150" height="50" rx="8"/>
+        <text class="lbl" x="235" y="161" text-anchor="middle">BFF Next.js</text>
+        <text class="sub mono" x="235" y="178" text-anchor="middle">/api/* inchangé</text>
+
+        <rect class="n exp" x="370" y="60" width="170" height="50" rx="8"/>
+        <text class="lbl" x="455" y="90" text-anchor="middle">expense-service</text>
+
+        <rect class="n iam" x="370" y="220" width="170" height="50" rx="8"/>
+        <text class="lbl" x="455" y="250" text-anchor="middle">permission-service</text>
+
+        <path class="db" d="M600,48 a65,8 0 0 1 130,0 v46 a65,8 0 0 1 -130,0 z"/>
+        <path class="rim" d="M600,48 a65,8 0 0 0 130,0"/>
+        <text class="lbl" x="665" y="80" text-anchor="middle">Expense DB</text>
+
+        <path class="db" d="M600,130 a65,8 0 0 1 130,0 v38 a65,8 0 0 1 -130,0 z"/>
+        <path class="rim" d="M600,130 a65,8 0 0 0 130,0"/>
+        <text class="lbl" x="665" y="158" text-anchor="middle">S3</text>
+
+        <path class="db" d="M600,222 a65,8 0 0 1 130,0 v46 a65,8 0 0 1 -130,0 z"/>
+        <path class="rim" d="M600,222 a65,8 0 0 0 130,0"/>
+        <text class="lbl" x="665" y="254" text-anchor="middle">IAM DB</text>
+
+        <rect class="n" x="790" y="60" width="150" height="44" rx="8"/>
+        <text class="lbl" x="865" y="87" text-anchor="middle">Bus</text>
+        <rect class="n async" x="790" y="150" width="150" height="44" rx="8"/>
+        <text class="lbl" x="865" y="177" text-anchor="middle">worker</text>
+
+        <path class="e" d="M120,165 L158,165"/>
+        <path class="e" d="M310,155 L368,95"/>
+        <path class="e" d="M310,175 L368,236"/>
+        <path class="e" d="M455,110 L455,218"/>
+        <text class="sub" x="465" y="168">HTTP : qui valide ?</text>
+        <path class="e" d="M540,80 L598,74"/>
+        <path class="e" d="M540,100 L598,144"/>
+        <path class="e" d="M540,245 L598,245"/>
+        <path class="e" d="M455,60 C455,12 865,12 865,58"/>
+        <text class="sub" x="560" y="19">événements</text>
+        <path class="e" d="M865,104 L865,148"/>
+      </svg>
+    </div>
+    <div class="split">
+      <div class="cols" style="grid-template-columns:1fr">
+        <div>
+          <p class="col-title bad">Réexaminée sans contrainte d'effort, elle reste écartée</p>
+          <ul class="clean">
+            <li><strong>Bases séparées.</strong> La jointure <code>expense_notes ⨝ users</code> disparaît, alors que les files d'attente et la RLS en dépendent. Les correctifs d'isolation <span class="f">F1</span> <span class="f">F2</span> <span class="f">F44</span> s'appuient sur cette base unique.</li>
+            <li><strong>Transactions distribuées.</strong> Soumission et décision deviennent des sagas, précisément là où <span class="f">F9</span> et <span class="f">F10</span> demandent de l'atomicité.</li>
+            <li><strong>E2E fragiles.</strong> 5 conteneurs ou plus et un tracing distribué, alors que 100 % des E2E doivent rester verts.</li>
+            <li><strong>Live coding plus lourd.</strong> Une feature transverse touche deux services et un contrat interne.</li>
+            <li><strong>Rien ne la justifie.</strong> Ni la charge, ni des équipes autonomes, ni des déploiements indépendants. Le mémo du cours la range dans « À reconsidérer » (slide 17).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="facts">
+        <p class="quote">Un agent écrit ce code vite, mais il ne retire pas ces coûts. Il les déplace vers le run et le débogage.</p>
+        <p class="note">Dans l'ADR, D sert d'alternative écartée explicitement. C'est là qu'elle montre la posture d'architecte.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 · Comparaison -->
+<section class="slide" id="comparaison" data-title="Comparaison">
+  <div class="slide-inner">
+    <div class="head">
+      <p class="eyebrow">Comparaison</p>
+      <h2>B et C se détachent, C couvre les trois axes</h2>
+    </div>
+    <div class="table-wrap">
+      <table class="cmp">
+        <thead>
+          <tr>
+            <th scope="col">Critère</th>
+            <th scope="col">A<small>Couches</small></th>
+            <th scope="col">B<small>Modulaire + hexagonal</small></th>
+            <th scope="col">C<small>B + asynchrone</small></th>
+            <th scope="col">D<small>Microservices</small></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Risque pour l'API et les E2E</th>
+            <td><span class="lv g">Faible</span></td>
+            <td><span class="lv m">Moyen, migration route par route</span></td>
+            <td><span class="lv m">Moyen, l'API reste inchangée</span></td>
+            <td><span class="lv b">Fort</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Domaines découplés</th>
+            <td><span class="lv b">Non</span></td>
+            <td><span class="lv g">Oui</span></td>
+            <td><span class="lv g">Oui</span></td>
+            <td><span class="lv g">Oui, physiquement</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Métier testable sans infra</th>
+            <td><span class="lv b">Non</span></td>
+            <td><span class="lv g">Oui</span></td>
+            <td><span class="lv g">Oui</span></td>
+            <td><span class="lv g">Oui</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Règles de validation du périmètre</th>
+            <td><span class="lv m">Dispersées dans les services</span></td>
+            <td><span class="lv g">Centralisées : agrégat et <code>ApprovalPolicy</code></span></td>
+            <td><span class="lv g">Comme B</span></td>
+            <td><span class="lv b">Réparties entre deux services</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Axe « Asynchrone &amp; run »</th>
+            <td><span class="lv b">Vide</span></td>
+            <td><span class="lv m">Décision documentée</span></td>
+            <td><span class="lv g">Traité : outbox, DLQ, idempotence, traçabilité</span></td>
+            <td><span class="lv m">Traité, au prix d'un système distribué</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Exploitation</th>
+            <td><span class="lv g">1 process</span></td>
+            <td><span class="lv g">1 process</span></td>
+            <td><span class="lv m">2 process et 1 file</span></td>
+            <td><span class="lv b">5 conteneurs ou plus, tracing distribué</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Guidage d'un agent</th>
+            <td><span class="lv m">Moyen</span></td>
+            <td><span class="lv g">Fort : recette fixe et règles en CI</span></td>
+            <td><span class="lv g">Fort</span></td>
+            <td><span class="lv b">Faible</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Alignement avec le cours</th>
+            <td><span class="lv m">KISS seulement</span></td>
+            <td><span class="lv g">Slide 30, DDD, hexagonal</span></td>
+            <td><span class="lv g">Slides 30, 39, 40 et cours 3</span></td>
+            <td><span class="lv b">Contredit le mémo, slide 17</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Mesures avant / après</th>
+            <td><span class="lv m">Duplication</span></td>
+            <td><span class="lv g">Duplication, couplage, violations de dépendances</span></td>
+            <td><span class="lv g">Comme B, plus latence, DLQ, idempotence</span></td>
+            <td><span class="lv b">Difficiles à comparer, la topologie change</span></td>
+          </tr>
+          <tr class="verdict-row">
+            <th scope="row">Verdict</th>
+            <td>Écartée</td>
+            <td>Candidate</td>
+            <td>Proposée</td>
+            <td>Écartée</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="keys">
+      <span class="lv g">Favorable</span>
+      <span class="lv m">Mitigé</span>
+      <span class="lv b">Défavorable</span>
+      <span>La ligne « effort » de l'étude initiale est retirée : la refacto est codée par des agents.</span>
+    </div>
+  </div>
+</section>
+
+<!-- 11 · Décisions -->
+<section class="slide" id="decisions" data-title="À décider ensemble">
+  <div class="slide-inner">
+    <div class="head">
+      <p class="eyebrow">À décider ensemble</p>
+      <h2>Une proposition, et ce qu'il reste à trancher</h2>
+    </div>
+    <div class="proposal">
+      <h3>Proposition : C, soit B plus un asynchrone limité et justifié flux par flux</h3>
+      <ul class="clean">
+        <li>C'est la seule option qui donne un livrable concret à chacun des trois axes.</li>
+        <li>Chaque choix s'appuie à la fois sur une slide du cours et sur un défaut mesuré dans l'audit.</li>
+        <li>Elle reste réversible : le worker et ses deux tables se retirent sans toucher l'API.</li>
+      </ul>
+    </div>
+    <div class="decisions">
+      <div class="decision main">
+        <span class="id">D1</span>
+        <h3>B + C, ou B seul&nbsp;?</h3>
+        <p>Le critère qui fait basculer est le barème de l'axe « Asynchrone &amp; run ». S'il est noté, B seul ne laisse à son owner qu'une décision documentée. S'il est facultatif, B seul se défend bien.</p>
+      </div>
+      <div class="decision main">
+        <span class="id">D2</span>
+        <h3>Quels flux asynchrones&nbsp;?</h3>
+        <p>La notification seule, ou la notification et l'OCR en <code>202</code> avec polling. Mesurer le coût actuel de l'OCR (latence, CPU, impact sur les autres routes) donnerait un chiffre pour trancher.</p>
+      </div>
+      <div class="decision">
+        <span class="id">D3</span>
+        <h3>Quel broker&nbsp;?</h3>
+        <p>SQS avec outbox (proposé), ou pg-boss.</p>
+      </div>
+      <div class="decision">
+        <span class="id">D4</span>
+        <h3>Jointures entre modules&nbsp;?</h3>
+        <p>Frontière stricte : <code>iam</code> fournit les utilisateurs rattachés, <code>expenses</code> filtre ses notes (deux requêtes). Ou une vue en lecture seule partagée, documentée comme exception.</p>
+      </div>
+      <div class="decision">
+        <span class="id">D5</span>
+        <h3>Hexagonal ou Clean&nbsp;?</h3>
+        <p>Pour le cours, les deux se valent. Proposé : le vocabulaire hexagonal, déjà celui du dépôt, avec un fichier par use case.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 12 · Suite -->
+<section class="slide" id="suite" data-title="La suite">
+  <div class="slide-inner">
+    <div class="head">
+      <p class="eyebrow">La suite</p>
+      <h2>De la décision au code</h2>
+    </div>
+    <div class="split">
+      <ol class="timeline">
+        <li class="now"><div><span class="when">cette semaine</span><h3>Choix en équipe</h3><p>L'option, puis les sous-choix D1 à D5.</p></div></li>
+        <li><div><span class="when">avant le 19/10</span><h3>ADR-001</h3><p>La décision, son contexte, les alternatives A à D et leurs conséquences.</p></div></li>
+        <li><div><span class="when">avant le 19/10</span><h3>Schéma cible</h3><p>En Excalidraw, dans le style de l'as-is, pour le comparer pendant la soutenance.</p></div></li>
+        <li><div><span class="when">avant le 19/10</span><h3>Spec de design, puis plan d'implémentation</h3><p>Modules, ports, ordre de migration des routes, puis un découpage en tâches pour les agents.</p></div></li>
+        <li><div><span class="when">du 19 au 26/10</span><h3>Refacto par les agents</h3><p>Une route à la fois, la suite ARLA-9 verte à chaque commit.</p></div></li>
+        <li><div><span class="when">30/10</span><h3>Soutenance</h3><p>Audit avant / après, ADR, live coding.</p></div></li>
+      </ol>
+      <div class="panel">
+        <p class="col-title">À mesurer avant de commencer</p>
+        <ul class="clean measures">
+          <li>Duplication, avec <code>jscpd</code></li>
+          <li>Complexité, avec la règle ESLint <code>complexity</code></li>
+          <li>Violations de dépendances, avec <code>dependency-cruiser</code></li>
+          <li>Couverture de tests, déjà en place</li>
+          <li>Nombre de tests <code>[as-is]</code> encore rouges sur le plan fonctionnel</li>
+          <li>Latence p95 de la soumission et de la décision</li>
+        </ul>
+        <p class="note">Même outillage avant et après, pour que les chiffres de l'audit soient comparables.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="end">Préparé le 15/10/2026 à partir de <code>docs/architecture/options-refacto.md</code>, <code>docs/audit/as-is.md</code> et de l'audit QA étendu (F1–F46).</footer>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var counter = document.getElementById('counter');
+  var where = document.getElementById('where');
+  var progress = document.getElementById('progress');
+  var bar = document.querySelector('.topbar');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var current = 0;
+
+  function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+  function render(i) {
+    current = i;
+    counter.textContent = pad(i + 1) + ' / ' + pad(slides.length);
+    where.textContent = slides[i].getAttribute('data-title') || '';
+    progress.style.width = ((i + 1) / slides.length * 100) + '%';
+  }
+
+  function detect() {
+    var line = bar.offsetHeight + window.innerHeight * 0.3;
+    var idx = 0;
+    for (var i = 0; i < slides.length; i++) {
+      if (slides[i].getBoundingClientRect().top <= line) idx = i;
+    }
+    if (idx !== current) {
+      render(idx);
+      try { history.replaceState(null, '', '#' + slides[idx].id); } catch (e) {}
+    }
+  }
+
+  function go(i) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    slides[i].scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  function next() {
+    var r = slides[current].getBoundingClientRect();
+    if (r.bottom > window.innerHeight + 8) {
+      window.scrollBy({ top: window.innerHeight - bar.offsetHeight - 40, behavior: reduce ? 'auto' : 'smooth' });
+    } else {
+      go(current + 1);
+    }
+  }
+
+  function prev() {
+    var r = slides[current].getBoundingClientRect();
+    if (r.top < -8) go(current); else go(current - 1);
+  }
+
+  var ticking = false;
+  window.addEventListener('scroll', function () {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () { detect(); ticking = false; });
+  }, { passive: true });
+
+  document.getElementById('next').addEventListener('click', next);
+  document.getElementById('prev').addEventListener('click', prev);
+
+  document.addEventListener('keydown', function (e) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    var t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) { e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') { e.preventDefault(); go(0); }
+    else if (e.key === 'End') { e.preventDefault(); go(slides.length - 1); }
+  });
+
+  render(0);
+  detect();
+})();
+</script>
+</body>
+</html>

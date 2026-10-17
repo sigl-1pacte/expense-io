@@ -1,0 +1,819 @@
+openapi: 3.1.0
+info:
+  title: Expense.io API
+  version: 0.1.0
+  summary: API HTTP de l'application de gestion de notes de frais.
+  description: |
+    Ce document décrit le comportement **actuel** de l'application (audit
+    initial, version 0.1.0). Il sert de référence de non-régression : la
+    refonte ne doit pas modifier les contrats décrits ici. Les particularités
+    existantes (codes 401/403 selon l'espace, erreurs 500 détaillées…) sont
+    donc documentées telles quelles, pas corrigées.
+
+    ## Authentification
+
+    Toutes les routes `/api/*` hors `/api/auth/*` exigent la session Auth.js,
+    portée par le cookie `authjs.session-token` (JWT, `HttpOnly`,
+    `SameSite=Lax`, 30 jours ; préfixé `__Secure-` derrière HTTPS). Pour
+    l'obtenir hors navigateur : `GET /api/auth/csrf` puis
+    `POST /api/auth/callback/credentials` (voir le tag *Auth*).
+
+    Rôles : `employee`, `manager`, `hr_admin`.
+
+    | Espace | Rôle exigé | Statut si rôle absent / non connecté |
+    |---|---|---|
+    | `/api/expense-notes/*` | tout utilisateur connecté | `401` |
+    | `/api/manager/*` | `manager` | `401` |
+    | `/api/hr/*` | `hr_admin` | `403` |
+
+    ## Circuit de validation
+
+    - Une note d'un utilisateur ayant un manager est tranchée par **ce
+      manager** (`/api/manager/*`).
+    - Une note d'un **manager racine** (rôle `manager`, sans manager
+      assigné) est tranchée par un **RH de la même entreprise**
+      (`/api/hr/*`).
+    - Une note n'est tranchée qu'une fois : `pending` → `approved` ou
+      `rejected`, sinon `409 Already decided`.
+
+    ## Erreurs
+
+    Les erreurs métier renvoient `{ "error": string }`. Toute exception non
+    gérée (identifiant non-UUID, date invalide, mauvais `Content-Type`, panne
+    base/stockage…) renvoie `500` avec le message et la pile d'appels
+    (`InternalError`).
+
+    ## Interfaces internes (hors HTTP)
+
+    Ces interfaces ne sont pas des routes REST et ne peuvent donc pas être
+    décrites comme des `paths` OpenAPI ; leur contrat est consigné ici.
+
+    **Server Actions** (`src/app/actions/auth.ts`), appelées par les
+    formulaires `/signup`, `/login` et le bouton de déconnexion :
+
+    - `signup(name, email, password)` : nom non vide, email valide, mot de
+      passe ≥ 8 caractères, email non déjà utilisé. Le premier compte d'un
+      domaine email crée l'entreprise (nom = premier segment du domaine) et
+      devient `hr_admin` ; les suivants la rejoignent comme `employee`. Le
+      rôle `manager` n'est jamais attribué par l'inscription. Connexion
+      automatique puis redirection vers `/expenses`.
+    - `login(email, password)` : redirection vers `/expenses`, sinon erreur
+      « Email ou mot de passe incorrect. ».
+    - `logout()` : redirection vers `/login`.
+
+    **Ports** (`src/ports/`) : `ReceiptStoragePort` (`upload`,
+    `getSignedUrl`, implémenté par `S3ReceiptAdapter`) et `NotificationPort`
+    (`notifyDecision`, implémenté par `ConsoleNotificationAdapter`). Ils ne
+    sont actuellement branchés sur aucune route.
+
+    **Dépendances sortantes** : PostgreSQL (isolation par Row Level Security
+    via `app.current_user_id`) et stockage objet S3 (bucket `receipts`,
+    clés `receipts/<receipt_seq><extension>`, URL présignées valables 300 s).
+servers:
+  - url: http://localhost:3000
+    description: Serveur de développement local (`make dev`)
+tags:
+  - name: Auth
+    description: Routes Auth.js (fournisseur `credentials`) utilisées pour ouvrir et fermer une session.
+  - name: Employé
+    description: Notes de frais de l'utilisateur connecté, quel que soit son rôle.
+  - name: Manager
+    description: Validation des notes des subordonnés directs du manager connecté.
+  - name: RH
+    description: Validation des notes des managers racines et gestion du rattachement hiérarchique.
+security:
+  - sessionCookie: []
+
+paths:
+  /api/auth/csrf:
+    get:
+      tags: [Auth]
+      operationId: getCsrfToken
+      summary: Obtenir le jeton CSRF
+      description: Pose aussi le cookie `authjs.csrf-token`, qui doit accompagner la connexion.
+      security: []
+      responses:
+        '200':
+          description: Jeton CSRF.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [csrfToken]
+                properties:
+                  csrfToken:
+                    type: string
+
+  /api/auth/callback/credentials:
+    post:
+      tags: [Auth]
+      operationId: signInWithCredentials
+      summary: Se connecter par email et mot de passe
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [csrfToken, email, password]
+              properties:
+                csrfToken:
+                  type: string
+                  description: Valeur renvoyée par `GET /api/auth/csrf`.
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                callbackUrl:
+                  type: string
+                  description: Destination de la redirection en cas de succès (défaut `/`).
+      responses:
+        '302':
+          description: |
+            Succès : `Location` vaut `callbackUrl` et le cookie
+            `authjs.session-token` est posé.
+            Échec : `Location` vaut `/login?error=CredentialsSignin&code=credentials`
+            et aucun cookie de session n'est posé.
+          headers:
+            Location:
+              schema:
+                type: string
+            Set-Cookie:
+              schema:
+                type: string
+
+  /api/auth/session:
+    get:
+      tags: [Auth]
+      operationId: getSession
+      summary: Lire la session courante
+      security: []
+      responses:
+        '200':
+          description: Session courante, ou `null` sans session valide.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Session'
+                  - type: 'null'
+
+  /api/auth/providers:
+    get:
+      tags: [Auth]
+      operationId: getProviders
+      summary: Lister les fournisseurs d'authentification
+      security: []
+      responses:
+        '200':
+          description: Seul le fournisseur `credentials` est configuré.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    type:
+                      type: string
+                    signinUrl:
+                      type: string
+                      format: uri
+                    callbackUrl:
+                      type: string
+                      format: uri
+
+  /api/auth/signout:
+    post:
+      tags: [Auth]
+      operationId: signOut
+      summary: Fermer la session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [csrfToken]
+              properties:
+                csrfToken:
+                  type: string
+                callbackUrl:
+                  type: string
+      responses:
+        '302':
+          description: Cookie de session supprimé, redirection vers `callbackUrl`.
+          headers:
+            Location:
+              schema:
+                type: string
+
+  /api/expense-notes:
+    get:
+      tags: [Employé]
+      operationId: listMyExpenseNotes
+      summary: Lister mes notes de frais
+      description: Toutes les notes de l'utilisateur connecté, tous statuts confondus.
+      parameters:
+        - name: sort
+          in: query
+          required: false
+          description: |
+            Fragment SQL inséré tel quel dans la clause `ORDER BY` (non
+            validé). Défaut : `created_at DESC`. Une expression invalide
+            produit une erreur 500.
+          schema:
+            type: string
+            default: created_at DESC
+          example: amount ASC
+      responses:
+        '200':
+          description: Notes de l'utilisateur.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseNote'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Employé]
+      operationId: createExpenseNote
+      summary: Soumettre une note de frais
+      description: |
+        Crée une note au statut `pending` puis téléverse le reçu sous la clé
+        `receipts/<receipt_seq><extension>` (extension déduite du type MIME).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [amount, expenseDate, description, receipt]
+              properties:
+                amount:
+                  type: string
+                  description: Montant en euros, nombre fini strictement positif (lu avec `parseFloat`).
+                  example: '42.50'
+                expenseDate:
+                  type: string
+                  format: date
+                  description: Date de la dépense (`YYYY-MM-DD`). Une date non reconnue par PostgreSQL produit une erreur 500.
+                description:
+                  type: string
+                  minLength: 1
+                  description: Non vide après suppression des espaces.
+                receipt:
+                  type: string
+                  format: binary
+                  description: Reçu PNG, JPEG, WebP ou PDF, 10 Mio maximum.
+            encoding:
+              receipt:
+                contentType: image/png, image/jpeg, image/webp, application/pdf
+      responses:
+        '201':
+          description: Note créée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseNote'
+        '400':
+          description: |
+            Requête invalide. Messages possibles :
+            - `Champs invalides` (champ manquant, montant ≤ 0 ou non numérique, description vide, reçu absent)
+            - `Type de fichier non autorisé pour le reçu`
+            - `Fichier trop volumineux` (> 10 Mio)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                champsInvalides:
+                  value: { error: Champs invalides }
+                typeNonAutorise:
+                  value: { error: Type de fichier non autorisé pour le reçu }
+                tropVolumineux:
+                  value: { error: Fichier trop volumineux }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/expense-notes/receipt-suggestion:
+    post:
+      tags: [Employé]
+      operationId: suggestExpenseNoteFields
+      summary: Suggérer montant et date à partir d'un reçu (OCR)
+      description: |
+        Analyse le reçu par OCR (Tesseract, langue française) sans rien
+        enregistrer. Seuls PNG, JPEG et WebP sont analysés ; tout autre type,
+        ou un échec de l'OCR, renvoie `{}`. Aucune limite de taille.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [receipt]
+              properties:
+                receipt:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Champs reconnus ; chaque champ est absent s'il n'a pas été trouvé.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptSuggestion'
+              examples:
+                complet:
+                  value: { amount: 42.5, expenseDate: '2026-10-08' }
+                rienTrouve:
+                  value: {}
+        '400':
+          description: Champ `receipt` absent ou n'étant pas un fichier.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { error: Champs invalides }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/expense-notes/{id}/receipt-url:
+    get:
+      tags: [Employé]
+      operationId: getMyReceiptUrl
+      summary: Obtenir l'URL du reçu d'une de mes notes
+      parameters:
+        - $ref: '#/components/parameters/NoteId'
+      responses:
+        '200':
+          $ref: '#/components/responses/ReceiptUrl'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Note inexistante ou n'appartenant pas à l'utilisateur.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { error: Not found }
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/manager/expense-notes:
+    get:
+      tags: [Manager]
+      operationId: listTeamPendingExpenseNotes
+      summary: Lister les notes en attente de mes subordonnés directs
+      description: Notes `pending` des utilisateurs dont le manager est l'utilisateur connecté, de la plus ancienne à la plus récente.
+      responses:
+        '200':
+          description: Notes en attente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseNote'
+        '401':
+          $ref: '#/components/responses/UnauthorizedRole'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/manager/expense-notes/{id}/approve:
+    post:
+      tags: [Manager]
+      operationId: managerApproveExpenseNote
+      summary: Approuver une note d'un subordonné direct
+      parameters:
+        - $ref: '#/components/parameters/NoteId'
+      responses:
+        '200':
+          $ref: '#/components/responses/DecidedNote'
+        '401':
+          $ref: '#/components/responses/UnauthorizedRole'
+        '404':
+          $ref: '#/components/responses/NoteNotInScope'
+        '409':
+          $ref: '#/components/responses/AlreadyDecided'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/manager/expense-notes/{id}/reject:
+    post:
+      tags: [Manager]
+      operationId: managerRejectExpenseNote
+      summary: Rejeter une note d'un subordonné direct
+      parameters:
+        - $ref: '#/components/parameters/NoteId'
+      responses:
+        '200':
+          $ref: '#/components/responses/DecidedNote'
+        '401':
+          $ref: '#/components/responses/UnauthorizedRole'
+        '404':
+          $ref: '#/components/responses/NoteNotInScope'
+        '409':
+          $ref: '#/components/responses/AlreadyDecided'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/manager/expense-notes/{id}/receipt-url:
+    get:
+      tags: [Manager]
+      operationId: managerGetReceiptUrl
+      summary: Obtenir l'URL du reçu d'une note
+      description: Le rattachement de la note au manager n'est pas vérifié ; seule l'existence de la note l'est.
+      parameters:
+        - $ref: '#/components/parameters/NoteId'
+      responses:
+        '200':
+          $ref: '#/components/responses/ReceiptUrl'
+        '401':
+          $ref: '#/components/responses/UnauthorizedRole'
+        '404':
+          description: Note inexistante.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { error: Not found }
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/hr/expense-notes:
+    get:
+      tags: [RH]
+      operationId: listRootManagerPendingExpenseNotes
+      summary: Lister les notes en attente des managers racines
+      description: Notes `pending` des managers sans manager assigné, de la même entreprise que le RH connecté, de la plus ancienne à la plus récente.
+      responses:
+        '200':
+          description: Notes en attente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseNote'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/hr/expense-notes/{id}/approve:
+    post:
+      tags: [RH]
+      operationId: hrApproveExpenseNote
+      summary: Approuver une note d'un manager racine
+      parameters:
+        - $ref: '#/components/parameters/NoteId'
+      responses:
+        '200':
+          $ref: '#/components/responses/DecidedNote'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RootManagerNoteNotInScope'
+        '409':
+          $ref: '#/components/responses/AlreadyDecided'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/hr/expense-notes/{id}/reject:
+    post:
+      tags: [RH]
+      operationId: hrRejectExpenseNote
+      summary: Rejeter une note d'un manager racine
+      parameters:
+        - $ref: '#/components/parameters/NoteId'
+      responses:
+        '200':
+          $ref: '#/components/responses/DecidedNote'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RootManagerNoteNotInScope'
+        '409':
+          $ref: '#/components/responses/AlreadyDecided'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/hr/expense-notes/{id}/receipt-url:
+    get:
+      tags: [RH]
+      operationId: hrGetReceiptUrl
+      summary: Obtenir l'URL du reçu d'une note d'un manager racine
+      description: Fonctionne quel que soit le statut de la note.
+      parameters:
+        - $ref: '#/components/parameters/NoteId'
+      responses:
+        '200':
+          $ref: '#/components/responses/ReceiptUrl'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RootManagerNoteNotInScope'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/hr/users:
+    get:
+      tags: [RH]
+      operationId: listCompanyUsers
+      summary: Lister l'annuaire de l'entreprise
+      description: Utilisateurs `employee` et `manager` de l'entreprise du RH connecté (les RH sont exclus), triés par nom.
+      responses:
+        '200':
+          description: Annuaire.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DirectoryUser'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/hr/users/{id}/manager:
+    put:
+      tags: [RH]
+      operationId: assignManager
+      summary: Assigner ou retirer le manager d'un utilisateur
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant de l'utilisateur cible (`employee` ou `manager` de l'entreprise du RH).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        description: |
+          `managerId: null` retire le manager. Un corps absent, non JSON ou
+          sans `managerId` est traité comme `managerId: null`.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignManagerRequest'
+            examples:
+              assigner:
+                value: { managerId: 1a064f7c-ca30-45db-8ac3-9a2ccc6afad3 }
+              retirer:
+                value: { managerId: null }
+      responses:
+        '200':
+          description: Utilisateur mis à jour.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DirectoryUser'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Cible inexistante, hors de l'entreprise du RH, ou de rôle `hr_admin`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { error: Not found }
+        '409':
+          description: |
+            Manager invalide : l'utilisateur est son propre manager, ou
+            `managerId` ne désigne pas un utilisateur de rôle `manager`
+            (l'entreprise du manager n'est pas vérifiée).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { error: Invalid manager }
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: authjs.session-token
+      description: JWT de session Auth.js posé par `POST /api/auth/callback/credentials`.
+
+  parameters:
+    NoteId:
+      name: id
+      in: path
+      required: true
+      description: Identifiant de la note de frais. Une valeur qui n'est pas un UUID produit une erreur 500.
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    ExpenseNoteStatus:
+      type: string
+      enum: [pending, approved, rejected]
+
+    ExpenseNote:
+      type: object
+      required: [id, userId, amount, expenseDate, description, receiptKey, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          description: Auteur de la note.
+        amount:
+          type: number
+          exclusiveMinimum: 0
+          description: Montant en euros (2 décimales en base).
+          example: 42.5
+        expenseDate:
+          type: string
+          format: date
+          example: '2026-10-08'
+        description:
+          type: string
+        receiptKey:
+          type: string
+          description: Clé du reçu dans le stockage objet.
+          example: receipts/1.png
+        status:
+          $ref: '#/components/schemas/ExpenseNoteStatus'
+        createdAt:
+          type: string
+          format: date-time
+
+    ReceiptSuggestion:
+      type: object
+      properties:
+        amount:
+          type: number
+          description: Plus grand montant trouvé sur la ligne du total (ou sur tout le reçu à défaut).
+        expenseDate:
+          type: string
+          format: date
+
+    ReceiptUrl:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL S3 présignée, valable 300 secondes.
+
+    DirectoryUser:
+      type: object
+      required: [id, name, email, role, managerId]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [employee, manager]
+        managerId:
+          type: [string, 'null']
+          format: uuid
+
+    AssignManagerRequest:
+      type: object
+      properties:
+        managerId:
+          type: [string, 'null']
+          format: uuid
+
+    Session:
+      type: object
+      required: [user, expires]
+      properties:
+        user:
+          type: object
+          required: [id, email, role]
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type: string
+              format: email
+            role:
+              type: string
+              enum: [employee, manager, hr_admin]
+        expires:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    InternalError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Message de l'exception.
+        stack:
+          type: string
+          description: Pile d'appels de l'exception (absente si l'exception n'est pas une `Error`).
+
+  responses:
+    Unauthorized:
+      description: Aucune session valide.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: { error: Unauthorized }
+
+    UnauthorizedRole:
+      description: Aucune session valide, ou l'utilisateur n'a pas le rôle `manager`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: { error: Unauthorized }
+
+    Forbidden:
+      description: Aucune session valide, ou l'utilisateur n'a pas le rôle `hr_admin`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: { error: Unauthorized }
+
+    NoteNotInScope:
+      description: Note inexistante, ou dont l'auteur n'a pas l'utilisateur connecté pour manager.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: { error: Not found }
+
+    RootManagerNoteNotInScope:
+      description: Note inexistante, ou dont l'auteur n'est pas un manager racine de l'entreprise du RH.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: { error: Not found }
+
+    AlreadyDecided:
+      description: La note n'est plus au statut `pending`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: { error: Already decided }
+
+    DecidedNote:
+      description: Note mise à jour avec son nouveau statut.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ExpenseNote'
+
+    ReceiptUrl:
+      description: URL temporaire du reçu.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ReceiptUrl'
+
+    InternalError:
+      description: Exception non gérée.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'
