@@ -1350,8 +1350,11 @@ import Credentials from 'next-auth/providers/credentials'
 import { iam } from '@/modules/iam'
 import { config } from '@/shared/config'
 
-// Initialisation paresseuse : le secret est lu (et validé) à la première requête.
-export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
+// Secret lu et validé par shared/config au chargement : l'application refuse de
+// démarrer sans AUTH_SECRET. (Pas de forme paresseuse `NextAuth(() => …)` : avec
+// next-auth 5.0.0-beta.32, elle fait renvoyer une Promise à `auth(cb)` et casse
+// src/proxy.ts — décision prise au plan 1, tâche 6.)
+export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: config().authSecret,
   session: { strategy: 'jwt' },
   pages: {
@@ -1387,7 +1390,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
       return session
     },
   },
-}))
+})
 ```
 
 `src/types/next-auth.d.ts` : dans le module `next-auth/jwt`, retirer `role?: UserRole` de `JWT` (garder `id`). Dans `User`, rendre `role` optionnel (`role?: UserRole`).
