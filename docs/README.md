@@ -83,9 +83,20 @@ Ces documents existent mais n'ont pas encore rejoint `main` :
 
 Restent à écrire :
 
-- les ADR 0001 à 0004 (structure de la doc et harnais agent, option C, outbox d'e-mails, contrat d'API), prévus au plan 1 ;
+- les ADR 0001 à 0004 sont écrites (voir [adrs/](adrs/README.md)).
 - le schéma cible en Excalidraw, dans le style de `as-is.excalidraw` ;
 - la colonne « Après » du benchmark et le bilan de l'audit après refacto.
+
+## Types de documents
+
+| Dossier | Type | Répond à | Gabarit |
+|---|---|---|---|
+| [`specs/`](specs/README.md) | Spec | Que construit-on, et pourquoi ? | [`spec-template.md`](specs/spec-template.md) |
+| [`plans/`](plans/README.md) | Plan d'implémentation | Dans quel ordre, quels fichiers, quels tests ? | [`plan-template.md`](plans/plan-template.md) |
+| [`adrs/`](adrs/README.md) | ADR | Pourquoi le système est-il construit ainsi ? | [`adr-template.md`](adrs/adr-template.md) |
+| [`runbooks/`](runbooks/README.md) | Runbook | Comment l'opérer ou le réparer ? | [`runbook-template.md`](runbooks/runbook-template.md) |
+
+Cycle : spec → (ADR si la décision est transverse) → plan → implémentation → runbook. `audit/`, `api/` et `architecture/` restent la base de connaissance décrite plus haut.
 
 ## Conventions
 
