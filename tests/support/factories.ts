@@ -24,6 +24,7 @@ export interface NoteRow {
   id: string
   receipt_seq: number
   user_id: string
+  company_id: string
   amount: string
   expense_date: string
   description: string
@@ -47,7 +48,7 @@ export const TEST_PASSWORD = 'motdepasse-test'
 const TEST_PASSWORD_HASH = bcrypt.hashSync(TEST_PASSWORD, 4)
 
 const USER_COLUMNS = 'id, company_id, name, email, role, manager_id'
-const NOTE_COLUMNS = `id, receipt_seq, user_id, amount, expense_date::text AS expense_date,
+const NOTE_COLUMNS = `id, receipt_seq, user_id, company_id, amount, expense_date::text AS expense_date,
   description, receipt_key, status, created_at`
 
 export function uniqueId(): string {
@@ -97,8 +98,10 @@ export async function createNote(options: {
   createdAt?: Date
 }): Promise<NoteRow> {
   const { rows } = await testDb().query<NoteRow>(
-    `INSERT INTO expense_notes (user_id, amount, expense_date, description, receipt_key, status, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, now()))
+    `INSERT INTO expense_notes
+       (user_id, company_id, amount, expense_date, description, receipt_key, status, created_at)
+     SELECT $1, u.company_id, $2, $3, $4, $5, $6, COALESCE($7, now())
+     FROM users u WHERE u.id = $1
      RETURNING ${NOTE_COLUMNS}`,
     [
       options.user.id,

@@ -20,7 +20,10 @@ let pool: Pool | undefined
 /** Pool des helpers de test, distinct de celui de l'application (`global.__pgPool`). */
 export function testDb(): Pool {
   if (!pool) {
-    pool = new Pool({ connectionString: assertTestDatabase(process.env.DATABASE_URL), max: 4 })
+    pool = new Pool({
+      connectionString: assertTestDatabase(process.env.DATABASE_OWNER_URL ?? process.env.DATABASE_URL),
+      max: 4,
+    })
   }
   return pool
 }

@@ -22,7 +22,7 @@ if (!domain) {
   throw new Error(`Email RH invalide : "${hrEmail}"`)
 }
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+const pool = new Pool({ connectionString: process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL })
 
 // Un PNG 1x1 valide (pas juste des octets arbitraires) : "voir le reçu"
 // affiche une vraie image dans le navigateur plutôt qu'un fichier corrompu.
@@ -73,7 +73,7 @@ async function upsertUser(email, name, password, role, companyId, managerId = nu
   return inserted.rows[0].id
 }
 
-async function seedExpenseNote(userId, description, amount) {
+async function seedExpenseNote(userId, companyId, description, amount) {
   const existing = await pool.query(
     'SELECT id FROM expense_notes WHERE user_id = $1 AND description = $2',
     [userId, description]
@@ -81,10 +81,10 @@ async function seedExpenseNote(userId, description, amount) {
   if (existing.rows[0]) return
 
   const inserted = await pool.query(
-    `INSERT INTO expense_notes (user_id, amount, expense_date, description, receipt_key)
-     VALUES ($1, $2, CURRENT_DATE, $3, '')
+    `INSERT INTO expense_notes (user_id, company_id, amount, expense_date, description, receipt_key)
+     VALUES ($1, $2, $3, CURRENT_DATE, $4, '')
      RETURNING id, receipt_seq`,
-    [userId, amount, description]
+    [userId, companyId, amount, description]
   )
   const { id, receipt_seq: receiptSeq } = inserted.rows[0]
   const receiptKey = `receipts/${receiptSeq}.png`
@@ -101,8 +101,8 @@ try {
   const managerId = await upsertUser(managerEmail, 'Manager', managerPassword, 'manager', companyId)
   const employeeId = await upsertUser(employeeEmail, 'Demo', employeePassword, 'employee', companyId, managerId)
 
-  await seedExpenseNote(employeeId, 'Taxi aéroport (seed)', 42.5)
-  await seedExpenseNote(managerId, 'Café client (seed)', 5.9)
+  await seedExpenseNote(employeeId, companyId, 'Taxi aéroport (seed)', 42.5)
+  await seedExpenseNote(managerId, companyId, 'Café client (seed)', 5.9)
 
   console.log('')
   console.log('Comptes de démonstration prêts :')

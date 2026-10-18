@@ -33,7 +33,16 @@ export async function withUserScope<T>(
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    await client.query("SELECT set_config('app.current_user_id', $1, true)", [userId])
+    // L'entreprise de l'acteur sert à l'isolation RLS (company_id). Acteur
+    // introuvable : portée vide (la tâche 11 en fait une 401).
+    const actor = await client.query<{ company_id: string }>(
+      'SELECT company_id FROM app.actor($1)',
+      [userId]
+    )
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true), set_config('app.current_company_id', $2, true)",
+      [userId, actor.rows[0]?.company_id ?? '']
+    )
     const result = await fn(client)
     await client.query('COMMIT')
     return result

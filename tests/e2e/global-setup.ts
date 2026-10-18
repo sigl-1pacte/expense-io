@@ -4,7 +4,7 @@ import { emptyBucket, ensureBucket, ensureDatabase, migrate } from '../support/i
 
 export default async function setupE2e(): Promise<void> {
   await ensureDatabase(E2E_DATABASE_NAME)
-  await migrate(E2E_ENV.DATABASE_URL)
+  await migrate(E2E_ENV.DATABASE_OWNER_URL)
   await truncateAll()
   await closeTestDb()
   await ensureBucket(E2E_ENV)

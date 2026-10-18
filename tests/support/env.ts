@@ -2,6 +2,15 @@
 // Les valeurs par défaut correspondent au docker-compose (et aux services CI).
 const PG_SERVER_URL = process.env.TEST_PG_SERVER_URL ?? 'postgres://expense:expense@localhost:5433'
 
+/** Même serveur, rôle applicatif `expense_app` (créé par les migrations, soumis à la RLS). */
+function appServerUrl(ownerUrl: string): string {
+  const url = new URL(ownerUrl)
+  url.username = 'expense_app'
+  url.password = 'expense_app'
+  return url.toString().replace(/\/$/, '')
+}
+const PG_APP_SERVER_URL = appServerUrl(PG_SERVER_URL)
+
 export const PG_ADMIN_URL = `${PG_SERVER_URL}/postgres`
 export const TEST_DATABASE_NAME = 'expense_io_test'
 export const E2E_DATABASE_NAME = 'expense_io_e2e'
@@ -16,13 +25,19 @@ const S3_BASE_ENV = {
 
 export const TEST_ENV = {
   ...S3_BASE_ENV,
+  // Application : rôle propriétaire jusqu'à la tâche 11, puis expense_app.
   DATABASE_URL: `${PG_SERVER_URL}/${TEST_DATABASE_NAME}`,
+  // Helpers de test (factories, truncate) et migrations : toujours le propriétaire.
+  DATABASE_OWNER_URL: `${PG_SERVER_URL}/${TEST_DATABASE_NAME}`,
+  APP_DATABASE_URL: `${PG_APP_SERVER_URL}/${TEST_DATABASE_NAME}`,
   S3_BUCKET: 'receipts-test',
 }
 
 export const E2E_ENV = {
   ...S3_BASE_ENV,
   DATABASE_URL: `${PG_SERVER_URL}/${E2E_DATABASE_NAME}`,
+  DATABASE_OWNER_URL: `${PG_SERVER_URL}/${E2E_DATABASE_NAME}`,
+  APP_DATABASE_URL: `${PG_APP_SERVER_URL}/${E2E_DATABASE_NAME}`,
   AUTH_SECRET: 'secret-de-test-e2e-uniquement-0123456789',
   S3_BUCKET: 'receipts-e2e',
 }
