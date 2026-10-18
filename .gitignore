@@ -48,3 +48,8 @@ next-env.d.ts
 # SonarQube
 .scannerwork/
 sonar-report.json
+
+# Préférences personnelles des agents (voir AGENTS.local.example.md)
+AGENTS.local.md
+# Configuration locale de l'aperçu Claude Code
+.claude/launch.json
