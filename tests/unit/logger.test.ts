@@ -30,23 +30,36 @@ describe('logger', () => {
     expect(line.error).toEqual({ name: 'Error', message: 'boum', stack: error.stack })
   })
 
-  it('ne lève pas sur un objet circulaire et écrit fields "non sérialisable"', () => {
+  it('ne lève pas sur un objet circulaire : la clé fautive devient "non sérialisable"', () => {
     const circular: Record<string, unknown> = {}
     circular.self = circular
-    expect(() => logger.info('circulaire', { payload: circular })).not.toThrow()
+    expect(() => logger.info('circulaire', { correlationId: 'c1', payload: circular })).not.toThrow()
     const line = JSON.parse(vi.mocked(console.log).mock.calls[0][0] as string)
     expect(line).toEqual({
       time: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
       level: 'info',
       message: 'circulaire',
-      fields: 'non sérialisable',
+      correlationId: 'c1',
+      payload: 'non sérialisable',
     })
   })
 
-  it('ne lève pas sur un BigInt', () => {
-    expect(() => logger.warn('big', { n: BigInt(1) })).not.toThrow()
+  it('ne lève pas sur un BigInt : seule la clé fautive devient "non sérialisable"', () => {
+    expect(() => logger.warn('big', { n: BigInt(1), correlationId: 'c2' })).not.toThrow()
     const line = JSON.parse(vi.mocked(console.log).mock.calls[0][0] as string)
-    expect(line).toMatchObject({ level: 'warn', message: 'big', fields: 'non sérialisable' })
+    expect(line).toMatchObject({ level: 'warn', message: 'big', n: 'non sérialisable', correlationId: 'c2' })
+  })
+
+  it('ne lève pas si un getter de fields lève : fields devient "non sérialisable"', () => {
+    const fields = {
+      correlationId: 'c3',
+      get boom(): unknown {
+        throw new Error('getter en échec')
+      },
+    }
+    expect(() => logger.info('getter', fields)).not.toThrow()
+    const line = JSON.parse(vi.mocked(console.log).mock.calls[0][0] as string)
+    expect(line).toMatchObject({ level: 'info', message: 'getter', fields: 'non sérialisable' })
   })
 
   it('un champ nommé level ne peut pas écraser le niveau', () => {

@@ -63,7 +63,7 @@ describe('problemResponse', () => {
     expect(logged.error.message).toBe('column "nope" does not exist')
   })
 
-  it('objet circulaire lancé (non Error) : 500 générique, le logger ne lève pas', async () => {
+  it('objet circulaire lancé (non Error) : 500 générique, journal avec la même référence', async () => {
     const circular: Record<string, unknown> = { code: 'X' }
     circular.self = circular
     const response = problemResponse(circular, 'corr-3')
@@ -75,5 +75,7 @@ describe('problemResponse', () => {
       status: 500,
       detail: 'Une erreur interne est survenue. Référence : corr-3',
     })
+    const logged = JSON.parse(vi.mocked(console.error).mock.calls[0][0] as string)
+    expect(logged).toMatchObject({ level: 'error', correlationId: 'corr-3', error: 'non sérialisable' })
   })
 })

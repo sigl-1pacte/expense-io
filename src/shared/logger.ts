@@ -3,6 +3,9 @@
 type Level = 'info' | 'warn' | 'error'
 type Fields = Record<string, unknown>
 
+const NON_SERIALIZABLE = 'non sérialisable'
+const RESERVED_KEYS = new Set(['time', 'level', 'message'])
+
 function serialize(value: unknown): unknown {
   if (value instanceof Error) {
     return { name: value.name, message: value.message, stack: value.stack }
@@ -10,21 +13,33 @@ function serialize(value: unknown): unknown {
   return value
 }
 
-function log(level: Level, message: string, fields: Fields = {}): void {
-  const time = new Date().toISOString()
-  // Champs d'abord, clés réservées ensuite : un appelant ne peut pas les écraser.
-  const entry: Fields = {}
-  for (const [key, value] of Object.entries(fields)) entry[key] = serialize(value)
-  entry.time = time
-  entry.level = level
-  entry.message = message
-  let line: string
+/** Valeur prête pour JSON, ou la chaîne « non sérialisable » si elle ne l'est pas. */
+function safeValue(value: unknown): unknown {
   try {
-    line = JSON.stringify(entry)
+    const serialized = serialize(value)
+    JSON.stringify(serialized)
+    return serialized
   } catch {
-    // Valeur non sérialisable (circulaire, BigInt, getter qui lève) : le logger ne doit jamais lever.
-    line = JSON.stringify({ time, level, message, fields: 'non sérialisable' })
+    return NON_SERIALIZABLE
   }
+}
+
+function log(level: Level, message: string, fields: Fields = {}): void {
+  // Clés réservées posées en premier, puis les champs : un appelant ne peut pas les écraser.
+  const entry: Fields = { time: new Date().toISOString(), level, message }
+  let pairs: [string, unknown][] = []
+  try {
+    pairs = Object.entries(fields)
+  } catch {
+    // Un getter de `fields` lève : on perd les champs, pas le log.
+    entry.fields = NON_SERIALIZABLE
+  }
+  // Sérialisation champ par champ : une valeur fautive n'emporte pas les autres (ex. correlationId).
+  for (const [key, value] of pairs) {
+    if (RESERVED_KEYS.has(key)) continue
+    entry[key] = safeValue(value)
+  }
+  const line = JSON.stringify(entry)
   if (level === 'error') console.error(line)
   else console.log(line)
 }
