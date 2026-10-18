@@ -175,3 +175,17 @@ jobs:
         with:
           name: sonarqube
           path: sonar-report.json
+
+  contrat:
+    name: Contrat d'API (oasdiff contre main)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Contrat de référence (main)
+        run: git show origin/main:docs/api/openapi.yaml > /tmp/openapi-main.yaml
+      - name: Changements cassants
+        run: |
+          docker run --rm -v /tmp:/base -v "$PWD/docs/api:/head" tufin/oasdiff:latest \
+            breaking /base/openapi-main.yaml /head/openapi.yaml --fail-on ERR --format githubactions
