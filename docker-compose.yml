@@ -35,6 +35,19 @@ services:
       timeout: 5s
       retries: 10
 
+  sonarqube:
+    # Analyse de qualité, à la demande : `make sonar-up`. Hors du `up` habituel.
+    image: sonarqube:community
+    profiles: [quality]
+    environment:
+      # Elasticsearch embarqué : sans ça, il exige vm.max_map_count=262144 sur l'hôte.
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: 'true'
+    ports:
+      - '9000:9000'
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+
 volumes:
   postgres-data:
   localstack-data:
+  sonarqube-data:

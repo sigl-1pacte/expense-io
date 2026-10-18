@@ -3,7 +3,7 @@ SHELL := /bin/bash
 
 COMPOSE := docker compose
 
-.PHONY: help install env up down restart logs migrate ensure-bucket seed dev build start lint typecheck test coverage e2e clean
+.PHONY: help install env up down restart logs migrate ensure-bucket seed dev build start lint typecheck test coverage e2e clean sonar-up sonar sonar-down
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -65,6 +65,17 @@ coverage: up ## Tests Vitest avec rapport de couverture (coverage/index.html)
 
 e2e: up ## Lance les tests end-to-end (Playwright, build de prod sur le port 3100)
 	npm run test:e2e
+
+sonar-up: ## Démarre SonarQube (http://localhost:9000) — voir docs/runbooks/sonarqube-analyse.md
+	$(COMPOSE) --profile quality up -d sonarqube
+
+sonar: up ## Couverture Vitest puis analyse SonarQube et rapport (SONAR_TOKEN requis)
+	npm run test:coverage
+	npm run sonar
+	npm run sonar:report
+
+sonar-down: ## Arrête SonarQube (conserve ses données)
+	$(COMPOSE) --profile quality stop sonarqube
 
 clean: ## Arrête Docker et supprime les volumes — efface les données locales (Postgres/LocalStack)
 	$(COMPOSE) down -v

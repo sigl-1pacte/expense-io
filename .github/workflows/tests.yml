@@ -132,3 +132,46 @@ jobs:
         with:
           name: playwright-traces
           path: test-results/
+
+  sonarqube:
+    name: SonarQube (analyse obligatoire, gate non bloquant)
+    runs-on: ubuntu-latest
+    needs: vitest
+    services:
+      sonarqube:
+        image: sonarqube:community
+        env:
+          SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: 'true'
+        ports:
+          - 9000:9000
+    env:
+      SONAR_HOST_URL: http://localhost:9000
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v7
+        with:
+          name: coverage
+          path: coverage/
+      - name: Préparer SonarQube (projet et jeton)
+        env:
+          SONAR_ADMIN_PASSWORD: ci-${{ github.run_id }}-Sonar!
+        run: |
+          token=$(node scripts/sonar-bootstrap.mjs)
+          echo "::add-mask::$token"
+          echo "SONAR_TOKEN=$token" >> "$GITHUB_ENV"
+      - name: Analyse
+        run: npm run sonar
+      - name: Rapport (gate publié, non bloquant)
+        run: npm run sonar:report >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: sonarqube
+          path: sonar-report.json

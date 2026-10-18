@@ -15,7 +15,10 @@
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "sonar": "sonar-scanner-npm",
+    "sonar:bootstrap": "node scripts/sonar-bootstrap.mjs",
+    "sonar:report": "node scripts/sonar-report.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",
@@ -31,6 +34,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",
+    "@sonar/scan": "^5.0.2",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^24.13.4",
