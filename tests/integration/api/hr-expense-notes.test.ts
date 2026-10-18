@@ -62,9 +62,9 @@ describe('GET /api/hr/expense-notes', () => {
     expect(await queueIds()).toEqual([expected.id])
   })
 
-  it("session d'une RH supprimée : file vide", async () => {
+  it("session d'une RH supprimée → 401", async () => {
     await createNote({ user: (await createOrg()).manager })
     actAsGhost('hr_admin')
-    expect(await queueIds()).toEqual([])
+    await expectProblem(await GET(), 401, 'Unauthorized')
   })
 })

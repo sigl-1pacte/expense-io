@@ -115,9 +115,9 @@ describe.each([
     await expectProblem(await decide(id), 400, 'Identifiant invalide')
   })
 
-  it("session d'un manager supprimé → 404", async () => {
+  it("session d'un manager supprimé → 401", async () => {
     const note = await createNote({ user: (await createOrg()).employee })
     actAsGhost('manager')
-    expect((await decide(note.id)).status).toBe(404)
+    await expectProblem(await decide(note.id), 401, 'Unauthorized')
   })
 })

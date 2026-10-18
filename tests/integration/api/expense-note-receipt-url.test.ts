@@ -59,10 +59,10 @@ describe('GET /api/expense-notes/:id/receipt-url', () => {
     await expectProblem(response, 404, 'Not found')
   })
 
-  it("session d'un utilisateur supprimé → 404", async () => {
+  it("session d'un utilisateur supprimé → 401", async () => {
     const note = await createNote({ user: (await createOrg()).employee })
     actAsGhost('employee')
-    expect((await receiptUrl(note.id)).status).toBe(404)
+    await expectProblem(await receiptUrl(note.id), 401, 'Unauthorized')
   })
 
   it.each(NON_UUID_IDS)('id « %s » non-UUID → 400', async (id) => {

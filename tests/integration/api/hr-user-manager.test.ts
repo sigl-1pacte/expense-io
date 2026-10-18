@@ -119,12 +119,13 @@ describe('PUT /api/hr/users/:id/manager', () => {
     expect(await managerIdOf(targetId)).toBe(before)
   })
 
-  it("[as-is] accepte un manager d'une autre entreprise (audit §3)", async () => {
+  it("refuse un manager d'une autre entreprise (F5)", async () => {
     const org = await createOrg()
     const foreign = (await createOrg()).manager
     actAs(org.hr)
-    expect((await assign(org.employee.id, { managerId: foreign.id })).status).toBe(200)
-    expect(await managerIdOf(org.employee.id)).toBe(foreign.id)
+    const response = await assign(org.employee.id, { managerId: foreign.id })
+    await expectProblem(response, 409, 'Invalid manager')
+    expect(await managerIdOf(org.employee.id)).toBe(org.manager.id)
   })
 
   it.each<[string, RequestInit]>([
@@ -164,10 +165,10 @@ describe('PUT /api/hr/users/:id/manager', () => {
     await expectProblem(response, 400, 'Identifiant invalide')
   })
 
-  it("session d'une RH supprimée → 404", async () => {
+  it("session d'une RH supprimée → 401", async () => {
     const org = await createOrg()
     actAsGhost('hr_admin')
-    expect((await assign(org.employee.id, { managerId: null })).status).toBe(404)
+    await expectProblem(await assign(org.employee.id, { managerId: null }), 401, 'Unauthorized')
     expect(await managerIdOf(org.employee.id)).toBe(org.manager.id)
   })
 })

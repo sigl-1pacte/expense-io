@@ -70,17 +70,17 @@ describe('GET /api/manager/expense-notes', () => {
     expect(await queueIds()).toEqual([subNote.id])
   })
 
-  it("[as-is] voit les notes d'un rattaché d'une autre entreprise (audit §3)", async () => {
+  it("ne voit pas les notes d'un rattaché d'une autre entreprise (F44)", async () => {
     const org = await createOrg()
     const foreign = await createUser({ company: await createCompany(), manager: org.manager })
-    const note = await createNote({ user: foreign })
+    await createNote({ user: foreign })
     actAs(org.manager)
-    expect(await queueIds()).toEqual([note.id])
+    expect(await queueIds()).toEqual([])
   })
 
-  it("session d'un manager supprimé : file vide", async () => {
+  it("session d'un manager supprimé → 401", async () => {
     await createNote({ user: (await createOrg()).employee })
     actAsGhost('manager')
-    expect(await queueIds()).toEqual([])
+    await expectProblem(await GET(), 401, 'Unauthorized')
   })
 })

@@ -33,40 +33,26 @@ export async function signup(
     }
   }
 
-  const existing = await getPool().query('SELECT id FROM users WHERE email = $1', [email])
-  if ((existing.rowCount ?? 0) > 0) {
-    return { error: 'Un compte existe déjà avec cet email.' }
-  }
-
   const domain = emailMatch[1].toLowerCase()
   const companyName = domain.split('.')[0]
-
-  const insertedCompany = await getPool().query<{ id: string }>(
-    `INSERT INTO companies (name, email_domain) VALUES ($1, $2)
-     ON CONFLICT (email_domain) DO NOTHING
-     RETURNING id`,
-    [companyName, domain]
-  )
-
-  let companyId: string
-  let role: 'employee' | 'hr_admin'
-  if (insertedCompany.rows[0]) {
-    companyId = insertedCompany.rows[0].id
-    role = 'hr_admin'
-  } else {
-    const existingCompany = await getPool().query<{ id: string }>(
-      'SELECT id FROM companies WHERE email_domain = $1',
-      [domain]
-    )
-    companyId = existingCompany.rows[0].id
-    role = 'employee'
-  }
-
   const passwordHash = await bcrypt.hash(password, 12)
-  await getPool().query(
-    'INSERT INTO users (name, email, password_hash, company_id, role) VALUES ($1, $2, $3, $4, $5)',
-    [name.trim(), email, passwordHash, companyId, role]
-  )
+
+  // Une transaction côté base (F11) ; un email déjà pris, même par une
+  // inscription concurrente (F12), lève une violation d'unicité.
+  try {
+    await getPool().query('SELECT * FROM app.sign_up($1, $2, $3, $4, $5)', [
+      name.trim(),
+      email,
+      passwordHash,
+      domain,
+      companyName,
+    ])
+  } catch (error) {
+    if ((error as { code?: string }).code === '23505') {
+      return { error: 'Un compte existe déjà avec cet email.' }
+    }
+    throw error
+  }
 
   try {
     await signIn('credentials', { email, password, redirectTo: '/expenses' })

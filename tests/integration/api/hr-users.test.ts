@@ -31,9 +31,9 @@ describe('GET /api/hr/users', () => {
     ])
   })
 
-  it("session d'une RH supprimée : liste vide", async () => {
+  it("session d'une RH supprimée → 401", async () => {
     await createOrg()
     actAsGhost('hr_admin')
-    expect(await readJson<UserDto[]>(await GET())).toEqual([])
+    await expectProblem(await GET(), 401, 'Unauthorized')
   })
 })

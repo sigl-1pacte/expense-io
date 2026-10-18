@@ -1,4 +1,5 @@
 import { Pool, types, type PoolClient } from 'pg'
+import { Unauthenticated } from '@/shared/errors'
 
 // OID 1082 = date. Garde la chaîne "YYYY-MM-DD" brute renvoyée par Postgres
 // plutôt qu'un objet Date JS calé sur le fuseau local.
@@ -34,14 +35,15 @@ export async function withUserScope<T>(
   try {
     await client.query('BEGIN')
     // L'entreprise de l'acteur sert à l'isolation RLS (company_id). Acteur
-    // introuvable : portée vide (la tâche 11 en fait une 401).
+    // supprimé : la session ne vaut plus rien, 401.
     const actor = await client.query<{ company_id: string }>(
       'SELECT company_id FROM app.actor($1)',
       [userId]
     )
+    if (!actor.rows[0]) throw new Unauthenticated()
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true), set_config('app.current_company_id', $2, true)",
-      [userId, actor.rows[0]?.company_id ?? '']
+      [userId, actor.rows[0].company_id]
     )
     const result = await fn(client)
     await client.query('COMMIT')

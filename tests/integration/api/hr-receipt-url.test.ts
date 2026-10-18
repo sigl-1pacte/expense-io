@@ -58,9 +58,9 @@ describe('GET /api/hr/expense-notes/:id/receipt-url', () => {
     await expectProblem(response, 400, 'Identifiant invalide')
   })
 
-  it("session d'une RH supprimée → 404", async () => {
+  it("session d'une RH supprimée → 401", async () => {
     const note = await createNote({ user: (await createOrg()).manager })
     actAsGhost('hr_admin')
-    expect((await receiptUrl(note.id)).status).toBe(404)
+    await expectProblem(await receiptUrl(note.id), 401, 'Unauthorized')
   })
 })

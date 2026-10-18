@@ -17,6 +17,7 @@ LOAD_VUS=20
 RESULTS=bench/results/$(date +%Y%m%d-%H%M%S)
 
 export DATABASE_URL="postgres://expense:expense@localhost:5433/$BENCH_DB"
+export MIGRATION_DATABASE_URL="$DATABASE_URL"
 export S3_BUCKET=receipts-bench
 export AUTH_TRUST_HOST=true
 export NODE_ENV=production

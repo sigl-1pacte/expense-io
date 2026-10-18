@@ -91,6 +91,30 @@ describe('isolation entre entreprises (F44)', () => {
     expect(companyId).toBe(a.company.id)
   })
 
+  it("modifie le rattachement (manager_id) d'un utilisateur de son entreprise", async () => {
+    const a = await createOrg()
+    const rows = await asApp(a.hr, async (c) =>
+      (await c.query('UPDATE users SET manager_id = $1 WHERE id = $2', [a.manager.id, a.employee.id])).rowCount
+    )
+    expect(rows).toBe(1)
+  })
+
+  it("ne peut pas modifier users.role (aucun droit de colonne)", async () => {
+    const a = await createOrg()
+    await expect(
+      asApp(a.hr, (c) => c.query("UPDATE users SET role = 'hr_admin' WHERE id = $1", [a.employee.id]))
+    ).rejects.toThrow('permission denied')
+  })
+
+  it("modifie une note de son entreprise", async () => {
+    const a = await createOrg()
+    const note = await createNote({ user: a.employee })
+    const updated = await asApp(a.hr, async (c) =>
+      (await c.query("UPDATE expense_notes SET status = 'approved' WHERE id = $1", [note.id])).rowCount
+    )
+    expect(updated).toBe(1)
+  })
+
   it("ne modifie aucune note d'une autre entreprise", async () => {
     const a = await createOrg()
     const noteB = await createNote({ user: (await createOrg()).employee })

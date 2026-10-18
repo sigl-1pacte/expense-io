@@ -101,10 +101,10 @@ describe('GET /api/expense-notes', () => {
     expect((await listAs()).map((n) => n.id)).toEqual([note.id])
   })
 
-  it("session d'un utilisateur supprimé : liste vide", async () => {
+  it("session d'un utilisateur supprimé → 401", async () => {
     await createNote({ user: (await createOrg()).employee })
     actAsGhost('employee')
-    expect(await listAs()).toEqual([])
+    await expectProblem(await GET(new Request('http://localhost/api/expense-notes')), 401, 'Unauthorized')
   })
 
   it('respecte ?sort=amount ASC', async () => {
@@ -387,9 +387,10 @@ describe('POST /api/expense-notes', () => {
     await expectProblem(response, 400, 'Champs invalides')
   })
 
-  it("[as-is] session d'un utilisateur supprimé → 500 (clé étrangère)", async () => {
+  it("session d'un utilisateur supprimé → 401", async () => {
     actAsGhost('employee')
     const response = await submit()
-    await expectProblem(response, 500, 'Erreur interne')
+    await expectProblem(response, 401, 'Unauthorized')
+    expect(await countRows('expense_notes')).toBe(0)
   })
 })

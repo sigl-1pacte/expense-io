@@ -14,6 +14,7 @@ Démarrer l'application en local avec des données de démonstration, en une com
 ## Prérequis
 
 - Docker, Node 24, `make` (Git Bash sous Windows).
+- Un `.env` créé avant le 16/10/2026 doit reprendre `MIGRATION_DATABASE_URL` et le nouveau `DATABASE_URL` de `.env.example`.
 
 ## Procédure
 

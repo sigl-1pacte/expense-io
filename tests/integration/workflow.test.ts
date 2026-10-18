@@ -87,15 +87,15 @@ describe('circuit de validation', () => {
     expect(await managerQueueOf(boss)).toEqual([note.id])
   })
 
-  it("[as-is] un manager d'une autre entreprise peut valider la note d'un employé que la RH lui a rattaché (audit §3)", async () => {
+  it("un manager d'une autre entreprise ne voit ni ne valide la note (F44)", async () => {
     const org = await createOrg()
     const foreignManager = (await createOrg()).manager
     const note = await createNote({ user: org.employee })
     actAs(org.hr)
-    expect((await assign(org.employee.id, foreignManager.id)).status).toBe(200)
-    expect(await managerQueueOf(foreignManager)).toEqual([note.id])
+    expect((await assign(org.employee.id, foreignManager.id)).status).toBe(409)
+    expect(await managerQueueOf(foreignManager)).toEqual([])
     actAs(foreignManager)
-    expect((await approveAsManager(note.id)).status).toBe(200)
+    expect((await approveAsManager(note.id)).status).toBe(404)
   })
 })
 

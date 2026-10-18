@@ -25,8 +25,8 @@ const S3_BASE_ENV = {
 
 export const TEST_ENV = {
   ...S3_BASE_ENV,
-  // Application : rôle propriétaire jusqu'à la tâche 11, puis expense_app.
-  DATABASE_URL: `${PG_SERVER_URL}/${TEST_DATABASE_NAME}`,
+  // Application : rôle expense_app, soumis à la RLS.
+  DATABASE_URL: `${PG_APP_SERVER_URL}/${TEST_DATABASE_NAME}`,
   // Helpers de test (factories, truncate) et migrations : toujours le propriétaire.
   DATABASE_OWNER_URL: `${PG_SERVER_URL}/${TEST_DATABASE_NAME}`,
   APP_DATABASE_URL: `${PG_APP_SERVER_URL}/${TEST_DATABASE_NAME}`,
@@ -35,7 +35,7 @@ export const TEST_ENV = {
 
 export const E2E_ENV = {
   ...S3_BASE_ENV,
-  DATABASE_URL: `${PG_SERVER_URL}/${E2E_DATABASE_NAME}`,
+  DATABASE_URL: `${PG_APP_SERVER_URL}/${E2E_DATABASE_NAME}`,
   DATABASE_OWNER_URL: `${PG_SERVER_URL}/${E2E_DATABASE_NAME}`,
   APP_DATABASE_URL: `${PG_APP_SERVER_URL}/${E2E_DATABASE_NAME}`,
   AUTH_SECRET: 'secret-de-test-e2e-uniquement-0123456789',

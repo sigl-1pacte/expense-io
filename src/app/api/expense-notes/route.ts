@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { getPool, withUserScope } from '@/lib/db'
+import { withUserScope } from '@/lib/db'
 import { receiptKeyFor, uploadReceipt } from '@/lib/storage'
 import { InvalidInput } from '@/shared/errors'
 import {
@@ -93,10 +93,12 @@ export const POST = route(async (request) => {
   const buffer = Buffer.from(await receipt.arrayBuffer())
   await uploadReceipt(receiptKey, buffer, receipt.type)
 
-  // Passe sous la portée RLS en tâche 11 ; ordre S3 puis note au plan 2 (F10).
-  const updated = await getPool().query(
-    `UPDATE expense_notes SET receipt_key = $1 WHERE id = $2 RETURNING *`,
-    [receiptKey, note.id]
+  // Ordre S3 puis note au plan 2 (F10).
+  const updated = await withUserScope(user.id, (client) =>
+    client.query(`UPDATE expense_notes SET receipt_key = $1 WHERE id = $2 RETURNING *`, [
+      receiptKey,
+      note.id,
+    ])
   )
 
   return Response.json(toExpenseNote(updated.rows[0]), { status: 201 })
