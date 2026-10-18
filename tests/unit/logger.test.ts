@@ -50,6 +50,22 @@ describe('logger', () => {
     expect(line).toMatchObject({ level: 'warn', message: 'big', n: 'non sérialisable', correlationId: 'c2' })
   })
 
+  it('ne lève pas si toJSON répond autrement à la seconde lecture (instantané)', () => {
+    let reads = 0
+    const unstable = {
+      toJSON(): unknown {
+        reads += 1
+        if (reads === 1) return 'ok'
+        const circular: Record<string, unknown> = {}
+        circular.self = circular
+        return circular
+      },
+    }
+    expect(() => logger.info('instable', { t: unstable })).not.toThrow()
+    const line = JSON.parse(vi.mocked(console.log).mock.calls[0][0] as string)
+    expect(line).toMatchObject({ level: 'info', message: 'instable', t: 'ok' })
+  })
+
   it('ne lève pas si un getter de fields lève : fields devient "non sérialisable"', () => {
     const fields = {
       correlationId: 'c3',

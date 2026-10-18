@@ -13,12 +13,14 @@ function serialize(value: unknown): unknown {
   return value
 }
 
-/** Valeur prête pour JSON, ou la chaîne « non sérialisable » si elle ne l'est pas. */
+/**
+ * Instantané de données simples, ou « non sérialisable ». Une seule lecture de la
+ * valeur : le JSON.stringify final ne relit donc plus les getters ni les toJSON.
+ */
 function safeValue(value: unknown): unknown {
   try {
-    const serialized = serialize(value)
-    JSON.stringify(serialized)
-    return serialized
+    const json = JSON.stringify(serialize(value))
+    return json === undefined ? undefined : JSON.parse(json)
   } catch {
     return NON_SERIALIZABLE
   }
