@@ -58,6 +58,15 @@ describe('route', () => {
     expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
   })
 
+  it('ajoute la corrélation même à une réponse à en-têtes immuables (redirection)', async () => {
+    const response = await route(async () => Response.redirect('http://localhost/x', 302))(
+      new Request(url, { headers: { 'x-correlation-id': 'abc' } })
+    )
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe('http://localhost/x')
+    expect(response.headers.get('x-correlation-id')).toBe('abc')
+  })
+
   it('traduit une AppError rejetée de façon asynchrone (F43)', async () => {
     const handler = route(async () => Promise.reject(new NotFound()))
     const response = await handler(new Request(url))
@@ -142,6 +151,12 @@ describe('readBodyWithLimit (F34)', () => {
     await expect(readBodyWithLimit(request, 1024 * 1024, 'Fichier trop volumineux')).rejects.toThrow(
       'Fichier trop volumineux'
     )
+  })
+
+  it('accepte exactement maxBytes et refuse maxBytes + 1', async () => {
+    const post = (size: number) => new Request(url, { method: 'POST', body: new Uint8Array(size) })
+    expect((await readBodyWithLimit(post(100), 100, 'trop')).byteLength).toBe(100)
+    await expect(readBodyWithLimit(post(101), 100, 'trop')).rejects.toThrow('trop')
   })
 
   it('renvoie le corps entier sous la limite', async () => {

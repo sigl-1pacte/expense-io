@@ -51,12 +51,24 @@ export function route<C = undefined>(
     context: C = undefined as C
   ): Promise<Response> => {
     const correlationId = resolveCorrelationId(request)
+    let response: Response
     try {
-      const response = await handler(request, context, { correlationId })
-      response.headers.set('x-correlation-id', correlationId)
-      return response
+      response = await handler(request, context, { correlationId })
     } catch (error) {
       return problemResponse(error, correlationId)
+    }
+    try {
+      response.headers.set('x-correlation-id', correlationId)
+      return response
+    } catch {
+      // En-têtes immuables (ex. `Response.redirect`) : on recopie la réponse.
+      const headers = new Headers(response.headers)
+      headers.set('x-correlation-id', correlationId)
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      })
     }
   }
 }
