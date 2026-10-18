@@ -2,13 +2,11 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { getPool } from '@/lib/db'
+import { config } from '@/shared/config'
 
-// Généré une fois pour ce projet — pas besoin de le régénérer à chaque
-// déploiement.
-const AUTH_SECRET = 'e29f9c3b6a1d4e7f8021c5b6d4a9f0e3c7b8a2d1f6e5c4b3a2918273645fabcd'
-
+// Le secret vient de l'environnement, validé par shared/config ; le démarrage échoue sans lui.
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret: AUTH_SECRET,
+  secret: config().authSecret,
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',

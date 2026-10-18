@@ -23,6 +23,7 @@ export const TEST_ENV = {
 export const E2E_ENV = {
   ...S3_BASE_ENV,
   DATABASE_URL: `${PG_SERVER_URL}/${E2E_DATABASE_NAME}`,
+  AUTH_SECRET: 'secret-de-test-e2e-uniquement-0123456789',
   S3_BUCKET: 'receipts-e2e',
 }
 
