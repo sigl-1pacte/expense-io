@@ -25,21 +25,21 @@ module.exports = {
       comment: 'Un use case ne connaît ni pg, ni S3, ni Tesseract, ni bcrypt, ni Next.',
       severity: SEVERITY,
       from: { path: '^src/modules/[^/]+/application/' },
-      to: { path: 'node_modules/(pg|@aws-sdk|tesseract\.js|bcryptjs|nodemailer|next|next-auth)/' },
+      to: { path: 'node_modules/(pg|@aws-sdk|tesseract\\.js|bcryptjs|nodemailer|next|next-auth)/' },
     },
     {
       name: 'module-par-son-index',
       comment: "Un module ne voit un autre module que par son index.ts.",
       severity: SEVERITY,
       from: { path: '^src/modules/([^/]+)/' },
-      to: { path: '^src/modules/', pathNot: ['^src/modules/$1/', '^src/modules/[^/]+/index\.ts$'] },
+      to: { path: '^src/modules/', pathNot: ['^src/modules/$1/', '^src/modules/[^/]+/index\\.ts$'] },
     },
     {
       name: 'app-par-les-index',
       comment: "app/ n'entre dans un module que par son index.ts.",
       severity: SEVERITY,
       from: { path: '^src/app/' },
-      to: { path: '^src/modules/[^/]+/(?!index\.ts$)' },
+      to: { path: '^src/modules/[^/]+/(?!index\\.ts$)' },
     },
     {
       name: 'shared-sans-module',
@@ -52,7 +52,7 @@ module.exports = {
       comment: "Le worker de livraison n'importe que shared/config et shared/logger.",
       severity: SEVERITY,
       from: { path: '^src/worker/' },
-      to: { path: '^src/', pathNot: ['^src/worker/', '^src/shared/(config|logger)\.ts$'] },
+      to: { path: '^src/', pathNot: ['^src/worker/', '^src/shared/(config|logger)\\.ts$'] },
     },
     {
       name: 'pas-de-cycle',

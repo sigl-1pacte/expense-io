@@ -15,7 +15,7 @@ Monolithe modulaire hexagonal ([ADR 0002](docs/adrs/0002-monolithe-modulaire-hex
 - `src/app/api/**/route.ts` : adapters d'entrée minces (parse → use case → HTTP).
 - `src/worker/` : worker de livraison des e-mails, hors de l'hexagone.
 
-Règles de dépendance (vérifiées par `npm run depcruise`) : `domain` n'importe rien ; `application` n'importe que `domain`, `ports`, `shared` et l'`index.ts` d'un autre module ; un module n'en voit un autre que par son `index.ts` ; `app/` n'importe que des `index.ts` et `shared` ; `worker/` n'importe que `shared/config` et `shared/logger`. Le SQL d'`expenses` ne touche jamais `users` ni `companies`.
+Règles de dépendance (vérifiées par `npm run depcruise`) : `domain` n'importe rien ; `application` n'importe que `domain`, `ports`, `shared` et l'`index.ts` d'un autre module ; un module n'en voit un autre que par son `index.ts` ; `app/` n'importe que des `index.ts` et `shared` ; `worker/` n'importe que `shared/config` et `shared/logger`. Le SQL d'`expenses` ne touche jamais `users` ni `companies` (vérifié par `npm run check:sql`, ajouté au plan 2).
 
 ## Commandes
 
@@ -34,6 +34,8 @@ Règles de dépendance (vérifiées par `npm run depcruise`) : `domain` n'import
 ## Git
 
 Règles complètes : [`CONTRIBUTING.md`](CONTRIBUTING.md). Branches `<prénom>/arla-<n>-<sujet>` ou `<prénom>/<sujet>`, jamais de commit sur `main`. Commits `type(portée): description` en français.
+
+Jamais de `git push --force` (sous aucune forme) ni de suppression récursive (`rm -rf`) : demander à l'utilisateur.
 
 ## Documentation
 
