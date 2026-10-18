@@ -11,9 +11,20 @@ function serialize(value: unknown): unknown {
 }
 
 function log(level: Level, message: string, fields: Fields = {}): void {
-  const entry: Fields = { time: new Date().toISOString(), level, message }
+  const time = new Date().toISOString()
+  // Champs d'abord, clés réservées ensuite : un appelant ne peut pas les écraser.
+  const entry: Fields = {}
   for (const [key, value] of Object.entries(fields)) entry[key] = serialize(value)
-  const line = JSON.stringify(entry)
+  entry.time = time
+  entry.level = level
+  entry.message = message
+  let line: string
+  try {
+    line = JSON.stringify(entry)
+  } catch {
+    // Valeur non sérialisable (circulaire, BigInt, getter qui lève) : le logger ne doit jamais lever.
+    line = JSON.stringify({ time, level, message, fields: 'non sérialisable' })
+  }
   if (level === 'error') console.error(line)
   else console.log(line)
 }

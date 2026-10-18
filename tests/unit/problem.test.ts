@@ -62,4 +62,18 @@ describe('problemResponse', () => {
     expect(logged).toMatchObject({ level: 'error', correlationId: 'corr-2' })
     expect(logged.error.message).toBe('column "nope" does not exist')
   })
+
+  it('objet circulaire lancé (non Error) : 500 générique, le logger ne lève pas', async () => {
+    const circular: Record<string, unknown> = { code: 'X' }
+    circular.self = circular
+    const response = problemResponse(circular, 'corr-3')
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({
+      error: 'Erreur interne',
+      type: 'https://expense.io/problems/internal',
+      title: 'Erreur interne',
+      status: 500,
+      detail: 'Une erreur interne est survenue. Référence : corr-3',
+    })
+  })
 })
