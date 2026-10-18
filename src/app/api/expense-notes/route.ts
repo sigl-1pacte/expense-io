@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { withUserScope } from '@/lib/db'
+import { parseNoteSort } from '@/lib/note-sort'
 import { receiptKeyFor, uploadReceipt } from '@/lib/storage'
 import { InvalidInput } from '@/shared/errors'
 import {
@@ -34,9 +35,7 @@ function toExpenseNote(row: Record<string, unknown>) {
 
 export const GET = route(async (request) => {
   const user = await requireSession()
-  const url = new URL(request.url)
-  // F3 corrigé en tâche 13 (liste blanche).
-  const sort = url.searchParams.get('sort') || 'created_at DESC'
+  const sort = parseNoteSort(new URL(request.url).searchParams.get('sort'))
 
   return withUserScope(user.id, async (client) => {
     const result = await client.query(

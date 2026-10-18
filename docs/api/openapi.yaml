@@ -226,13 +226,12 @@ paths:
           in: query
           required: false
           description: |
-            Fragment SQL inséré tel quel dans la clause `ORDER BY` (non
-            validé). Défaut : `created_at DESC`. Une expression invalide
-            produit une erreur 500 générique.
+            Tri : `<colonne> [asc|desc]`, colonne parmi `created_at`, `expense_date`, `amount`
+            (insensible à la casse, `asc` par défaut). Toute autre valeur est ignorée :
+            tri par défaut `created_at desc`.
           schema:
             type: string
-            default: created_at DESC
-          example: amount ASC
+            examples: ['amount asc', 'expense_date desc']
       responses:
         '200':
           description: Notes de l'utilisateur.

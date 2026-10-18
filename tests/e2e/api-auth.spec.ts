@@ -86,13 +86,11 @@ test('méthode HTTP non exportée → 405', async ({ request }) => {
   }
 })
 
-test('erreur interne : 500 générique, sans stack ni détail SQL', async ({ browser }) => {
+test('?sort= hors liste blanche : 200 et tri par défaut (F3)', async ({ browser }) => {
   const page = await loginAs(browser, (await createOrg()).employee)
   const response = await page.request.get('/api/expense-notes?sort=nope')
-  expect(response.status()).toBe(500)
-  const body = await response.text()
-  expect(body).not.toContain('stack')
-  expect(body).not.toContain('nope')
+  expect(response.status()).toBe(200)
+  expect(await response.json()).toEqual([])
 })
 
 test('corps JSON sur une route multipart : 400 problem+json, sans stack', async ({ browser }) => {

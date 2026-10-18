@@ -115,36 +115,28 @@ describe('GET /api/expense-notes', () => {
     expect((await listAs(`/api/expense-notes?sort=${sort}`)).map((n) => n.amount)).toEqual([10, 20, 30])
   })
 
-  it('[as-is] exécute une expression SQL arbitraire passée dans ?sort= (audit §4)', async () => {
+  it("ignore une expression SQL passée dans ?sort= : tri par défaut, aucune fuite (F3)", async () => {
     const { employee, hr } = await createOrg()
-    await createNote({ user: employee, amount: 10 })
-    await createNote({ user: employee, amount: 20 })
+    const older = await createNote({ user: employee, amount: 10, createdAt: new Date('2026-10-01T08:00:00Z') })
+    const newer = await createNote({ user: employee, amount: 20, createdAt: new Date('2026-10-02T08:00:00Z') })
     actAs(employee)
-    // L'ordre du résultat révèle si une condition sur la table users est vraie :
-    // fuite d'information par injection dans ORDER BY.
-    const probe = async (condition: string) => {
-      const sort = encodeURIComponent(`(CASE WHEN ${condition} THEN amount ELSE -amount END) ASC`)
-      return (await listAs(`/api/expense-notes?sort=${sort}`)).map((n) => n.amount)
+    const sort = encodeURIComponent(
+      `(CASE WHEN (SELECT count(*) FROM users WHERE email = '${hr.email}') = 1 THEN amount ELSE -amount END) ASC`
+    )
+    expect((await listAs(`/api/expense-notes?sort=${sort}`)).map((n) => n.id)).toEqual([newer.id, older.id])
+  })
+
+  it.each(['nope', encodeURIComponent('created_at; DROP TABLE users')])(
+    '?sort=%s hors liste : 200, tri par défaut, base intacte',
+    async (sort) => {
+      const { employee } = await createOrg()
+      await createNote({ user: employee })
+      actAs(employee)
+      const response = await GET(request(`/api/expense-notes?sort=${sort}`))
+      expect(response.status).toBe(200)
+      expect(await countRows('users')).toBe(3)
     }
-    expect(await probe(`(SELECT count(*) FROM users WHERE email = '${hr.email}') = 1`)).toEqual([10, 20])
-    expect(await probe(`(SELECT count(*) FROM users WHERE email = 'personne@nulle.part') = 1`)).toEqual([
-      20, 10,
-    ])
-  })
-
-  it('colonne inconnue dans ?sort= : 500 générique, sans détail SQL', async () => {
-    const { employee } = await createOrg()
-    actAs(employee)
-    await expectProblem(await GET(request('/api/expense-notes?sort=nope')), 500, 'Erreur interne')
-  })
-
-  it('requêtes multiples dans ?sort= : refusées par pg, 500 générique, base intacte', async () => {
-    const { employee } = await createOrg()
-    actAs(employee)
-    const sort = encodeURIComponent('created_at; DROP TABLE users')
-    await expectProblem(await GET(request(`/api/expense-notes?sort=${sort}`)), 500, 'Erreur interne')
-    expect(await countRows('users')).toBe(3)
-  })
+  )
 })
 
 describe('POST /api/expense-notes', () => {
