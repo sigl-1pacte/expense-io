@@ -20,6 +20,7 @@ _Mis à jour le 16/10/2026._
 - **Calendrier** : refacto du 19 au 26/10, soutenance le 30/10.
 - **Pas encore sur `main`** : la suite de tests de caractérisation (ARLA-9) et
   les plans de la refacto. Voir [À venir](#à-venir).
+- **ADR 0001 à 0004 écrites** : voir [adrs/](adrs/README.md).
 
 ## Par où commencer
 
@@ -83,7 +84,6 @@ Ces documents existent mais n'ont pas encore rejoint `main` :
 
 Restent à écrire :
 
-- les ADR 0001 à 0004 sont écrites (voir [adrs/](adrs/README.md)).
 - le schéma cible en Excalidraw, dans le style de `as-is.excalidraw` ;
 - la colonne « Après » du benchmark et le bilan de l'audit après refacto.
 
