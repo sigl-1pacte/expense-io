@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "migrate:up": "node-pg-migrate up --envPath .env",
     "migrate:down": "node-pg-migrate down --envPath .env",
+    "agents:sync": "node scripts/agents-sync.mjs",
     "ensure-bucket": "node scripts/ensure-bucket.mjs",
     "seed": "node scripts/seed.mjs",
     "test": "vitest run",
