@@ -17,6 +17,8 @@ Mesures prises avec le même outillage (SonarQube Community, `sonar-project.prop
 | Couverture (%) | 66.4 |
 | Lignes de code | 1970 |
 
+La couverture Sonar porte sur tout `src/` (pages et code mort compris), contrairement au résumé Vitest (périmètre restreint) : seules les comparaisons Sonar contre Sonar sont significatives.
+
 Commit analysé : 88cbfee.
 
 Données brutes : [sonarqube-avant.json](sonarqube-avant.json)

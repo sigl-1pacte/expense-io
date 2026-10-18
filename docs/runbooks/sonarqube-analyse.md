@@ -19,7 +19,7 @@ Analyser le dépôt avec SonarQube en local, avec la couverture Vitest, et obten
 ## Prérequis
 
 - Docker, au moins 4 Go de mémoire libre.
-- `.env` contient `SONAR_HOST_URL=http://localhost:9000`.
+- `.env` contient `SONAR_HOST_URL=http://localhost:9000` (et `SONAR_TOKEN` après l'étape 2). `make` charge `.env` ; avec `npm` directement, `sonar:bootstrap` et `sonar:report` le lisent aussi, mais `npm run sonar` (le scanner) exige `SONAR_HOST_URL` et `SONAR_TOKEN` dans l'environnement : `SONAR_HOST_URL=http://localhost:9000 SONAR_TOKEN=… npm run sonar`.
 
 ## Procédure
 

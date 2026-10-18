@@ -3,6 +3,10 @@ SHELL := /bin/bash
 
 COMPOSE := docker compose
 
+# Charge .env (SONAR_HOST_URL, SONAR_TOKEN) pour `make sonar` et `make sonar-up`.
+-include .env
+export SONAR_HOST_URL SONAR_TOKEN
+
 .PHONY: help install env up down restart logs migrate ensure-bucket seed dev build start lint typecheck test coverage e2e clean sonar-up sonar sonar-down
 
 help: ## Affiche cette aide

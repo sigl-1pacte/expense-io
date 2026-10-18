@@ -17,8 +17,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "sonar": "sonar-scanner-npm",
-    "sonar:bootstrap": "node scripts/sonar-bootstrap.mjs",
-    "sonar:report": "node scripts/sonar-report.mjs"
+    "sonar:bootstrap": "node --env-file-if-exists=.env scripts/sonar-bootstrap.mjs",
+    "sonar:report": "node --env-file-if-exists=.env scripts/sonar-report.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",
