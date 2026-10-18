@@ -338,13 +338,15 @@ describe('POST /api/expense-notes', () => {
   })
 
   it.each(['31/02/2026', '2026-13-45', 'hier', ''])(
-    "[as-is] date « %s » non validée par l'app → 500 Postgres", async (expenseDate) => {
-    const { employee } = await createOrg()
-    actAs(employee)
-    const response = await submit({ expenseDate })
-    await expectProblem(response, 500, 'Erreur interne')
-    expect(await countRows('expense_notes')).toBe(0)
-  })
+    "[as-is] date « %s » non validée par l'app → 500 Postgres",
+    async (expenseDate) => {
+      const { employee } = await createOrg()
+      actAs(employee)
+      const response = await submit({ expenseDate })
+      await expectProblem(response, 500, 'Erreur interne')
+      expect(await countRows('expense_notes')).toBe(0)
+    }
+  )
 
   it('corps JSON au lieu de multipart → 400', async () => {
     const { employee } = await createOrg()

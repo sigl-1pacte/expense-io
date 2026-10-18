@@ -74,6 +74,6 @@ describe('GET /api/manager/expense-notes/:id/receipt-url', () => {
   it("session d'un manager supprimé → 404", async () => {
     const note = await createNote({ user: (await createOrg()).employee })
     actAsGhost('manager')
-    expect((await receiptUrl(note.id)).status).toBe(404)
+    await expectProblem(await receiptUrl(note.id), 404, 'Not found')
   })
 })

@@ -602,7 +602,7 @@ paths:
             type: string
             format: uuid
       requestBody:
-        required: true
+        required: false
         description: |
           La clé `managerId` est obligatoire ; `managerId: null` retire le
           manager. Un corps absent, non JSON, sans `managerId` ou dont

@@ -18,7 +18,7 @@ vi.mock('@/lib/auth', () => ({
 
 beforeEach(async () => {
   vi.resetAllMocks()
-  // respondError et l'OCR loguent chaque erreur : sortie de test lisible.
+  // problemResponse (via route()) et l'OCR loguent chaque erreur : sortie de test lisible.
   vi.spyOn(console, 'error').mockImplementation(() => {})
   await Promise.all([truncateAll(), emptyBucket(TEST_ENV)])
 })
