@@ -41,7 +41,7 @@ function resolveCorrelationId(request: Request): string {
  * (F43), devient une réponse RFC 9457 ; l'identifiant de corrélation est lu
  * dans `x-correlation-id` (s'il est valide) ou généré, et renvoyé dans la réponse.
  */
-export function route<C = undefined>(
+export function route<C = unknown>(
   handler: (request: Request, context: C, meta: RouteMeta) => Promise<Response>
 ) {
   // Paramètres optionnels : les tests d'intégration appellent `GET()` sans

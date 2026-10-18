@@ -29,45 +29,44 @@ const ENDPOINTS: Endpoint[] = [
   { method: 'PUT', path: `/api/hr/users/${NOTE_ID}/manager`, area: 'hr' },
 ]
 
-// [as-is] audit §3 : un mauvais rôle donne 401 côté employé/manager, 403 côté RH.
-const REFUSED_STATUS: Record<Area, number> = { employee: 401, manager: 401, hr: 403 }
-
+// F27 : 401 sans session (ou session invalide), 403 avec une session de mauvais rôle.
 async function expectRefused(
   request: APIRequestContext,
   endpoints: Endpoint[],
+  status: 401 | 403,
   headers?: Record<string, string>
 ): Promise<void> {
   for (const endpoint of endpoints) {
     const response = await request.fetch(endpoint.path, { method: endpoint.method, headers })
     const label = `${endpoint.method} ${endpoint.path}`
-    expect.soft(response.status(), label).toBe(REFUSED_STATUS[endpoint.area])
-    expect.soft(await response.json(), label).toEqual({ error: 'Unauthorized' })
+    expect.soft(response.status(), label).toBe(status)
+    expect.soft(await response.json(), label).toMatchObject({ error: 'Unauthorized', status })
   }
 }
 
 test.afterEach(closeContexts)
 
-test('[as-is] sans cookie : 401 côté employé et manager, mais 403 et non 401 côté RH (audit §3)', async ({ request }) => {
-  await expectRefused(request, ENDPOINTS)
+test('sans cookie : 401 partout', async ({ request }) => {
+  await expectRefused(request, ENDPOINTS, 401)
 })
 
-test('[as-is] cookie de session falsifié : traité comme anonyme, donc 403 et non 401 côté RH (audit §3)', async ({ request }) => {
-  await expectRefused(request, ENDPOINTS, { cookie: 'authjs.session-token=jeton-falsifie' })
+test('cookie de session falsifié : 401 partout', async ({ request }) => {
+  await expectRefused(request, ENDPOINTS, 401, { cookie: 'authjs.session-token=jeton-falsifie' })
 })
 
-test('[as-is] session employé : 401 et non 403 côté manager (audit §3), 403 côté RH', async ({ browser }) => {
+test('session employé : 403 sur les endpoints manager et RH', async ({ browser }) => {
   const page = await loginAs(browser, (await createOrg()).employee)
-  await expectRefused(page.request, ENDPOINTS.filter((endpoint) => endpoint.area !== 'employee'))
+  await expectRefused(page.request, ENDPOINTS.filter((endpoint) => endpoint.area !== 'employee'), 403)
 })
 
-test('session manager : refusée sur les endpoints RH', async ({ browser }) => {
+test('session manager : 403 sur les endpoints RH', async ({ browser }) => {
   const page = await loginAs(browser, (await createOrg()).manager)
-  await expectRefused(page.request, ENDPOINTS.filter((endpoint) => endpoint.area === 'hr'))
+  await expectRefused(page.request, ENDPOINTS.filter((endpoint) => endpoint.area === 'hr'), 403)
 })
 
-test('[as-is] session RH : 401 et non 403 sur les endpoints manager (audit §3)', async ({ browser }) => {
+test('session RH : 403 sur les endpoints manager', async ({ browser }) => {
   const page = await loginAs(browser, (await createOrg()).hr)
-  await expectRefused(page.request, ENDPOINTS.filter((endpoint) => endpoint.area === 'manager'))
+  await expectRefused(page.request, ENDPOINTS.filter((endpoint) => endpoint.area === 'manager'), 403)
 })
 
 test('session valide : le JWT réel est accepté', async ({ browser }) => {
@@ -87,19 +86,19 @@ test('méthode HTTP non exportée → 405', async ({ request }) => {
   }
 })
 
-test('[as-is] erreur non interceptée : 500 générique de Next, sans stack', async ({ browser }) => {
+test('erreur interne : 500 générique, sans stack ni détail SQL', async ({ browser }) => {
   const page = await loginAs(browser, (await createOrg()).employee)
   const response = await page.request.get('/api/expense-notes?sort=nope')
   expect(response.status()).toBe(500)
-  expect(await response.text()).not.toContain('stack')
+  const body = await response.text()
+  expect(body).not.toContain('stack')
+  expect(body).not.toContain('nope')
 })
 
-test('[as-is] erreur interceptée : 500 JSON avec la stack (audit §4)', async ({ browser }) => {
+test('corps JSON sur une route multipart : 400 problem+json, sans stack', async ({ browser }) => {
   const page = await loginAs(browser, (await createOrg()).employee)
   const response = await page.request.post('/api/expense-notes', { data: { amount: 1 } })
-  expect(response.status()).toBe(500)
-  expect(await response.json()).toEqual({
-    error: expect.stringContaining('Content-Type'),
-    stack: expect.any(String),
-  })
+  expect(response.status()).toBe(400)
+  expect(response.headers()['content-type']).toContain('application/problem+json')
+  expect(await response.json()).toMatchObject({ error: 'Corps de requête invalide', status: 400 })
 })

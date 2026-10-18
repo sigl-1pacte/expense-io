@@ -3,6 +3,7 @@ import { PUT } from '@/app/api/hr/users/[id]/manager/route'
 import { createOrg, createUser, findUser, type Org } from '../../support/factories'
 import {
   NON_UUID_IDS,
+  expectProblem,
   UNKNOWN_ID,
   type UserDto,
   jsonBody,
@@ -30,7 +31,7 @@ const JSON_HEADERS = { 'content-type': 'application/json' }
 
 describe('PUT /api/hr/users/:id/manager', () => {
   it.each<[string, Caller]>([
-    ['[as-is] anonyme → 403 et non 401 (audit §3), rattachement inchangé', 'anonymous'],
+    ['anonyme → 401, rattachement inchangé', 'anonymous'],
     ['mauvais rôle employee → 403, rattachement inchangé', 'employee'],
     ['mauvais rôle manager → 403, rattachement inchangé', 'manager'],
   ])('%s', async (_label, caller) => {
@@ -38,8 +39,7 @@ describe('PUT /api/hr/users/:id/manager', () => {
     const newcomer = await createUser({ company: org.company })
     actAsCaller(org, caller)
     const response = await assign(newcomer.id, { managerId: org.manager.id })
-    expect(response.status).toBe(403)
-    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    await expectProblem(response, caller === 'anonymous' ? 401 : 403, 'Unauthorized')
     expect(await managerIdOf(newcomer.id)).toBeNull()
   })
 
@@ -98,8 +98,7 @@ describe('PUT /api/hr/users/:id/manager', () => {
     const targetId = await targetFor(org)
     actAs(org.hr)
     const response = await assign(targetId, { managerId: org.manager.id })
-    expect(response.status).toBe(404)
-    expect(await response.json()).toEqual({ error: 'Not found' })
+    await expectProblem(response, 404, 'Not found')
   })
 
   it.each<[string, (org: Org) => Promise<[string, string]>]>([
@@ -116,8 +115,7 @@ describe('PUT /api/hr/users/:id/manager', () => {
     const before = await managerIdOf(targetId)
     actAs(org.hr)
     const response = await assign(targetId, { managerId })
-    expect(response.status).toBe(409)
-    expect(await response.json()).toEqual({ error: 'Invalid manager' })
+    await expectProblem(response, 409, 'Invalid manager')
     expect(await managerIdOf(targetId)).toBe(before)
   })
 
@@ -134,24 +132,19 @@ describe('PUT /api/hr/users/:id/manager', () => {
     ['corps vide', {}],
     ['objet sans managerId', { body: '{}', headers: JSON_HEADERS }],
     ['formulaire multipart', { body: MULTIPART_BODY }],
-  ])('[as-is] %s : détachement silencieux', async (_label, init) => {
+  ])('%s → 400, rattachement inchangé', async (_label, init) => {
     const org = await createOrg()
     actAs(org.hr)
     const response = await assignRaw(org.employee.id, init)
-    expect(response.status).toBe(200)
-    expect((await readJson<UserDto>(response)).managerId).toBeNull()
-    expect(await managerIdOf(org.employee.id)).toBeNull()
+    await expectProblem(response, 400, 'Corps de requête invalide')
+    expect(await managerIdOf(org.employee.id)).toBe(org.manager.id)
   })
 
-  it.each<[unknown, string]>([
-    [42, 'invalid input syntax for type uuid: "42"'],
-    ['', 'invalid input syntax for type uuid: ""'],
-  ])('[as-is] managerId %j de mauvais type → 500 avec stack', async (managerId, message) => {
+  it.each<unknown>([42, ''])('managerId %j de mauvais type → 400', async (managerId) => {
     const org = await createOrg()
     actAs(org.hr)
     const response = await assign(org.employee.id, { managerId })
-    expect(response.status).toBe(500)
-    expect(await response.json()).toEqual({ error: message, stack: expect.any(String) })
+    await expectProblem(response, 400, 'Corps de requête invalide')
   })
 
   it('[as-is] accepte un cycle entre deux managers', async () => {
@@ -164,15 +157,11 @@ describe('PUT /api/hr/users/:id/manager', () => {
     expect(await managerIdOf(other.id)).toBe(org.manager.id)
   })
 
-  it.each(NON_UUID_IDS)('[as-is] cible « %s » non-UUID → 500 avec stack', async (id) => {
+  it.each(NON_UUID_IDS)('cible « %s » non-UUID → 400', async (id) => {
     const org = await createOrg()
     actAs(org.hr)
     const response = await assign(id, { managerId: org.manager.id })
-    expect(response.status).toBe(500)
-    expect(await response.json()).toEqual({
-      error: `invalid input syntax for type uuid: "${id}"`,
-      stack: expect.any(String),
-    })
+    await expectProblem(response, 400, 'Identifiant invalide')
   })
 
   it("session d'une RH supprimée → 404", async () => {

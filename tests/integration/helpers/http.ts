@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server'
+import { expect } from 'vitest'
 import { PNG_BYTES } from '../../support/fixtures'
 
 const ORIGIN = 'http://localhost'
@@ -22,9 +23,22 @@ export interface UserDto {
   managerId: string | null
 }
 
-export interface ErrorBody {
+export interface ProblemBody {
   error: string
-  stack?: string
+  type: string
+  title: string
+  status: number
+  detail: string
+}
+
+/** Réponse d'erreur RFC 9457 : code, champ `error` historique, jamais de stack. */
+export async function expectProblem(response: Response, status: number, error: string): Promise<ProblemBody> {
+  expect(response.status).toBe(status)
+  expect(response.headers.get('content-type')).toBe('application/problem+json')
+  const body = await readJson<ProblemBody>(response)
+  expect(body).toMatchObject({ error, status })
+  expect(body).not.toHaveProperty('stack')
+  return body
 }
 
 export const UNKNOWN_ID = '00000000-0000-4000-8000-000000000000'

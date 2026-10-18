@@ -3,7 +3,7 @@ import { GET } from '@/app/api/expense-notes/[id]/receipt-url/route'
 import { TEST_ENV } from '../../support/env'
 import { createNote, createOrg, createUser, type Org, type Role } from '../../support/factories'
 import { PNG_BYTES } from '../../support/fixtures'
-import { NON_UUID_IDS, UNKNOWN_ID, readJson, request, routeParams } from '../helpers/http'
+import { expectProblem, NON_UUID_IDS, UNKNOWN_ID, readJson, request, routeParams } from '../helpers/http'
 import { expectPresignedReceipt, storeReceipt } from '../helpers/s3'
 import { actAs, actAsAnonymous, actAsGhost } from '../helpers/session'
 
@@ -16,8 +16,7 @@ describe('GET /api/expense-notes/:id/receipt-url', () => {
     const note = await createNote({ user: (await createOrg()).employee })
     actAsAnonymous()
     const response = await receiptUrl(note.id)
-    expect(response.status).toBe(401)
-    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    await expectProblem(response, 401, 'Unauthorized')
   })
 
   it.each<Role>(['employee', 'manager', 'hr_admin'])(
@@ -57,8 +56,7 @@ describe('GET /api/expense-notes/:id/receipt-url', () => {
     const id = await noteIdFor(org)
     actAs(callerFor(org))
     const response = await receiptUrl(id)
-    expect(response.status).toBe(404)
-    expect(await response.json()).toEqual({ error: 'Not found' })
+    await expectProblem(response, 404, 'Not found')
   })
 
   it("session d'un utilisateur supprimé → 404", async () => {
@@ -67,14 +65,10 @@ describe('GET /api/expense-notes/:id/receipt-url', () => {
     expect((await receiptUrl(note.id)).status).toBe(404)
   })
 
-  it.each(NON_UUID_IDS)('[as-is] id « %s » non-UUID → 500 avec stack', async (id) => {
+  it.each(NON_UUID_IDS)('id « %s » non-UUID → 400', async (id) => {
     actAs((await createOrg()).employee)
     const response = await receiptUrl(id)
-    expect(response.status).toBe(500)
-    expect(await response.json()).toEqual({
-      error: `invalid input syntax for type uuid: "${id}"`,
-      stack: expect.any(String),
-    })
+    await expectProblem(response, 400, 'Identifiant invalide')
   })
 
   it('[as-is] note orpheline (receipt_key vide, audit §5) : URL signée de la racine du bucket, qui liste tous les reçus (constat hors audit)', async () => {

@@ -3,7 +3,7 @@ import { POST } from '@/app/api/expense-notes/route'
 import { uploadReceipt } from '@/lib/storage'
 import { testDb } from '../../support/db'
 import { createOrg } from '../../support/factories'
-import { multipart, readJson, receiptFile, type ErrorBody } from '../helpers/http'
+import { expectProblem, multipart, receiptFile } from '../helpers/http'
 import { actAs } from '../helpers/session'
 
 // Mock partiel, limité à ce fichier : le vrai uploadReceipt reste
@@ -26,11 +26,7 @@ describe('POST /api/expense-notes — panne du stockage', () => {
         receipt: receiptFile(),
       })
     )
-    expect(response.status).toBe(500)
-    expect(await readJson<ErrorBody>(response)).toEqual({
-      error: 'S3 indisponible',
-      stack: expect.any(String),
-    })
+    await expectProblem(response, 500, 'Erreur interne')
     const { rows } = await testDb().query('SELECT receipt_key, status FROM expense_notes')
     expect(rows).toEqual([{ receipt_key: '', status: 'pending' }])
   })

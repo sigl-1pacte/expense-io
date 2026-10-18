@@ -1,14 +1,12 @@
 openapi: 3.1.0
 info:
   title: Expense.io API
-  version: 0.1.0
+  version: 0.2.0
   summary: API HTTP de l'application de gestion de notes de frais.
   description: |
-    Ce document décrit le comportement **actuel** de l'application (audit
-    initial, version 0.1.0). Il sert de référence de non-régression : la
-    refonte ne doit pas modifier les contrats décrits ici. Les particularités
-    existantes (codes 401/403 selon l'espace, erreurs 500 détaillées…) sont
-    donc documentées telles quelles, pas corrigées.
+    Ce document décrit le contrat de l'application. Depuis la version 0.2.0,
+    les erreurs sont au format RFC 9457 et les codes 401/403 sont cohérents
+    entre les espaces ; les réponses en succès sont inchangées.
 
     ## Authentification
 
@@ -20,11 +18,11 @@ info:
 
     Rôles : `employee`, `manager`, `hr_admin`.
 
-    | Espace | Rôle exigé | Statut si rôle absent / non connecté |
-    |---|---|---|
-    | `/api/expense-notes/*` | tout utilisateur connecté | `401` |
-    | `/api/manager/*` | `manager` | `401` |
-    | `/api/hr/*` | `hr_admin` | `403` |
+    | Espace | Rôle exigé | Sans session | Mauvais rôle |
+    |---|---|---|---|
+    | `/api/expense-notes/*` | tout utilisateur connecté | `401` | — |
+    | `/api/manager/*` | `manager` | `401` | `403` |
+    | `/api/hr/*` | `hr_admin` | `401` | `403` |
 
     ## Circuit de validation
 
@@ -38,10 +36,11 @@ info:
 
     ## Erreurs
 
-    Les erreurs métier renvoient `{ "error": string }`. Toute exception non
-    gérée (identifiant non-UUID, date invalide, mauvais `Content-Type`, panne
-    base/stockage…) renvoie `500` avec le message et la pile d'appels
-    (`InternalError`).
+    Toutes les erreurs sont au format RFC 9457 (`application/problem+json`) :
+    `{ error, type, title, status, detail }`. Le champ `error` garde le texte
+    historique. Une erreur non gérée renvoie `500` avec `error: "Erreur
+    interne"`, sans pile d'appels ni message interne ; l'en-tête
+    `x-correlation-id` permet de retrouver la trace dans les logs.
 
     ## Interfaces internes (hors HTTP)
 
@@ -229,7 +228,7 @@ paths:
           description: |
             Fragment SQL inséré tel quel dans la clause `ORDER BY` (non
             validé). Défaut : `created_at DESC`. Une expression invalide
-            produit une erreur 500.
+            produit une erreur 500 générique.
           schema:
             type: string
             default: created_at DESC
@@ -294,10 +293,11 @@ paths:
             - `Champs invalides` (champ manquant, montant ≤ 0 ou non numérique, description vide, reçu absent)
             - `Type de fichier non autorisé pour le reçu`
             - `Fichier trop volumineux` (> 10 Mio)
+            - `Corps de requête invalide` (corps non multipart)
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Problem'
               examples:
                 champsInvalides:
                   value: { error: Champs invalides }
@@ -318,7 +318,7 @@ paths:
       description: |
         Analyse le reçu par OCR (Tesseract, langue française) sans rien
         enregistrer. Seuls PNG, JPEG et WebP sont analysés ; tout autre type,
-        ou un échec de l'OCR, renvoie `{}`. Aucune limite de taille.
+        ou un échec de l'OCR, renvoie `{}`. Taille limitée à 10 Mio.
       requestBody:
         required: true
         content:
@@ -343,11 +343,14 @@ paths:
                 rienTrouve:
                   value: {}
         '400':
-          description: Champ `receipt` absent ou n'étant pas un fichier.
+          description: |
+            Requête invalide : `Champs invalides` (champ `receipt` absent ou
+            n'étant pas un fichier), `Fichier trop volumineux` (> 10 Mio) ou
+            `Corps de requête invalide` (corps non multipart).
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Problem'
               example: { error: Champs invalides }
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -364,14 +367,16 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/ReceiptUrl'
+        '400':
+          $ref: '#/components/responses/InvalidId'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           description: Note inexistante ou n'appartenant pas à l'utilisateur.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Problem'
               example: { error: Not found }
         '500':
           $ref: '#/components/responses/InternalError'
@@ -392,7 +397,9 @@ paths:
                 items:
                   $ref: '#/components/schemas/ExpenseNote'
         '401':
-          $ref: '#/components/responses/UnauthorizedRole'
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -406,8 +413,12 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/DecidedNote'
+        '400':
+          $ref: '#/components/responses/InvalidId'
         '401':
-          $ref: '#/components/responses/UnauthorizedRole'
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NoteNotInScope'
         '409':
@@ -425,8 +436,12 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/DecidedNote'
+        '400':
+          $ref: '#/components/responses/InvalidId'
         '401':
-          $ref: '#/components/responses/UnauthorizedRole'
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NoteNotInScope'
         '409':
@@ -439,20 +454,24 @@ paths:
       tags: [Manager]
       operationId: managerGetReceiptUrl
       summary: Obtenir l'URL du reçu d'une note
-      description: Le rattachement de la note au manager n'est pas vérifié ; seule l'existence de la note l'est.
+      description: Réservé aux notes des subordonnés directs du manager connecté, quel que soit leur statut.
       parameters:
         - $ref: '#/components/parameters/NoteId'
       responses:
         '200':
           $ref: '#/components/responses/ReceiptUrl'
+        '400':
+          $ref: '#/components/responses/InvalidId'
         '401':
-          $ref: '#/components/responses/UnauthorizedRole'
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Note inexistante.
+          description: Note inexistante, ou dont l'auteur n'est pas un subordonné direct du manager connecté.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Problem'
               example: { error: Not found }
         '500':
           $ref: '#/components/responses/InternalError'
@@ -472,6 +491,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ExpenseNote'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '500':
@@ -487,6 +508,10 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/DecidedNote'
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -506,6 +531,10 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/DecidedNote'
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -526,6 +555,10 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/ReceiptUrl'
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -548,6 +581,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/DirectoryUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '500':
@@ -567,10 +602,11 @@ paths:
             type: string
             format: uuid
       requestBody:
-        required: false
+        required: true
         description: |
-          `managerId: null` retire le manager. Un corps absent, non JSON ou
-          sans `managerId` est traité comme `managerId: null`.
+          La clé `managerId` est obligatoire ; `managerId: null` retire le
+          manager. Un corps absent, non JSON, sans `managerId` ou dont
+          `managerId` n'est ni `null` ni un UUID est refusé (`400`).
         content:
           application/json:
             schema:
@@ -587,14 +623,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DirectoryUser'
+        '400':
+          description: |
+            Identifiant de la cible invalide (`Identifiant invalide`), ou corps
+            invalide (`Corps de requête invalide`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              examples:
+                identifiantInvalide:
+                  value: { error: Identifiant invalide, type: 'https://expense.io/problems/invalid-input', title: Requête invalide, status: 400, detail: Identifiant invalide }
+                corpsInvalide:
+                  value: { error: Corps de requête invalide, type: 'https://expense.io/problems/invalid-input', title: Requête invalide, status: 400, detail: Corps de requête invalide }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           description: Cible inexistante, hors de l'entreprise du RH, ou de rôle `hr_admin`.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Problem'
               example: { error: Not found }
         '409':
           description: |
@@ -602,9 +653,9 @@ paths:
             `managerId` ne désigne pas un utilisateur de rôle `manager`
             (l'entreprise du manager n'est pas vérifiée).
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Problem'
               example: { error: Invalid manager }
         '500':
           $ref: '#/components/responses/InternalError'
@@ -622,7 +673,7 @@ components:
       name: id
       in: path
       required: true
-      description: Identifiant de la note de frais. Une valeur qui n'est pas un UUID produit une erreur 500.
+      description: Identifiant de la note de frais. Une valeur qui n'est pas un UUID produit une erreur 400.
       schema:
         type: string
         format: uuid
@@ -730,71 +781,64 @@ components:
           type: string
           format: date-time
 
-    Error:
+    Problem:
       type: object
-      required: [error]
+      description: Erreur RFC 9457 ; `error` reprend le message historique.
+      required: [error, type, title, status, detail]
       properties:
-        error:
-          type: string
-
-    InternalError:
-      type: object
-      required: [error]
-      properties:
-        error:
-          type: string
-          description: Message de l'exception.
-        stack:
-          type: string
-          description: Pile d'appels de l'exception (absente si l'exception n'est pas une `Error`).
+        error: { type: string }
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
 
   responses:
     Unauthorized:
       description: Aucune session valide.
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: '#/components/schemas/Error'
-          example: { error: Unauthorized }
-
-    UnauthorizedRole:
-      description: Aucune session valide, ou l'utilisateur n'a pas le rôle `manager`.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example: { error: Unauthorized }
+            $ref: '#/components/schemas/Problem'
+          example: { error: Unauthorized, type: 'https://expense.io/problems/unauthenticated', title: Authentification requise, status: 401, detail: Unauthorized }
 
     Forbidden:
-      description: Aucune session valide, ou l'utilisateur n'a pas le rôle `hr_admin`.
+      description: Session valide, mais l'utilisateur n'a pas le rôle exigé par l'espace.
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: '#/components/schemas/Error'
-          example: { error: Unauthorized }
+            $ref: '#/components/schemas/Problem'
+          example: { error: Unauthorized, type: 'https://expense.io/problems/forbidden', title: Accès refusé, status: 403, detail: Unauthorized }
+
+    InvalidId:
+      description: L'identifiant du chemin n'est pas un UUID.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example: { error: Identifiant invalide, type: 'https://expense.io/problems/invalid-input', title: Requête invalide, status: 400, detail: Identifiant invalide }
 
     NoteNotInScope:
       description: Note inexistante, ou dont l'auteur n'a pas l'utilisateur connecté pour manager.
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: '#/components/schemas/Problem'
           example: { error: Not found }
 
     RootManagerNoteNotInScope:
       description: Note inexistante, ou dont l'auteur n'est pas un manager racine de l'entreprise du RH.
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: '#/components/schemas/Problem'
           example: { error: Not found }
 
     AlreadyDecided:
       description: La note n'est plus au statut `pending`.
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: '#/components/schemas/Problem'
           example: { error: Already decided }
 
     DecidedNote:
@@ -812,8 +856,8 @@ components:
             $ref: '#/components/schemas/ReceiptUrl'
 
     InternalError:
-      description: Exception non gérée.
+      description: Erreur interne (message générique, jamais de pile d'appels).
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: '#/components/schemas/InternalError'
+            $ref: '#/components/schemas/Problem'

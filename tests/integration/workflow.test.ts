@@ -113,6 +113,6 @@ describe('rôle figé dans la session (audit §5)', () => {
     const org = await createOrg()
     await testDb().query("UPDATE users SET role = 'manager' WHERE id = $1", [org.employee.id])
     actAs(org.employee, 'employee')
-    expect((await managerQueue()).status).toBe(401)
+    expect((await managerQueue()).status).toBe(403)
   })
 })

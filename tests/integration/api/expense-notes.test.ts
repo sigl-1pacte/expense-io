@@ -3,8 +3,8 @@ import { GET, POST } from '@/app/api/expense-notes/route'
 import { countRows, createNote, createOrg, findNote, type Role } from '../../support/factories'
 import { PNG_BYTES } from '../../support/fixtures'
 import {
-  type ErrorBody,
   type NoteDto,
+  expectProblem,
   jsonBody,
   multipart,
   readJson,
@@ -43,8 +43,7 @@ describe('GET /api/expense-notes', () => {
   it('401 sans session', async () => {
     actAsAnonymous()
     const response = await GET(request('/api/expense-notes'))
-    expect(response.status).toBe(401)
-    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    await expectProblem(response, 401, 'Unauthorized')
   })
 
   it("ne renvoie que les notes de l'appelant", async () => {
@@ -133,21 +132,17 @@ describe('GET /api/expense-notes', () => {
     ])
   })
 
-  it('[as-is] colonne inconnue dans ?sort= : erreur SQL non interceptée (promesse rejetée)', async () => {
+  it('colonne inconnue dans ?sort= : 500 générique, sans détail SQL', async () => {
     const { employee } = await createOrg()
     actAs(employee)
-    await expect(GET(request('/api/expense-notes?sort=nope'))).rejects.toThrow(
-      'column "nope" does not exist'
-    )
+    await expectProblem(await GET(request('/api/expense-notes?sort=nope')), 500, 'Erreur interne')
   })
 
-  it('[as-is] requêtes multiples dans ?sort= : refusées par pg, erreur non interceptée, base intacte', async () => {
+  it('requêtes multiples dans ?sort= : refusées par pg, 500 générique, base intacte', async () => {
     const { employee } = await createOrg()
     actAs(employee)
     const sort = encodeURIComponent('created_at; DROP TABLE users')
-    await expect(GET(request(`/api/expense-notes?sort=${sort}`))).rejects.toThrow(
-      'cannot insert multiple commands into a prepared statement'
-    )
+    await expectProblem(await GET(request(`/api/expense-notes?sort=${sort}`)), 500, 'Erreur interne')
     expect(await countRows('users')).toBe(3)
   })
 })
@@ -156,8 +151,7 @@ describe('POST /api/expense-notes', () => {
   it("401 sans session, rien n'est créé", async () => {
     actAsAnonymous()
     const response = await submit()
-    expect(response.status).toBe(401)
-    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    await expectProblem(response, 401, 'Unauthorized')
     expect(await countRows('expense_notes')).toBe(0)
   })
 
@@ -251,8 +245,7 @@ describe('POST /api/expense-notes', () => {
     const { employee } = await createOrg()
     actAs(employee)
     const response = await submit(overrides)
-    expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: 'Champs invalides' })
+    await expectProblem(response, 400, 'Champs invalides')
     expect(await countRows('expense_notes')).toBe(0)
   })
 
@@ -262,8 +255,7 @@ describe('POST /api/expense-notes', () => {
       const { employee } = await createOrg()
       actAs(employee)
       const response = await submit({ receipt: receiptFile({ type, name: 'recu.bin' }) })
-      expect(response.status).toBe(400)
-      expect(await response.json()).toEqual({ error: 'Type de fichier non autorisé pour le reçu' })
+      await expectProblem(response, 400, 'Type de fichier non autorisé pour le reçu')
     }
   )
 
@@ -273,7 +265,7 @@ describe('POST /api/expense-notes', () => {
     const response = await submit({
       receipt: receiptFile({ type: 'text/plain', size: MAX_RECEIPT_BYTES + 1 }),
     })
-    expect(await response.json()).toEqual({ error: 'Type de fichier non autorisé pour le reçu' })
+    await expectProblem(response, 400, 'Type de fichier non autorisé pour le reçu')
   })
 
   it('accepte un reçu de 10 Mo pile', async () => {
@@ -288,8 +280,7 @@ describe('POST /api/expense-notes', () => {
     const { employee } = await createOrg()
     actAs(employee)
     const response = await submit({ receipt: receiptFile({ size: MAX_RECEIPT_BYTES + 1 }) })
-    expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: 'Fichier trop volumineux' })
+    await expectProblem(response, 400, 'Fichier trop volumineux')
   })
 
   it('[as-is] accepte un reçu vide de 0 octet', async () => {
@@ -325,13 +316,12 @@ describe('POST /api/expense-notes', () => {
   })
 
   it.each(['1e12', '100000000'])(
-    '[as-is] montant %s hors numeric(10,2) → 500 « numeric field overflow »',
+    '[as-is] montant %s hors numeric(10,2) → 500 générique',
     async (amount) => {
       const { employee } = await createOrg()
       actAs(employee)
       const response = await submit({ amount })
-      expect(response.status).toBe(500)
-      expect(await response.json()).toEqual({ error: 'numeric field overflow', stack: expect.any(String) })
+      await expectProblem(response, 500, 'Erreur interne')
       expect(await countRows('expense_notes')).toBe(0)
     }
   )
@@ -347,40 +337,30 @@ describe('POST /api/expense-notes', () => {
     expect(dto.expenseDate).toBe(stored)
   })
 
-  it.each<[string, string]>([
-    ['31/02/2026', 'date/time field value out of range: "31/02/2026"'],
-    ['2026-13-45', 'date/time field value out of range: "2026-13-45"'],
-    ['hier', 'invalid input syntax for type date: "hier"'],
-    ['', 'invalid input syntax for type date: ""'],
-  ])("[as-is] date « %s » non validée par l'app → 500 Postgres", async (expenseDate, message) => {
+  it.each(['31/02/2026', '2026-13-45', 'hier', ''])(
+    "[as-is] date « %s » non validée par l'app → 500 Postgres", async (expenseDate) => {
     const { employee } = await createOrg()
     actAs(employee)
     const response = await submit({ expenseDate })
-    expect(response.status).toBe(500)
-    expect(await response.json()).toEqual({ error: message, stack: expect.any(String) })
+    await expectProblem(response, 500, 'Erreur interne')
     expect(await countRows('expense_notes')).toBe(0)
   })
 
-  it('[as-is] corps JSON au lieu de multipart → 500 (formData() échoue)', async () => {
+  it('corps JSON au lieu de multipart → 400', async () => {
     const { employee } = await createOrg()
     actAs(employee)
     const response = await POST(jsonBody('/api/expense-notes', 'POST', { amount: 42.5 }))
-    expect(response.status).toBe(500)
-    expect(await readJson<ErrorBody>(response)).toEqual({
-      error: expect.stringContaining('Content-Type'),
-      stack: expect.any(String),
-    })
+    await expectProblem(response, 400, 'Corps de requête invalide')
   })
 
-  it('[as-is] corps vide sans Content-Type → 500', async () => {
+  it('corps vide sans Content-Type → 400', async () => {
     const { employee } = await createOrg()
     actAs(employee)
     const response = await POST(request('/api/expense-notes', { method: 'POST' }))
-    expect(response.status).toBe(500)
-    expect((await readJson<ErrorBody>(response)).error).toContain('Content-Type')
+    await expectProblem(response, 400, 'Corps de requête invalide')
   })
 
-  it('[as-is] multipart malformé → 500 avec stack', async () => {
+  it('multipart malformé → 400', async () => {
     const { employee } = await createOrg()
     actAs(employee)
     const response = await POST(
@@ -390,8 +370,7 @@ describe('POST /api/expense-notes', () => {
         headers: { 'content-type': 'multipart/form-data; boundary=xyz' },
       })
     )
-    expect(response.status).toBe(500)
-    expect((await readJson<ErrorBody>(response)).stack).toEqual(expect.any(String))
+    await expectProblem(response, 400, 'Corps de requête invalide')
   })
 
   it('formulaire urlencoded (sans fichier possible) → 400', async () => {
@@ -403,14 +382,12 @@ describe('POST /api/expense-notes', () => {
         body: new URLSearchParams({ amount: '42.5', expenseDate: '2026-10-08', description: 'Taxi' }),
       })
     )
-    expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: 'Champs invalides' })
+    await expectProblem(response, 400, 'Champs invalides')
   })
 
   it("[as-is] session d'un utilisateur supprimé → 500 (clé étrangère)", async () => {
     actAsGhost('employee')
     const response = await submit()
-    expect(response.status).toBe(500)
-    expect((await readJson<ErrorBody>(response)).error).toContain('expense_notes_user_id_fkey')
+    await expectProblem(response, 500, 'Erreur interne')
   })
 })

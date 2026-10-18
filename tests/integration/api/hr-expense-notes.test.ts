@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { GET } from '@/app/api/hr/expense-notes/route'
 import { createNote, createOrg, createUser } from '../../support/factories'
-import { type NoteDto, readJson } from '../helpers/http'
+import { expectProblem, type NoteDto, readJson } from '../helpers/http'
 import { actAs, actAsCaller, actAsGhost, type Caller } from '../helpers/session'
 
 async function queueIds(): Promise<string[]> {
@@ -10,14 +10,13 @@ async function queueIds(): Promise<string[]> {
 
 describe('GET /api/hr/expense-notes', () => {
   it.each<[string, Caller]>([
-    ['[as-is] anonyme → 403 et non 401 (audit §3)', 'anonymous'],
+    ['anonyme → 401', 'anonymous'],
     ['mauvais rôle employee → 403', 'employee'],
     ['mauvais rôle manager → 403', 'manager'],
   ])('%s', async (_label, caller) => {
     actAsCaller(await createOrg(), caller)
     const response = await GET()
-    expect(response.status).toBe(403)
-    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    await expectProblem(response, caller === 'anonymous' ? 401 : 403, 'Unauthorized')
   })
 
   it("renvoie le DTO des notes en attente des managers racine de l'entreprise, de la plus ancienne à la plus récente", async () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { POST as approve } from '@/app/api/hr/expense-notes/[id]/approve/route'
 import { POST as reject } from '@/app/api/hr/expense-notes/[id]/reject/route'
 import { createNote, createOrg, createUser, findNote, type Org } from '../../support/factories'
-import { NON_UUID_IDS, type NoteDto, UNKNOWN_ID, readJson, request, routeParams } from '../helpers/http'
+import { expectProblem, NON_UUID_IDS, type NoteDto, UNKNOWN_ID, readJson, request, routeParams } from '../helpers/http'
 import { actAs, actAsCaller, actAsGhost, type Caller } from '../helpers/session'
 
 describe.each([
@@ -17,7 +17,7 @@ describe.each([
   }
 
   it.each<[string, Caller]>([
-    ['[as-is] anonyme → 403 et non 401 (audit §3), note inchangée', 'anonymous'],
+    ['anonyme → 401, note inchangée', 'anonymous'],
     ['mauvais rôle employee → 403, note inchangée', 'employee'],
     ['mauvais rôle manager → 403, note inchangée', 'manager'],
   ])('%s', async (_label, caller) => {
@@ -25,8 +25,7 @@ describe.each([
     const note = await createNote({ user: org.manager })
     actAsCaller(org, caller)
     const response = await decide(note.id)
-    expect(response.status).toBe(403)
-    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    await expectProblem(response, caller === 'anonymous' ? 401 : 403, 'Unauthorized')
     expect((await findNote(note.id))?.status).toBe('pending')
   })
 
@@ -93,8 +92,7 @@ describe.each([
     const id = await noteIdFor(org)
     actAs(org.hr)
     const response = await decide(id)
-    expect(response.status).toBe(404)
-    expect(await response.json()).toEqual({ error: 'Not found' })
+    await expectProblem(response, 404, 'Not found')
   })
 
   it.each(['approved', 'rejected'] as const)(
@@ -104,8 +102,7 @@ describe.each([
       const note = await createNote({ user: org.manager, status })
       actAs(org.hr)
       const response = await decide(note.id)
-      expect(response.status).toBe(409)
-      expect(await response.json()).toEqual({ error: 'Already decided' })
+      await expectProblem(response, 409, 'Already decided')
       expect((await findNote(note.id))?.status).toBe(status)
     }
   )
@@ -118,13 +115,10 @@ describe.each([
     expect((await decide(note.id)).status).toBe(409)
   })
 
-  it.each(NON_UUID_IDS)(
-    '[as-is] id « %s » non-UUID : erreur SQL non interceptée (promesse rejetée)',
-    async (id) => {
-      actAs((await createOrg()).hr)
-      await expect(decide(id)).rejects.toThrow(`invalid input syntax for type uuid: "${id}"`)
-    }
-  )
+  it.each(NON_UUID_IDS)('id « %s » non-UUID → 400', async (id) => {
+    actAs((await createOrg()).hr)
+    await expectProblem(await decide(id), 400, 'Identifiant invalide')
+  })
 
   it("session d'une RH supprimée → 404", async () => {
     const note = await createNote({ user: (await createOrg()).manager })

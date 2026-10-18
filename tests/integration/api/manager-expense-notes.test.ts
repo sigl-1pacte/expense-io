@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { GET } from '@/app/api/manager/expense-notes/route'
 import { createCompany, createNote, createOrg, createUser } from '../../support/factories'
-import { type NoteDto, readJson } from '../helpers/http'
+import { expectProblem, type NoteDto, readJson } from '../helpers/http'
 import { actAs, actAsCaller, actAsGhost, type Caller } from '../helpers/session'
 
 async function queueIds(): Promise<string[]> {
@@ -11,13 +11,12 @@ async function queueIds(): Promise<string[]> {
 describe('GET /api/manager/expense-notes', () => {
   it.each<[string, Caller]>([
     ['anonyme → 401', 'anonymous'],
-    ['[as-is] mauvais rôle employee → 401 et non 403 (audit §3)', 'employee'],
-    ['[as-is] mauvais rôle hr_admin → 401 et non 403 (audit §3)', 'hr_admin'],
+    ['mauvais rôle employee → 403', 'employee'],
+    ['mauvais rôle hr_admin → 403', 'hr_admin'],
   ])('%s', async (_label, caller) => {
     actAsCaller(await createOrg(), caller)
     const response = await GET()
-    expect(response.status).toBe(401)
-    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    await expectProblem(response, caller === 'anonymous' ? 401 : 403, 'Unauthorized')
   })
 
   it('renvoie le DTO des notes en attente des rattachés directs, de la plus ancienne à la plus récente', async () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { GET } from '@/app/api/hr/expense-notes/[id]/receipt-url/route'
 import { createNote, createOrg, type Org } from '../../support/factories'
 import { PNG_BYTES } from '../../support/fixtures'
-import { NON_UUID_IDS, UNKNOWN_ID, readJson, request, routeParams } from '../helpers/http'
+import { expectProblem, NON_UUID_IDS, UNKNOWN_ID, readJson, request, routeParams } from '../helpers/http'
 import { expectPresignedReceipt, storeReceipt } from '../helpers/s3'
 import { actAs, actAsCaller, actAsGhost, type Caller } from '../helpers/session'
 
@@ -12,7 +12,7 @@ function receiptUrl(id: string) {
 
 describe('GET /api/hr/expense-notes/:id/receipt-url', () => {
   it.each<[string, Caller]>([
-    ['[as-is] anonyme → 403 et non 401 (audit §3)', 'anonymous'],
+    ['anonyme → 401', 'anonymous'],
     ['mauvais rôle employee → 403', 'employee'],
     ['mauvais rôle manager → 403', 'manager'],
   ])('%s', async (_label, caller) => {
@@ -20,8 +20,7 @@ describe('GET /api/hr/expense-notes/:id/receipt-url', () => {
     const note = await createNote({ user: org.manager })
     actAsCaller(org, caller)
     const response = await receiptUrl(note.id)
-    expect(response.status).toBe(403)
-    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    await expectProblem(response, caller === 'anonymous' ? 401 : 403, 'Unauthorized')
   })
 
   it.each(['pending', 'approved'] as const)(
@@ -50,18 +49,13 @@ describe('GET /api/hr/expense-notes/:id/receipt-url', () => {
     const id = await noteIdFor(org)
     actAs(org.hr)
     const response = await receiptUrl(id)
-    expect(response.status).toBe(404)
-    expect(await response.json()).toEqual({ error: 'Not found' })
+    await expectProblem(response, 404, 'Not found')
   })
 
-  it.each(NON_UUID_IDS)('[as-is] id « %s » non-UUID → 500 avec stack', async (id) => {
+  it.each(NON_UUID_IDS)('id « %s » non-UUID → 400', async (id) => {
     actAs((await createOrg()).hr)
     const response = await receiptUrl(id)
-    expect(response.status).toBe(500)
-    expect(await response.json()).toEqual({
-      error: `invalid input syntax for type uuid: "${id}"`,
-      stack: expect.any(String),
-    })
+    await expectProblem(response, 400, 'Identifiant invalide')
   })
 
   it("session d'une RH supprimée → 404", async () => {

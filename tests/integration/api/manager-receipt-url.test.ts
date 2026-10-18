@@ -3,7 +3,7 @@ import { GET } from '@/app/api/manager/expense-notes/[id]/receipt-url/route'
 import { TEST_ENV } from '../../support/env'
 import { createNote, createOrg, createUser, type NoteRow, type Org } from '../../support/factories'
 import { PNG_BYTES } from '../../support/fixtures'
-import { NON_UUID_IDS, UNKNOWN_ID, readJson, request, routeParams } from '../helpers/http'
+import { expectProblem, NON_UUID_IDS, UNKNOWN_ID, readJson, request, routeParams } from '../helpers/http'
 import { expectPresignedReceipt, storeReceipt } from '../helpers/s3'
 import { actAs, actAsCaller, actAsGhost, type Caller } from '../helpers/session'
 
@@ -14,15 +14,14 @@ function receiptUrl(id: string) {
 describe('GET /api/manager/expense-notes/:id/receipt-url', () => {
   it.each<[string, Caller]>([
     ['anonyme → 401', 'anonymous'],
-    ['[as-is] mauvais rôle employee → 401 et non 403 (audit §3)', 'employee'],
-    ['[as-is] mauvais rôle hr_admin → 401 et non 403 (audit §3)', 'hr_admin'],
+    ['mauvais rôle employee → 403', 'employee'],
+    ['mauvais rôle hr_admin → 403', 'hr_admin'],
   ])('%s', async (_label, caller) => {
     const org = await createOrg()
     const note = await createNote({ user: org.employee })
     actAsCaller(org, caller)
     const response = await receiptUrl(note.id)
-    expect(response.status).toBe(401)
-    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    await expectProblem(response, caller === 'anonymous' ? 401 : 403, 'Unauthorized')
   })
 
   it("URL présignée valide pour la note d'un rattaché", async () => {
@@ -42,10 +41,17 @@ describe('GET /api/manager/expense-notes/:id/receipt-url', () => {
       async (org) => createNote({ user: await createUser({ company: org.company }) }),
     ],
     ["employé d'une autre entreprise", async () => createNote({ user: (await createOrg()).employee })],
-    ['note déjà approuvée', async (org) => createNote({ user: org.employee, status: 'approved' })],
-  ])('[as-is] reçu servi sans contrôle de rattachement : %s (audit §3)', async (_label, noteFor) => {
+  ])('404 : %s', async (_label, noteFor) => {
     const org = await createOrg()
     const note = await noteFor(org)
+    actAs(org.manager)
+    const response = await receiptUrl(note.id)
+    await expectProblem(response, 404, 'Not found')
+  })
+
+  it("note déjà approuvée d'un rattaché : URL servie", async () => {
+    const org = await createOrg()
+    const note = await createNote({ user: org.employee, status: 'approved' })
     actAs(org.manager)
     const response = await receiptUrl(note.id)
     expect(response.status).toBe(200)
@@ -56,23 +62,18 @@ describe('GET /api/manager/expense-notes/:id/receipt-url', () => {
   it('404 pour une note inconnue', async () => {
     actAs((await createOrg()).manager)
     const response = await receiptUrl(UNKNOWN_ID)
-    expect(response.status).toBe(404)
-    expect(await response.json()).toEqual({ error: 'Not found' })
+    await expectProblem(response, 404, 'Not found')
   })
 
-  it.each(NON_UUID_IDS)('[as-is] id « %s » non-UUID → 500 avec stack', async (id) => {
+  it.each(NON_UUID_IDS)('id « %s » non-UUID → 400', async (id) => {
     actAs((await createOrg()).manager)
     const response = await receiptUrl(id)
-    expect(response.status).toBe(500)
-    expect(await response.json()).toEqual({
-      error: `invalid input syntax for type uuid: "${id}"`,
-      stack: expect.any(String),
-    })
+    await expectProblem(response, 400, 'Identifiant invalide')
   })
 
-  it("[as-is] session d'un manager supprimé : reçu servi quand même", async () => {
+  it("session d'un manager supprimé → 404", async () => {
     const note = await createNote({ user: (await createOrg()).employee })
     actAsGhost('manager')
-    expect((await receiptUrl(note.id)).status).toBe(200)
+    expect((await receiptUrl(note.id)).status).toBe(404)
   })
 })

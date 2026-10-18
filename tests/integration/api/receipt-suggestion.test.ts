@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createWorker } from 'tesseract.js'
 import { POST } from '@/app/api/expense-notes/receipt-suggestion/route'
 import { createOrg, type Role } from '../../support/factories'
-import { jsonBody, multipart, readJson, receiptFile, type ErrorBody } from '../helpers/http'
+import { expectProblem, jsonBody, multipart, receiptFile } from '../helpers/http'
 import { actAs, actAsAnonymous, actAsGhost } from '../helpers/session'
 
 vi.mock('tesseract.js', () => ({ createWorker: vi.fn() }))
@@ -28,8 +28,7 @@ describe('POST /api/expense-notes/receipt-suggestion', () => {
   it("401 sans session, sans lancer l'OCR", async () => {
     actAsAnonymous()
     const response = await suggest({ receipt: receiptFile() })
-    expect(response.status).toBe(401)
-    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    await expectProblem(response, 401, 'Unauthorized')
     expect(createWorker).not.toHaveBeenCalled()
   })
 
@@ -57,8 +56,7 @@ describe('POST /api/expense-notes/receipt-suggestion', () => {
   ])('400 « Champs invalides » : %s', async (_label, fields) => {
     actAs((await createOrg()).employee)
     const response = await suggest(fields)
-    expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: 'Champs invalides' })
+    await expectProblem(response, 400, 'Champs invalides')
   })
 
   it("PDF : 200 {} sans lancer l'OCR", async () => {
@@ -77,21 +75,17 @@ describe('POST /api/expense-notes/receipt-suggestion', () => {
     expect(await response.json()).toEqual({})
   })
 
-  it("[as-is] aucune limite de taille : un reçu de 11 Mo est passé à l'OCR (audit §5)", async () => {
+  it("[as-is] aucune limite propre à l'OCR : un reçu de 10 Mo est passé à l'OCR (audit §5)", async () => {
     actAs((await createOrg()).employee)
     const worker = ocrReturns('')
-    const size = 11 * 1024 * 1024
+    const size = 10 * 1024 * 1024
     expect((await suggest({ receipt: receiptFile({ size }) })).status).toBe(200)
     expect(worker.recognize.mock.calls[0][0]).toHaveLength(size)
   })
 
-  it('[as-is] corps JSON → 500 avec stack', async () => {
+  it('corps JSON → 400', async () => {
     actAs((await createOrg()).employee)
     const response = await POST(jsonBody('/api/expense-notes/receipt-suggestion', 'POST', {}))
-    expect(response.status).toBe(500)
-    expect(await readJson<ErrorBody>(response)).toEqual({
-      error: expect.stringContaining('Content-Type'),
-      stack: expect.any(String),
-    })
+    await expectProblem(response, 400, 'Corps de requête invalide')
   })
 })
