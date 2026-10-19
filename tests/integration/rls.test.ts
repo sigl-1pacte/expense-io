@@ -30,6 +30,15 @@ describe('rôle expense_app', () => {
     expect(flags).toEqual({ rolsuper: false, rolbypassrls: false })
   })
 
+  it("ne peut pas lire password_hash, mais lit les autres colonnes de users", async () => {
+    const { employee } = await createOrg()
+    await expect(
+      asApp(employee, (c) => c.query('SELECT password_hash FROM users'))
+    ).rejects.toThrow('permission denied')
+    const rows = await asApp(employee, async (c) => (await c.query('SELECT id, email FROM users')).rows)
+    expect(rows.map((r) => r.id)).toContain(employee.id)
+  })
+
   it("ne peut pas écrire directement dans users ni companies", async () => {
     await expect(
       asApp(null, (c) => c.query("INSERT INTO companies (name, email_domain) VALUES ('x', 'x.fr')"))
