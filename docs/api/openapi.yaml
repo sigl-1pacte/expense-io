@@ -844,7 +844,7 @@ components:
           example: { error: Not found }
 
     RootManagerNoteNotInScope:
-      description: Note inexistante, ou dont l'auteur n'est pas un manager racine de l'entreprise du RH.
+      description: Note inexistante, ou dont la RH n'est pas validatrice (ni manager racine, ni employé sans manager, ni autre RH de son entreprise) ou sa propre note.
       content:
         application/problem+json:
           schema:

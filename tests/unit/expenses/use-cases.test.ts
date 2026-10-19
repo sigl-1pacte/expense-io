@@ -120,4 +120,29 @@ describe('decideExpenseNote (F9)', () => {
     uow.notes.saveDecision = async () => false
     await expect(decide(actor('m1', 'manager'), 'n1', 'approved')).rejects.toBeInstanceOf(AlreadyDecided)
   })
+
+  it('aucune transaction ouverte pendant canDecide (une seule connexion à la fois)', async () => {
+    const uow = new FakeUow()
+    await submitExpenseNote(uow, new FakeStorage())(actor('e1'), submission)
+    let open = false
+    const run = uow.run.bind(uow)
+    uow.run = async (a, fn) => {
+      open = true
+      try {
+        return await run(a, fn)
+      } finally {
+        open = false
+      }
+    }
+    let openDuringCanDecide: boolean | undefined
+    const approvals = {
+      approveesOf: async () => ['e1'],
+      canDecide: async () => {
+        openDuringCanDecide = open
+        return true
+      },
+    }
+    await decideExpenseNote(uow, approvals)(actor('m1', 'manager'), 'n1', 'approved')
+    expect(openDuringCanDecide).toBe(false)
+  })
 })
