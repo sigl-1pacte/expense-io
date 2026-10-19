@@ -1,24 +1,23 @@
-import { auth } from '@/lib/auth'
-import { respondError } from '@/lib/errors'
 import { suggestFields } from '@/lib/ocr'
+import { InvalidInput } from '@/shared/errors'
+import {
+  MAX_RECEIPT_BYTES,
+  MULTIPART_OVERHEAD_BYTES,
+  readFormData,
+  requireSession,
+  route,
+} from '@/shared/http'
 
-export async function POST(request: Request) {
-  try {
-    const session = await auth()
-    if (!session?.user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+export const POST = route(async (request) => {
+  await requireSession()
+  const formData = await readFormData(
+    request,
+    MAX_RECEIPT_BYTES + MULTIPART_OVERHEAD_BYTES,
+    'Fichier trop volumineux'
+  )
+  const receipt = formData.get('receipt')
+  if (!(receipt instanceof File)) throw new InvalidInput('Champs invalides')
 
-    const formData = await request.formData()
-    const receipt = formData.get('receipt')
-    if (!(receipt instanceof File)) {
-      return Response.json({ error: 'Champs invalides' }, { status: 400 })
-    }
-
-    const buffer = Buffer.from(await receipt.arrayBuffer())
-    const suggestion = await suggestFields({ data: buffer, mimeType: receipt.type })
-    return Response.json(suggestion)
-  } catch (error) {
-    return respondError(error)
-  }
-}
+  const buffer = Buffer.from(await receipt.arrayBuffer())
+  return Response.json(await suggestFields({ data: buffer, mimeType: receipt.type }))
+})

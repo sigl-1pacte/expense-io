@@ -15,7 +15,7 @@ const NOTES_PER_MANAGER = 40
 const PENDING_PER_MANAGER = 20
 const POOL_SIZE = Number(process.env.BENCH_POOL_SIZE ?? 2200)
 
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL })
+const client = new pg.Client({ connectionString: process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL })
 await client.connect()
 
 try {
@@ -85,13 +85,15 @@ try {
   // Notes des employés de A (id 1000*n + k) et des managers racines de A
   // (id 500000 + 1000*m + k).
   await client.query(`
-    INSERT INTO expense_notes (id, user_id, amount, expense_date, description, receipt_key, status, created_at)
-    SELECT ${note('1000 * n + k')}, ${user('1000 + n')}, (n * k) % 300 + 12.5,
+    INSERT INTO expense_notes (id, user_id, company_id, amount, expense_date, description, receipt_key, status, created_at)
+    SELECT ${note('1000 * n + k')}, ${user('1000 + n')},
+           (SELECT u.company_id FROM users u WHERE u.id = ${user('1000 + n')}), (n * k) % 300 + 12.5,
            date '2026-01-01' + (k * 3) % 270, 'Note bench ' || n || '-' || k, 'receipts/bench.png',
            ${status(PENDING_PER_EMPLOYEE)}, timestamptz '2026-01-01' + make_interval(hours => k)
       FROM generate_series(1, ${MANAGERS * EMPLOYEES_PER_MANAGER}) n, generate_series(1, ${NOTES_PER_EMPLOYEE}) k
     UNION ALL
-    SELECT ${note('500000 + 1000 * m + k')}, ${user('100 + m')}, (m * k) % 300 + 7.9,
+    SELECT ${note('500000 + 1000 * m + k')}, ${user('100 + m')},
+           (SELECT u.company_id FROM users u WHERE u.id = ${user('100 + m')}), (m * k) % 300 + 7.9,
            date '2026-01-01' + (k * 5) % 270, 'Note manager bench ' || m || '-' || k, 'receipts/bench.png',
            ${status(PENDING_PER_MANAGER)}, timestamptz '2026-01-01' + make_interval(hours => k)
       FROM generate_series(1, ${MANAGERS}) m, generate_series(1, ${NOTES_PER_MANAGER}) k
@@ -101,9 +103,10 @@ try {
   // 1 = approve manager, 2 = reject manager (notes de l'employé de B),
   // 3 = approve RH, 4 = reject RH (notes du manager racine de B).
   await client.query(`
-    INSERT INTO expense_notes (id, user_id, amount, expense_date, description, receipt_key, status, created_at)
+    INSERT INTO expense_notes (id, user_id, company_id, amount, expense_date, description, receipt_key, status, created_at)
     SELECT ('00000000-0000-4000-c00' || p || '-' || lpad(to_hex(i), 12, '0'))::uuid,
            CASE WHEN p <= 2 THEN ${user(2000)} ELSE ${user(200)} END,
+           (SELECT u.company_id FROM users u WHERE u.id = CASE WHEN p <= 2 THEN ${user(2000)} ELSE ${user(200)} END),
            i % 300 + 3.2, date '2026-01-01' + i % 270, 'Réserve ' || p || '-' || i, 'receipts/bench.png',
            'pending', timestamptz '2026-01-01' + make_interval(secs => i)
       FROM generate_series(1, 4) p, generate_series(0, ${POOL_SIZE - 1}) i

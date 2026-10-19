@@ -20,6 +20,9 @@ _Mis à jour le 16/10/2026._
 - **Calendrier** : refacto du 19 au 26/10, soutenance le 30/10.
 - **Pas encore sur `main`** : la suite de tests de caractérisation (ARLA-9) et
   les plans de la refacto. Voir [À venir](#à-venir).
+- **ADR 0001 à 0004 écrites** : voir [adrs/](adrs/README.md).
+- **Plan 1 terminé** (socle et harnais agent) : SonarQube (mesures « avant » dans [audit/sonarqube-avant-apres.md](audit/sonarqube-avant-apres.md)), contrat OpenAPI vérifié en CI, erreurs RFC 9457, rôle expense_app et RLS d'isolation, F1, F3, F16, F25–F27, F34, F41–F44 corrigés.
+- Les écarts du contrat d'API sont consignés dans le [`CHANGELOG.md`](../CHANGELOG.md) à la racine.
 
 ## Par où commencer
 
@@ -83,9 +86,19 @@ Ces documents existent mais n'ont pas encore rejoint `main` :
 
 Restent à écrire :
 
-- les ADR 0001 à 0004 (structure de la doc et harnais agent, option C, outbox d'e-mails, contrat d'API), prévus au plan 1 ;
 - le schéma cible en Excalidraw, dans le style de `as-is.excalidraw` ;
 - la colonne « Après » du benchmark et le bilan de l'audit après refacto.
+
+## Types de documents
+
+| Dossier | Type | Répond à | Gabarit |
+|---|---|---|---|
+| [`specs/`](specs/README.md) | Spec | Que construit-on, et pourquoi ? | [`spec-template.md`](specs/spec-template.md) |
+| [`plans/`](plans/README.md) | Plan d'implémentation | Dans quel ordre, quels fichiers, quels tests ? | [`plan-template.md`](plans/plan-template.md) |
+| [`adrs/`](adrs/README.md) | ADR | Pourquoi le système est-il construit ainsi ? | [`adr-template.md`](adrs/adr-template.md) |
+| [`runbooks/`](runbooks/README.md) | Runbook | Comment l'opérer ou le réparer ? | [`runbook-template.md`](runbooks/runbook-template.md) |
+
+Cycle : spec → (ADR si la décision est transverse) → plan → implémentation → runbook. `audit/`, `api/` et `architecture/` restent la base de connaissance décrite plus haut.
 
 ## Conventions
 

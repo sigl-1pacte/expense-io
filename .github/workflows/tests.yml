@@ -1,0 +1,194 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint et typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: node scripts/agents-sync.mjs --check
+      - run: npm run depcruise
+
+  vitest:
+    name: Vitest (unitaires, intégration, couverture)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: expense
+          POSTGRES_PASSWORD: expense
+          POSTGRES_DB: expense_io
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U expense -d expense_io"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      localstack:
+        image: localstack/localstack:3.8.1
+        env:
+          SERVICES: s3
+        ports:
+          - 4567:4566
+        options: >-
+          --health-cmd "curl -sf http://localhost:4566/_localstack/health"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:coverage
+      - name: Résumé de couverture
+        if: always()
+        run: node scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+
+  e2e:
+    name: Playwright (E2E)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: expense
+          POSTGRES_PASSWORD: expense
+          POSTGRES_DB: expense_io
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U expense -d expense_io"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      localstack:
+        image: localstack/localstack:3.8.1
+        env:
+          SERVICES: s3
+        ports:
+          - 4567:4566
+        options: >-
+          --health-cmd "curl -sf http://localhost:4566/_localstack/health"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Version de Playwright
+        id: playwright
+        run: echo "version=$(npx playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - uses: actions/cache@v6
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**') }}
+          restore-keys: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+
+  sonarqube:
+    name: SonarQube (analyse obligatoire, gate non bloquant)
+    runs-on: ubuntu-latest
+    needs: vitest
+    services:
+      sonarqube:
+        image: sonarqube@sha256:0b3408443fb6a311253de27941b10977c9b977fd53be2265947bfe14161308b8 # sonarqube:community
+        env:
+          SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: 'true'
+        ports:
+          - 9000:9000
+    env:
+      SONAR_HOST_URL: http://localhost:9000
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v7
+        with:
+          name: coverage
+          path: coverage/
+      - name: Préparer SonarQube (projet et jeton)
+        env:
+          SONAR_ADMIN_PASSWORD: ci-${{ github.run_id }}-Sonar!
+        run: |
+          token=$(node scripts/sonar-bootstrap.mjs)
+          echo "::add-mask::$token"
+          echo "SONAR_TOKEN=$token" >> "$GITHUB_ENV"
+      - name: Analyse
+        run: npm run sonar
+      - name: Rapport (gate publié, non bloquant)
+        run: npm run sonar:report >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: sonarqube
+          path: sonar-report.json
+
+  contrat:
+    name: Contrat d'API (oasdiff contre main)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Contrat de référence (main)
+        run: git show origin/main:docs/api/openapi.yaml > /tmp/openapi-main.yaml
+      - name: Changements cassants
+        run: |
+          # Image tufin/oasdiff:latest, épinglée par digest
+          docker run --rm -v /tmp:/base -v "$PWD/docs/api:/head" tufin/oasdiff@sha256:3e2f97d63dc588cb6b986d19a1744200c8697fb7811e82cd6853cb676afac4cc \
+            breaking /base/openapi-main.yaml /head/openapi.yaml --fail-on ERR --format githubactions

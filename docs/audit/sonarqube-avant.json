@@ -1,0 +1,58 @@
+{
+  "gate": {
+    "projectStatus": {
+      "status": "OK",
+      "conditions": [],
+      "ignoredConditions": false,
+      "caycStatus": "compliant"
+    }
+  },
+  "measures": {
+    "component": {
+      "key": "expense-io",
+      "name": "Expense.io",
+      "qualifier": "TRK",
+      "measures": [
+        {
+          "metric": "coverage",
+          "value": "66.4",
+          "bestValue": false
+        },
+        {
+          "metric": "bugs",
+          "value": "4",
+          "bestValue": false
+        },
+        {
+          "metric": "code_smells",
+          "value": "3",
+          "bestValue": false
+        },
+        {
+          "metric": "duplicated_lines_density",
+          "value": "9.3",
+          "bestValue": false
+        },
+        {
+          "metric": "cognitive_complexity",
+          "value": "192",
+          "bestValue": false
+        },
+        {
+          "metric": "ncloc",
+          "value": "1970"
+        },
+        {
+          "metric": "vulnerabilities",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "security_hotspots",
+          "value": "0",
+          "bestValue": true
+        }
+      ]
+    }
+  }
+}
