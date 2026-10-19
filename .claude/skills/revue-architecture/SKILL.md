@@ -13,7 +13,7 @@ Entrée : le diff à relire (par défaut `git diff main...HEAD`). Sortie : une l
 2. Pour chaque `route.ts` modifiée : `currentActor()`, garde de rôle si l'espace en exige un, un seul use case appelé, aucune règle métier, aucune réponse d'erreur construite à la main.
 3. Pour chaque use case : un fichier, une fabrique à partir de ports, aucun import de techno ; test unitaire présent.
 4. « Qui valide quoi » passe par `iam` ; aucune requête d'`expenses` ne touche `users` ou `companies`.
-5. Contrat : toute route ou réponse nouvelle est dans `docs/api/openapi.yaml` ; aucune réponse en succès existante n'a changé de forme.
+5. Contrat : toute route ou réponse nouvelle est dans `docs/api/openapi.yaml` ; aucune réponse en succès existante n'a changé de forme ; tout changement de contrat a sa ligne sous `## [Non publié]` de `CHANGELOG.md`.
 6. Migration : `GRANT` à `expense_app` pour toute table ou colonne nouvelle ; pas de `BYPASSRLS`.
 7. Tests : unitaire pour la règle, intégration pour la route ; E2E si un parcours visible a changé.
 

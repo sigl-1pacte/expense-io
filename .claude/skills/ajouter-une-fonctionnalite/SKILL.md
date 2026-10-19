@@ -36,11 +36,11 @@ Reformuler la demande en une phrase : *qui* fait *quoi*, sur *quelle ressource*,
      return Response.json(await expenses.monUseCase(actor, id))
    })
    ```
-6. **Contrat** — décrire la route ou le champ dans `docs/api/openapi.yaml` (le test `openapi-coverage` échoue sinon).
+6. **Contrat** — décrire la route ou le champ dans `docs/api/openapi.yaml` (le test `openapi-coverage` échoue sinon) **et** ajouter une ligne dans `CHANGELOG.md` sous `## [Non publié]`, dans le même commit.
 7. **Test d'intégration** de la route, rôle par rôle (`tests/integration/api/`, helpers `actAs`, `expectProblem`).
 8. **UI** si la fonctionnalité est visible (`src/app/**/page.tsx`, `src/components/`), messages d'erreur via `problemMessage`.
 9. **E2E** si un parcours utilisateur change (`tests/e2e/`).
-10. **E-mail** à envoyer ? Skill `envoyer-un-email` (plan 3).
+10. **E-mail** à envoyer ? Le port `Mailer` et le skill `envoyer-un-email` n'existent pas avant le plan 3 : ne rien envoyer (ni SMTP, ni nodemailer), le signaler dans « Choix faits » du résumé.
 
 ## 3. Vérifier
 
@@ -54,7 +54,7 @@ Reformuler la demande en une phrase : *qui* fait *quoi*, sur *quelle ressource*,
 | règle métier dans `route.ts` | dans `domain/` ou le use case |
 | `Response.json({ error }, { status })` à la main | lever une erreur de `src/shared/errors.ts` |
 | décider « qui valide » soi-même | `iam.canDecide` / `iam.approveesOf` |
-| oublier l'OpenAPI | `docs/api/openapi.yaml` dans le même commit |
+| oublier l'OpenAPI ou le CHANGELOG | `docs/api/openapi.yaml` et une ligne sous `## [Non publié]` de `CHANGELOG.md`, dans le même commit |
 | nouvelle colonne non accordée à `expense_app` | `GRANT` dans la migration |
 | requête hors unité de travail | `uow.run(actor, …)` (`uow` = unité de travail injectée dans la fabrique du use case ; sinon la RLS ne voit rien) |
 | importer `src/lib/` depuis un module, ou autre chose que `src/lib/auth.ts` depuis `app/` | passer par un port ou `@/shared/*` |
@@ -65,6 +65,6 @@ Reformuler la demande en une phrase : *qui* fait *quoi*, sur *quelle ressource*,
 Fonctionnalité : <une phrase>
 Choix faits : <hypothèses prises sans demander>
 Fichiers : <liste>
-Contrat : <routes / champs ajoutés dans openapi.yaml>
+Contrat : <routes / champs ajoutés dans openapi.yaml + ligne CHANGELOG.md>
 Vérifié : npm run verify ✅ · test:e2e ✅|non lancé · revue-architecture ✅
 ```
