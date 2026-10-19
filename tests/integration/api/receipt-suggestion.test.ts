@@ -1,21 +1,19 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createWorker } from 'tesseract.js'
 import { POST } from '@/app/api/expense-notes/receipt-suggestion/route'
+import { Unavailable } from '@/shared/errors'
 import { createOrg, type Role } from '../../support/factories'
 import { expectProblem, jsonBody, multipart, receiptFile } from '../helpers/http'
 import { actAs, actAsAnonymous, actAsGhost } from '../helpers/session'
 
-vi.mock('tesseract.js', () => ({ createWorker: vi.fn() }))
-
-type TesseractWorker = Awaited<ReturnType<typeof createWorker>>
+const recognizeMock = vi.hoisted(() => vi.fn<(image: Uint8Array) => Promise<string>>())
+vi.mock('@/modules/expenses/infrastructure/TesseractReceiptReader', () => ({
+  TesseractReceiptReader: class {
+    recognize = recognizeMock
+  },
+}))
 
 function ocrReturns(text: string) {
-  const worker = {
-    recognize: vi.fn().mockResolvedValue({ data: { text } }),
-    terminate: vi.fn().mockResolvedValue(undefined),
-  }
-  vi.mocked(createWorker).mockResolvedValue(worker as unknown as TesseractWorker)
-  return worker
+  recognizeMock.mockResolvedValue(text)
 }
 
 function suggest(fields: Record<string, string | Blob>) {
@@ -29,7 +27,7 @@ describe('POST /api/expense-notes/receipt-suggestion', () => {
     actAsAnonymous()
     const response = await suggest({ receipt: receiptFile() })
     await expectProblem(response, 401, 'Unauthorized')
-    expect(createWorker).not.toHaveBeenCalled()
+    expect(recognizeMock).not.toHaveBeenCalled()
   })
 
   it.each<Role>(['employee', 'manager', 'hr_admin'])(
@@ -44,10 +42,10 @@ describe('POST /api/expense-notes/receipt-suggestion', () => {
     }
   )
 
-  it("session d'un utilisateur supprimé : suggestion quand même (aucun accès base)", async () => {
+  it("session d'un utilisateur supprimé → 401", async () => {
     actAsGhost('employee')
     ocrReturns(RECEIPT_TEXT)
-    expect((await suggest({ receipt: receiptFile() })).status).toBe(200)
+    await expectProblem(await suggest({ receipt: receiptFile() }), 401, 'Unauthorized')
   })
 
   it.each<[string, Record<string, string | Blob>]>([
@@ -64,23 +62,29 @@ describe('POST /api/expense-notes/receipt-suggestion', () => {
     const response = await suggest({ receipt: receiptFile({ type: 'application/pdf', name: 'r.pdf' }) })
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({})
-    expect(createWorker).not.toHaveBeenCalled()
+    expect(recognizeMock).not.toHaveBeenCalled()
   })
 
   it('OCR en échec : 200 {}', async () => {
     actAs((await createOrg()).employee)
-    vi.mocked(createWorker).mockRejectedValue(new Error('modèle introuvable'))
+    recognizeMock.mockRejectedValue(new Error('modèle introuvable'))
     const response = await suggest({ receipt: receiptFile() })
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({})
   })
 
-  it("[as-is] aucune limite propre à l'OCR : un reçu de 10 Mo est passé à l'OCR (audit §5)", async () => {
+  it('reçu de plus de 10 Mo : 400, sans reconnaissance (F19)', async () => {
     actAs((await createOrg()).employee)
-    const worker = ocrReturns('')
-    const size = 10 * 1024 * 1024
-    expect((await suggest({ receipt: receiptFile({ size }) })).status).toBe(200)
-    expect(worker.recognize.mock.calls[0][0]).toHaveLength(size)
+    await expectProblem(await suggest({ receipt: receiptFile({ size: 10 * 1024 * 1024 + 1 }) }), 400, 'Fichier trop volumineux')
+    expect(recognizeMock).not.toHaveBeenCalled()
+  })
+
+  it('OCR saturé : 503 avec Retry-After (F17)', async () => {
+    actAs((await createOrg()).employee)
+    recognizeMock.mockRejectedValue(new Unavailable('Analyse de reçu momentanément saturée, réessaie dans quelques secondes.', 5))
+    const response = await suggest({ receipt: receiptFile() })
+    await expectProblem(response, 503, 'Analyse de reçu momentanément saturée, réessaie dans quelques secondes.')
+    expect(response.headers.get('retry-after')).toBe('5')
   })
 
   it('corps JSON → 400', async () => {

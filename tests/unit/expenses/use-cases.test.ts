@@ -4,9 +4,10 @@ import { getReceiptUrl } from '@/modules/expenses/application/get-receipt-url'
 import { listMyExpenseNotes } from '@/modules/expenses/application/list-my-expense-notes'
 import { listPendingApprovals } from '@/modules/expenses/application/list-pending-approvals'
 import { submitExpenseNote } from '@/modules/expenses/application/submit-expense-note'
+import { suggestFromReceipt } from '@/modules/expenses/application/suggest-from-receipt'
 import { AlreadyDecided, ReceiptUploadFailed } from '@/modules/expenses/domain/errors'
 import type { Submission } from '@/modules/expenses/domain/Submission'
-import { NotFound } from '@/shared/errors'
+import { InvalidInput, NotFound, Unavailable } from '@/shared/errors'
 import { FakeApprovals, FakeStorage, FakeUow, actor } from './fakes'
 
 const submission: Submission = {
@@ -144,5 +145,32 @@ describe('decideExpenseNote (F9)', () => {
     }
     await decideExpenseNote(uow, approvals)(actor('m1', 'manager'), 'n1', 'approved')
     expect(openDuringCanDecide).toBe(false)
+  })
+})
+
+describe('suggestFromReceipt (F19)', () => {
+  const image = (size = 3, type = 'image/png') => ({ type, size, read: async () => new Uint8Array(size) })
+
+  it('lit montant et date depuis le texte reconnu', async () => {
+    const reader = { recognize: async () => 'TOTAL TTC 42,50 €\nDate : 08/10/2026' }
+    expect(await suggestFromReceipt(reader)(image())).toEqual({ amount: 42.5, expenseDate: '2026-10-08' })
+  })
+
+  it('refuse plus de 10 Mo avant toute reconnaissance', async () => {
+    let called = false
+    const reader = { recognize: async () => ((called = true), '') }
+    await expect(suggestFromReceipt(reader)(image(10 * 1024 * 1024 + 1))).rejects.toThrow(new InvalidInput('Fichier trop volumineux'))
+    expect(called).toBe(false)
+  })
+
+  it('PDF : suggestion vide sans reconnaissance', async () => {
+    expect(await suggestFromReceipt({ recognize: async () => 'x' })(image(3, 'application/pdf'))).toEqual({})
+  })
+
+  it('OCR en échec : suggestion vide ; OCR saturé : Unavailable relayée', async () => {
+    expect(await suggestFromReceipt({ recognize: async () => Promise.reject(new Error('crash')) })(image())).toEqual({})
+    await expect(
+      suggestFromReceipt({ recognize: async () => Promise.reject(new Unavailable('saturé', 5)) })(image())
+    ).rejects.toBeInstanceOf(Unavailable)
   })
 })

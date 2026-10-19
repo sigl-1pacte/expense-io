@@ -19,6 +19,7 @@ Plan 2 de la refacto (modules `iam` et `expenses`).
 - `GET /api/hr/expense-notes` et les routes RH de décision et de reçu : la file RH contient désormais aussi les notes des employés non rattachés (F33) et celles des autres RH, jamais la sienne (F14) ; ces notes étaient introuvables (404) auparavant.
 - `POST /api/{manager,hr}/expense-notes/{id}/{approve,reject}` : deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`, la note n'a qu'une décision (F9).
 - Routes manager : le manager ne voit et ne valide que ses subordonnés directs, la règle de validation vient de la seule `ApprovalPolicy` (F1).
+- `POST /api/expense-notes/receipt-suggestion` : 400 « Fichier trop volumineux » au-delà de 10 Mio, sans analyse (F19) ; 503 avec `Retry-After` quand l'OCR est saturé (F17) ; la session d'un utilisateur supprimé reçoit 401 au lieu d'une suggestion.
 
 ## [0.2.0] — 2026-10-19
 

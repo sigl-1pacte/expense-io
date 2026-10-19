@@ -330,7 +330,8 @@ paths:
       description: |
         Analyse le reçu par OCR (Tesseract, langue française) sans rien
         enregistrer. Seuls PNG, JPEG et WebP sont analysés ; tout autre type,
-        ou un échec de l'OCR, renvoie `{}`. Taille limitée à 10 Mio.
+        ou un échec de l'OCR, renvoie `{}`. Taille limitée à 10 Mio (400 au-delà,
+        sans analyse). Si l'analyse est saturée, 503 avec `Retry-After`.
       requestBody:
         required: true
         content:
@@ -368,6 +369,18 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+        '503':
+          description: Analyse de reçu momentanément saturée ; réessayer après le délai indiqué.
+          headers:
+            Retry-After:
+              description: Délai conseillé avant de réessayer, en secondes.
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example: { error: 'Analyse de reçu momentanément saturée, réessaie dans quelques secondes.' }
 
   /api/expense-notes/{id}/receipt-url:
     get:
