@@ -648,9 +648,10 @@ paths:
               example: { error: Not found }
         '409':
           description: |
-            Manager invalide : l'utilisateur est son propre manager, ou
-            `managerId` ne désigne pas un utilisateur de rôle `manager`
-            (l'entreprise du manager n'est pas vérifiée).
+            Manager invalide : `managerId` ne désigne pas, dans l'entreprise
+            du RH, un utilisateur de rôle `manager` (un manager d'une autre
+            entreprise est invisible, donc refusé), ou l'utilisateur serait
+            son propre manager.
           content:
             application/problem+json:
               schema:
