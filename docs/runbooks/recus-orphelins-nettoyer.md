@@ -18,12 +18,14 @@ Supprimer les reçus S3 qu'aucune note ne référence (envoi réussi, insertion 
 
 ## Prérequis
 
-- `.env` renseigné (`DATABASE_URL` ou `MIGRATION_DATABASE_URL`, `S3_*`). Le script lit `expense_notes` avec le rôle propriétaire : c'est un script d'exploitation.
+- `.env` renseigné avec `MIGRATION_DATABASE_URL` (rôle superuser ou `BYPASSRLS`, sans repli sur `DATABASE_URL`) et `S3_*`. `expense_notes` est sous RLS forcée : le rôle applicatif `expense_app` ne verrait aucune note et tous les reçus paraîtraient orphelins.
+- Le script refuse de s'exécuter (code de sortie 1) si le rôle n'est ni superuser ni `BYPASSRLS`, et si `MIGRATION_DATABASE_URL` est absente. Avec `--delete`, il s'arrête aussi si des reçus sont listés, qu'aucun n'est référencé et que des notes existent (mauvaise base ou mauvais bucket).
+- Seuls les objets sous le préfixe `receipts/` sont examinés.
 - Seuls les objets de plus de 24 h sont examinés (délai de grâce pour les envois en cours).
 
 ## Procédure
 
-1. Lister les orphelins :
+1. Lister les orphelins (simulation, rien n'est supprimé sans `--delete`) :
    ```sh
    npm run receipts:orphans
    ```
@@ -32,7 +34,7 @@ Supprimer les reçus S3 qu'aucune note ne référence (envoi réussi, insertion 
    ```sh
    npm run receipts:orphans -- --delete
    ```
-   **Attendu :** « Supprimés. »
+   **Attendu :** « Supprimés. » (suppression par tranches de 1000 clés).
 
 ## Vérification finale
 
