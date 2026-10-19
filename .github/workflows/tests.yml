@@ -141,7 +141,7 @@ jobs:
     needs: vitest
     services:
       sonarqube:
-        image: sonarqube:community
+        image: sonarqube@sha256:0b3408443fb6a311253de27941b10977c9b977fd53be2265947bfe14161308b8 # sonarqube:community
         env:
           SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: 'true'
         ports:
@@ -189,5 +189,6 @@ jobs:
         run: git show origin/main:docs/api/openapi.yaml > /tmp/openapi-main.yaml
       - name: Changements cassants
         run: |
-          docker run --rm -v /tmp:/base -v "$PWD/docs/api:/head" tufin/oasdiff:latest \
+          # Image tufin/oasdiff:latest, épinglée par digest
+          docker run --rm -v /tmp:/base -v "$PWD/docs/api:/head" tufin/oasdiff@sha256:3e2f97d63dc588cb6b986d19a1744200c8697fb7811e82cd6853cb676afac4cc \
             breaking /base/openapi-main.yaml /head/openapi.yaml --fail-on ERR --format githubactions

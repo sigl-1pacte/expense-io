@@ -37,7 +37,7 @@ services:
 
   sonarqube:
     # Analyse de qualité, à la demande : `make sonar-up`. Hors du `up` habituel.
-    image: sonarqube:community
+    image: sonarqube@sha256:0b3408443fb6a311253de27941b10977c9b977fd53be2265947bfe14161308b8 # sonarqube:community
     profiles: [quality]
     environment:
       # Elasticsearch embarqué : sans ça, il exige vm.max_map_count=262144 sur l'hôte.
