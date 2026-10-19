@@ -44,11 +44,11 @@ test("la RH approuve la note d'un manager racine", async ({ browser }) => {
   await createNote({ user: org.manager, description: 'Train E2E', amount: 75 })
   const hrPage = await loginAs(browser, org.hr)
   await hrPage.getByRole('link', { name: 'RH', exact: true }).click()
-  await expect(hrPage.getByRole('heading', { name: 'Notes des managers racine en attente (1)' })).toBeVisible()
+  await expect(hrPage.getByRole('heading', { name: 'Notes en attente de validation RH (1)' })).toBeVisible()
   const row = hrPage.getByRole('row', { name: /Train E2E/ })
   await expect(row).toContainText('Marc Manager')
   await row.getByRole('button', { name: 'Approuver' }).click()
-  await expect(hrPage.getByRole('heading', { name: 'Notes des managers racine en attente (0)' })).toBeVisible()
+  await expect(hrPage.getByRole('heading', { name: 'Notes en attente de validation RH (0)' })).toBeVisible()
 
   const managerPage = await loginAs(browser, org.manager)
   await expect(managerPage.getByRole('row', { name: /Train E2E/ })).toContainText('approuvée')

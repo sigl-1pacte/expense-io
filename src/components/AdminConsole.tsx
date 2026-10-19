@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { problemMessage } from '@/components/problem-message'
 
 interface CompanyUser {
   id: string
@@ -67,6 +68,8 @@ export function AdminConsole() {
   }, [loadUsers, loadNotes])
 
   const managers = users.filter((user) => user.role === 'manager')
+  // F33 : un employé sans manager a ses notes dans la file RH ; on invite à le rattacher.
+  const unattached = users.filter((user) => user.role === 'employee' && user.managerId === null)
 
   async function handleManagerChange(userId: string, managerId: string) {
     setSavingId(userId)
@@ -81,10 +84,7 @@ export function AdminConsole() {
     if (response.ok) {
       await loadUsers()
     } else {
-      const body = await response.json().catch(() => null)
-      setUsersError(
-        typeof body?.error === 'string' ? body.error : "Échec de l'assignation."
-      )
+      setUsersError(await problemMessage(response, "Échec de l'assignation."))
     }
   }
 
@@ -110,12 +110,7 @@ export function AdminConsole() {
     if (response.ok) {
       await loadNotes()
     } else {
-      const body = await response.json().catch(() => null)
-      setNotesError(
-        typeof body?.error === 'string'
-          ? body.error
-          : 'Échec de la décision sur cette note de frais.'
-      )
+      setNotesError(await problemMessage(response, 'Échec de la décision sur cette note de frais.'))
     }
   }
 
@@ -124,8 +119,8 @@ export function AdminConsole() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Espace RH</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Organigramme de votre entreprise et validation des notes de frais
-          des managers sans manager assigné.
+          Organigramme de votre entreprise et validation des notes des managers racines,
+          des employés sans manager et des autres RH.
         </p>
       </div>
 
@@ -133,6 +128,13 @@ export function AdminConsole() {
         <h2 className="border-b border-gray-200 px-6 py-4 text-base font-semibold dark:border-gray-800">
           Organigramme ({users.length})
         </h2>
+        {unattached.length > 0 && (
+          <p role="status" className="mx-6 mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            {unattached.length === 1
+              ? '1 employé sans manager : ses notes arrivent dans la file RH. Rattachez-le à un manager.'
+              : `${unattached.length} employés sans manager : leurs notes arrivent dans la file RH. Rattachez-les à un manager.`}
+          </p>
+        )}
         {usersError && (
           <p role="alert" className="mx-6 mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
             {usersError}
@@ -162,6 +164,11 @@ export function AdminConsole() {
                     <td className="px-6 py-3">
                       <div className="font-medium">{user.name}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
+                      {user.role === 'employee' && user.managerId === null && (
+                        <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                          Sans manager
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-3 capitalize">{user.role}</td>
                     <td className="px-6 py-3">
@@ -191,7 +198,7 @@ export function AdminConsole() {
 
       <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <h2 className="border-b border-gray-200 px-6 py-4 text-base font-semibold dark:border-gray-800">
-          Notes des managers racine en attente ({notes.length})
+          Notes en attente de validation RH ({notes.length})
         </h2>
         {notesError && (
           <p role="alert" className="mx-6 mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
@@ -211,7 +218,7 @@ export function AdminConsole() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                  <th className="px-6 py-3 font-medium">Manager</th>
+                  <th className="px-6 py-3 font-medium">Auteur</th>
                   <th className="px-6 py-3 font-medium">Date</th>
                   <th className="px-6 py-3 font-medium">Description</th>
                   <th className="px-6 py-3 text-right font-medium">Montant</th>
@@ -223,7 +230,7 @@ export function AdminConsole() {
                   const author = users.find((user) => user.id === note.userId)
                   return (
                     <tr key={note.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                      <td className="px-6 py-3">{author?.name ?? note.userId.slice(0, 8)}</td>
+                      <td className="px-6 py-3">{author?.name ?? 'RH'}</td>
                       <td className="px-6 py-3 whitespace-nowrap text-gray-500 dark:text-gray-400">
                         {dateFormatter.format(new Date(note.expenseDate))}
                       </td>
