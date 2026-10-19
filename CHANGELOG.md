@@ -14,6 +14,8 @@ Plan 2 de la refacto (modules `iam` et `expenses`).
 - Inscription : une adresse de messagerie publique (gmail.com, outlook.fr, yahoo.fr…) ne peut plus créer d'entreprise (F4) ; l'action renvoie un message d'erreur.
 - `PUT /api/hr/users/{id}/manager` : un rattachement qui fermerait un cycle d'organigramme (direct ou long) est refusé en 409 `Invalid manager` (accepté auparavant) (F30).
 - Toutes les routes migrées : le rôle et l'entreprise sont relus en base à chaque requête et non plus figés dans la session. Un RH rétrogradé reçoit 403 immédiatement ; un compte supprimé reçoit 401 (F31).
+- `POST /api/expense-notes` : si le stockage des reçus est indisponible, réponse 502 « Stockage des reçus indisponible » et aucune note n'est créée (500 avec une note sans reçu auparavant) (F10).
+- `GET /api/expense-notes/{id}/receipt-url` : 404 pour une note sans clé de reçu (URL de la racine du bucket auparavant) (F39).
 
 ## [0.2.0] — 2026-10-19
 

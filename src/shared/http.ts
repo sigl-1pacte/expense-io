@@ -7,7 +7,6 @@ import type { Role } from './actor'
 import { Forbidden, InvalidInput, Unauthenticated } from './errors'
 import { problemResponse } from './problem'
 
-export const MAX_RECEIPT_BYTES = 10 * 1024 * 1024
 /** Marge du multipart au-delà du fichier : délimiteurs, en-têtes, champs texte. */
 export const MULTIPART_OVERHEAD_BYTES = 64 * 1024
 export const MAX_JSON_BYTES = 64 * 1024

@@ -20,6 +20,7 @@
     "sonar": "sonar-scanner-npm",
     "sonar:bootstrap": "node --env-file-if-exists=.env scripts/sonar-bootstrap.mjs",
     "sonar:report": "node --env-file-if-exists=.env scripts/sonar-report.mjs",
+    "receipts:orphans": "node scripts/receipts-orphans.mjs",
     "depcruise": "depcruise src --config .dependency-cruiser.cjs --output-type err-long",
     "verify": "npm run lint && npm run typecheck && npm run depcruise && npm test",
     "verify:full": "npm run verify && npm run test:e2e"

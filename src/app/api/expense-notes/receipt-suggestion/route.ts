@@ -1,7 +1,7 @@
 import { suggestFields } from '@/lib/ocr'
+import { MAX_RECEIPT_BYTES } from '@/modules/expenses'
 import { InvalidInput } from '@/shared/errors'
 import {
-  MAX_RECEIPT_BYTES,
   MULTIPART_OVERHEAD_BYTES,
   readFormData,
   requireSession,

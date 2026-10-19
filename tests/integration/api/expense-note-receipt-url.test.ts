@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { GET } from '@/app/api/expense-notes/[id]/receipt-url/route'
-import { TEST_ENV } from '../../support/env'
 import { createNote, createOrg, createUser, type Org, type Role } from '../../support/factories'
 import { PNG_BYTES } from '../../support/fixtures'
 import { expectProblem, NON_UUID_IDS, UNKNOWN_ID, readJson, request, routeParams } from '../helpers/http'
@@ -71,17 +70,10 @@ describe('GET /api/expense-notes/:id/receipt-url', () => {
     await expectProblem(response, 400, 'Identifiant invalide')
   })
 
-  it('[as-is] note orpheline (receipt_key vide, audit §5) : URL signée de la racine du bucket, qui liste tous les reçus (constat hors audit)', async () => {
-    await storeReceipt('receipts/recu-d-un-autre.png', PNG_BYTES)
+  it('note sans clé de reçu : 404, jamais l’URL de la racine du bucket (F39)', async () => {
     const { employee } = await createOrg()
     const note = await createNote({ user: employee, receiptKey: '' })
     actAs(employee)
-    const response = await receiptUrl(note.id)
-    expect(response.status).toBe(200)
-    const { url } = await readJson<{ url: string }>(response)
-    expect(new URL(url).pathname).toBe(`/${TEST_ENV.S3_BUCKET}/`)
-    const listing = await (await fetch(url)).text()
-    expect(listing).toContain('<ListBucketResult')
-    expect(listing).toContain('<Key>receipts/recu-d-un-autre.png</Key>')
+    await expectProblem(await receiptUrl(note.id), 404, 'Not found')
   })
 })

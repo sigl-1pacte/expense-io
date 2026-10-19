@@ -306,6 +306,13 @@ paths:
                   value: { error: Fichier trop volumineux }
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '502':
+          description: Stockage des reçus indisponible ; aucune note n'est créée.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example: { error: Stockage des reçus indisponible }
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -371,7 +378,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
-          description: Note inexistante ou n'appartenant pas à l'utilisateur.
+          description: Note d'un autre utilisateur, inconnue, ou sans reçu.
           content:
             application/problem+json:
               schema:
