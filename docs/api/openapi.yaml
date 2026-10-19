@@ -651,7 +651,8 @@ paths:
             Manager invalide : `managerId` ne désigne pas, dans l'entreprise
             du RH, un utilisateur de rôle `manager` (un manager d'une autre
             entreprise est invisible, donc refusé), ou l'utilisateur serait
-            son propre manager.
+            son propre manager, ou le rattachement fermerait un cycle
+            d'organigramme (direct ou long).
           content:
             application/problem+json:
               schema:

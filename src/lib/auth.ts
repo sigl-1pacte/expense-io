@@ -1,10 +1,12 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
-import bcrypt from 'bcryptjs'
-import { getPool } from '@/lib/db'
+import { iam } from '@/modules/iam'
 import { config } from '@/shared/config'
 
-// Le secret vient de l'environnement, validé par shared/config ; le démarrage échoue sans lui.
+// Secret lu et validé par shared/config au chargement : l'application refuse de
+// démarrer sans AUTH_SECRET. (Pas de forme paresseuse `NextAuth(() => …)` : avec
+// next-auth 5.0.0-beta.32, elle fait renvoyer une Promise à `auth(cb)` et casse
+// src/proxy.ts — décision prise au plan 1, tâche 6.)
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: config().authSecret,
   session: { strategy: 'jwt' },
@@ -19,38 +21,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         const email = typeof credentials?.email === 'string' ? credentials.email : null
-        const password =
-          typeof credentials?.password === 'string' ? credentials.password : null
+        const password = typeof credentials?.password === 'string' ? credentials.password : null
         if (!email || !password) return null
-
-        const result = await getPool().query<{
-          id: string
-          email: string
-          password_hash: string
-          role: 'employee' | 'manager' | 'hr_admin'
-        }>('SELECT id, email, password_hash, role FROM app.credentials_for($1)', [email])
-        const user = result.rows[0]
-        if (!user) return null
-
-        const passwordMatches = await bcrypt.compare(password, user.password_hash)
-        if (!passwordMatches) return null
-
-        return { id: user.id, email: user.email, role: user.role }
+        return iam.authenticate(email, password)
       },
     }),
   ],
   callbacks: {
+    // F31 : le jeton ne porte que l'identité ; le rôle est relu en base.
     async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        token.role = user.role
-      }
+      if (user?.id) token.id = user.id
       return token
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as 'employee' | 'manager' | 'hr_admin'
+      if (session.user && typeof token.id === 'string') {
+        session.user.id = token.id
+        const actor = await iam.getActor(token.id).catch(() => null)
+        // Compte supprimé : aucun privilège dans l'UI ; les API répondent 401.
+        session.user.role = actor?.role ?? 'employee'
       }
       return session
     },

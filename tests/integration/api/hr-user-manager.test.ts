@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PUT } from '@/app/api/hr/users/[id]/manager/route'
+import { testDb } from '../../support/db'
 import { createOrg, createUser, findUser, type Org } from '../../support/factories'
 import {
   NON_UUID_IDS,
@@ -148,14 +149,28 @@ describe('PUT /api/hr/users/:id/manager', () => {
     await expectProblem(response, 400, 'Corps de requête invalide')
   })
 
-  it('[as-is] accepte un cycle entre deux managers', async () => {
+  it('refuse un cycle direct (F30) : 409, organigramme inchangé', async () => {
     const org = await createOrg()
     const other = await createUser({ company: org.company, role: 'manager' })
     actAs(org.hr)
     expect((await assign(org.manager.id, { managerId: other.id })).status).toBe(200)
-    expect((await assign(other.id, { managerId: org.manager.id })).status).toBe(200)
-    expect(await managerIdOf(org.manager.id)).toBe(other.id)
-    expect(await managerIdOf(other.id)).toBe(org.manager.id)
+    await expectProblem(await assign(other.id, { managerId: org.manager.id }), 409, 'Invalid manager')
+    expect(await managerIdOf(other.id)).toBeNull()
+  })
+
+  it('refuse un cycle long (F30)', async () => {
+    const org = await createOrg()
+    const b = await createUser({ company: org.company, role: 'manager', manager: org.manager })
+    const c = await createUser({ company: org.company, role: 'manager', manager: b })
+    actAs(org.hr)
+    await expectProblem(await assign(org.manager.id, { managerId: c.id }), 409, 'Invalid manager')
+  })
+
+  it("le rôle est relu en base : un RH rétrogradé est refusé (F31)", async () => {
+    const org = await createOrg()
+    await testDb().query("UPDATE users SET role = 'employee' WHERE id = $1", [org.hr.id])
+    actAs(org.hr, 'hr_admin')
+    await expectProblem(await assign(org.employee.id, { managerId: null }), 403, 'Unauthorized')
   })
 
   it.each(NON_UUID_IDS)('cible « %s » non-UUID → 400', async (id) => {

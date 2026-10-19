@@ -5,6 +5,16 @@ Les écarts du contrat d'API (`docs/api/openapi.yaml`) sont consignés ici. Form
 ci-dessous ajoutent des cas d'erreur et corrigent des failles sans modifier de réponse en succès
 d'un client légitime, d'où une version MINOR.
 
+## [Non publié]
+
+Plan 2 de la refacto (modules `iam` et `expenses`).
+
+### Modifié
+
+- Inscription : une adresse de messagerie publique (gmail.com, outlook.fr, yahoo.fr…) ne peut plus créer d'entreprise (F4) ; l'action renvoie un message d'erreur.
+- `PUT /api/hr/users/{id}/manager` : un rattachement qui fermerait un cycle d'organigramme (direct ou long) est refusé en 409 `Invalid manager` (accepté auparavant) (F30).
+- Toutes les routes migrées : le rôle et l'entreprise sont relus en base à chaque requête et non plus figés dans la session. Un RH rétrogradé reçoit 403 immédiatement ; un compte supprimé reçoit 401 (F31).
+
 ## [0.2.0] — 2026-10-19
 
 Plan 1 de la refacto (socle et harnais agent).

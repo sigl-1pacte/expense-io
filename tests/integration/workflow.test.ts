@@ -99,20 +99,8 @@ describe('circuit de validation', () => {
   })
 })
 
-describe('rôle figé dans la session (audit §5)', () => {
-  it('[as-is] un manager rétrogradé en base garde ses droits tant que sa session dure', async () => {
-    const org = await createOrg()
-    const note = await createNote({ user: org.employee })
-    await testDb().query("UPDATE users SET role = 'employee' WHERE id = $1", [org.manager.id])
-    expect(await managerQueueOf(org.manager, 'manager')).toEqual([note.id])
-    actAs(org.manager, 'manager')
-    expect((await approveAsManager(note.id)).status).toBe(200)
-  })
-
-  it('[as-is] un employé promu en base reste refusé tant que sa session dit « employee »', async () => {
-    const org = await createOrg()
-    await testDb().query("UPDATE users SET role = 'manager' WHERE id = $1", [org.employee.id])
-    actAs(org.employee, 'employee')
-    expect((await managerQueue()).status).toBe(403)
-  })
+describe('rôle relu en base (F31)', () => {
+  // Réactivés en tâche 9, quand la file et l'approbation manager passent par iam.
+  it.todo('un manager rétrogradé en base perd ses droits immédiatement, même si sa session dit « manager »')
+  it.todo('un employé promu en base obtient ses droits immédiatement, même si sa session dit « employee »')
 })
