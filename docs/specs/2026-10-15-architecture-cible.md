@@ -175,16 +175,25 @@ Tout se fait dans une transaction, **sérialisée par entreprise**.
 
 ### `decideExpenseNote` (F9, F15)
 
-Ce use case remplace les quatre handlers approve et reject (manager et RH). Les quatre routes deviennent des adapters d'une dizaine de lignes. Tout se passe dans une seule unité de travail :
+Ce use case remplace les quatre handlers approve et reject (manager et RH). Les quatre routes deviennent des adapters d'une dizaine de lignes. Le déroulé construit tient en trois temps :
 
-1. On charge la note dans le scope RLS. Si elle est introuvable ou invisible : `404`.
-2. Si `iam.canDecide(actor, note.userId)` est faux : `404`, sans révéler l'existence de la note.
-3. L'agrégat applique `note.approve()` ou `note.reject()`. Si la note n'est pas `pending`, il lève `AlreadyDecided`.
-4. `NoteRepository.saveDecision` fait `UPDATE … SET status = $2 WHERE id = $1 AND status = 'pending'`. Si aucune ligne n'est touchée, il lève `AlreadyDecided`, traduit en `409` (`error: "Already decided"`, type `already-decided`).
-5. `iam.getContact(note.userId)` donne le destinataire.
-6. `decisionEmail(contact, note, correlationId)` compose l'e-mail : objet, texte en français, montant au format `Intl.NumberFormat('fr-FR')` et date de la dépense.
-7. `mailer.send(email)` : `OutboxMailer` l'écrit dans `mail_outbox`, sur la connexion de la transaction.
-8. La réponse est `200`, avec le même DTO qu'aujourd'hui.
+1. **Lecture.** On charge la note dans une première unité de travail (scope RLS). Si elle est introuvable ou invisible : `404`.
+2. **Autorisation.** `iam.canDecide(actor, note.userId)` est appelé **hors de toute transaction** (jamais imbriqué : une seconde connexion du pool prise dans une transaction ouverte peut épuiser le pool). S'il est faux : `404`, sans révéler l'existence de la note.
+3. **Décision.** Une seconde unité de travail applique la décision et la persiste. Le mail du plan 3 s'écrira dans cette seconde unité de travail.
+
+Dans la seconde unité de travail :
+
+- L'agrégat applique `note.approve()` ou `note.reject()`. Si la note n'est pas `pending`, il lève `AlreadyDecided`.
+- `NoteRepository.saveDecision` fait `UPDATE … SET status = $2 WHERE id = $1 AND status = 'pending'`. Si aucune ligne n'est touchée, il lève `AlreadyDecided`, traduit en `409` (`error: "Already decided"`, type `already-decided`). Un seul des deux concurrents l'emporte.
+
+Limite acceptée : l'autorisation et l'`UPDATE` lisent deux instantanés différents. Un rattachement modifié entre les deux laisse passer la décision de l'ancien validateur. La refermer casserait la frontière D4 (le SQL d'`expenses` ne touche pas l'organigramme d'`iam`).
+
+Suite du flux, prévue au plan 3 :
+
+1. `iam.getContact(note.userId)` donne le destinataire.
+2. `decisionEmail(contact, note, correlationId)` compose l'e-mail : objet, texte en français, montant au format `Intl.NumberFormat('fr-FR')` et date de la dépense.
+3. `mailer.send(email)` : `OutboxMailer` l'écrit dans `mail_outbox`, sur la connexion de la transaction.
+4. La réponse est `200`, avec le même DTO qu'aujourd'hui.
 
 ### `submitExpenseNote` (F10)
 
@@ -209,7 +218,7 @@ Il n'y a donc plus de note sans reçu (F10, F39). Si l'`INSERT` échoue après l
 
 L'OCR reste synchrone (D2). Ses risques sont traités **dans l'adapter `TesseractReceiptReader`**, sans toucher au use case ni au contrat :
 
-- **F17.** Un seul moteur Tesseract est créé au premier appel et réutilisé ensuite, avec le cache de langue activé, au lieu d'un moteur créé et détruit à chaque requête. Le nombre d'OCR simultanés est plafonné (2 par défaut, `OCR_MAX_CONCURRENCY`). Au-delà, les demandes attendent dans une file en mémoire, avec un délai maximal de 30 s puis `503`, et un en-tête `Retry-After`.
+- **F17.** Un seul moteur Tesseract est créé au premier appel et réutilisé ensuite, le modèle est chargé depuis `tessdata` en local (`cacheMethod: 'none'`, aucun cache écrit dans le répertoire courant), au lieu d'un moteur créé et détruit à chaque requête. Le nombre d'OCR simultanés est plafonné (2 par défaut, `OCR_MAX_CONCURRENCY`). Au-delà, les demandes attendent dans une file en mémoire, avec un délai maximal de 30 s puis `503`, et un en-tête `Retry-After`.
 - **F19.** La taille du reçu soumis à l'OCR est plafonnée à 10 Mo, comme à la création. Au-delà, on renvoie `400` avec le même message qu'à la création (« Fichier trop volumineux »).
 
 ### `getReceiptUrl` (F1)
