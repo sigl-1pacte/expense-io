@@ -3,6 +3,7 @@
 // lecture bornée du corps.
 import { randomUUID } from 'node:crypto'
 import { auth } from '@/lib/auth'
+import type { Role } from './actor'
 import { Forbidden, InvalidInput, Unauthenticated } from './errors'
 import { problemResponse } from './problem'
 
@@ -11,7 +12,7 @@ export const MAX_RECEIPT_BYTES = 10 * 1024 * 1024
 export const MULTIPART_OVERHEAD_BYTES = 64 * 1024
 export const MAX_JSON_BYTES = 64 * 1024
 
-export type Role = 'employee' | 'manager' | 'hr_admin'
+export type { Role }
 
 export interface SessionUser {
   id: string
@@ -80,8 +81,8 @@ export async function requireSession(): Promise<SessionUser> {
   return { id, email: email ?? '', role }
 }
 
-export function requireRole(user: SessionUser, role: Role): void {
-  if (user.role !== role) throw new Forbidden()
+export function requireRole(subject: { role: Role }, role: Role): void {
+  if (subject.role !== role) throw new Forbidden()
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

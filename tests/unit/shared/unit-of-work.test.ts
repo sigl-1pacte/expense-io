@@ -1,6 +1,7 @@
 import type { Pool } from 'pg'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+const SCOPE = { userId: 'u1', companyId: 'c1' }
 const BYPASS_SQL = /rolbypassrls/
 
 /** Client factice : `bypass` pilote le rôle, `failRollback` fait échouer ROLLBACK. */
@@ -12,7 +13,6 @@ function fakePool(opts: { bypass: boolean; failRollback?: boolean }) {
     query: vi.fn(async (sql: string) => {
       calls.push(sql)
       if (BYPASS_SQL.test(sql)) return { rows: [{ bypass: opts.bypass }] }
-      if (sql.includes('app.actor')) return { rows: [{ company_id: 'c1' }] }
       if (sql === 'ROLLBACK' && opts.failRollback) throw new Error('connexion perdue')
       return { rows: [] }
     }),
@@ -21,10 +21,10 @@ function fakePool(opts: { bypass: boolean; failRollback?: boolean }) {
   return { pool, client, release, calls }
 }
 
-async function loadDb(pool: Pool) {
+async function loadUow(pool: Pool) {
   vi.resetModules()
   global.__pgPool = pool
-  return import('@/lib/db')
+  return import('@/shared/unit-of-work')
 }
 
 const warnLines = () =>
@@ -42,12 +42,12 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('withUserScope : rôle qui contourne la RLS', () => {
+describe('runInScope : rôle qui contourne la RLS', () => {
   it('avertit une seule fois par process quand le rôle est superutilisateur ou BYPASSRLS', async () => {
     const { pool } = fakePool({ bypass: true })
-    const { withUserScope } = await loadDb(pool)
-    await withUserScope('u1', async () => undefined)
-    await withUserScope('u1', async () => undefined)
+    const { runInScope } = await loadUow(pool)
+    await runInScope(SCOPE, async () => undefined)
+    await runInScope(SCOPE, async () => undefined)
     const warns = warnLines()
     expect(warns).toHaveLength(1)
     expect(warns[0].message).toContain('contourne la RLS')
@@ -56,18 +56,18 @@ describe('withUserScope : rôle qui contourne la RLS', () => {
 
   it("n'avertit pas quand le rôle est soumis à la RLS", async () => {
     const { pool } = fakePool({ bypass: false })
-    const { withUserScope } = await loadDb(pool)
-    await withUserScope('u1', async () => undefined)
+    const { runInScope } = await loadUow(pool)
+    await runInScope(SCOPE, async () => undefined)
     expect(warnLines()).toHaveLength(0)
   })
 })
 
-describe('withUserScope : ROLLBACK', () => {
+describe('runInScope : ROLLBACK', () => {
   it("relance l'erreur d'origine même si ROLLBACK échoue, et détruit la connexion", async () => {
     const { pool, release } = fakePool({ bypass: false, failRollback: true })
-    const { withUserScope } = await loadDb(pool)
+    const { runInScope } = await loadUow(pool)
     await expect(
-      withUserScope('u1', async () => {
+      runInScope(SCOPE, async () => {
         throw new Error('échec métier')
       })
     ).rejects.toThrow('échec métier')
@@ -76,9 +76,9 @@ describe('withUserScope : ROLLBACK', () => {
 
   it('rend la connexion au pool quand ROLLBACK réussit', async () => {
     const { pool, release } = fakePool({ bypass: false })
-    const { withUserScope } = await loadDb(pool)
+    const { runInScope } = await loadUow(pool)
     await expect(
-      withUserScope('u1', async () => {
+      runInScope(SCOPE, async () => {
         throw new Error('échec métier')
       })
     ).rejects.toThrow('échec métier')

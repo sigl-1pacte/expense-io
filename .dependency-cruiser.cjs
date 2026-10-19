@@ -11,7 +11,17 @@ module.exports = {
       comment: "Le domaine n'importe que son propre domaine (et Node).",
       severity: SEVERITY,
       from: { path: '^src/modules/([^/]+)/domain/' },
-      to: { pathNot: '^src/modules/$1/domain/', dependencyTypesNot: ['core'] },
+      to: {
+        pathNot: ['^src/modules/$1/domain/', '^src/shared/(actor|errors)\\.ts$'],
+        dependencyTypesNot: ['core'],
+      },
+    },
+    {
+      name: 'shared-autonome',
+      comment: 'shared/ ne dépend que de lui-même (et de lib/auth pour la session).',
+      severity: SEVERITY,
+      from: { path: '^src/shared/' },
+      to: { path: '^src/', pathNot: ['^src/shared/', '^src/lib/auth\\.ts$'] },
     },
     {
       name: 'application-sans-infrastructure',
