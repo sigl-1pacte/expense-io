@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { GET } from '@/app/api/hr/expense-notes/[id]/receipt-url/route'
-import { createNote, createOrg, type Org } from '../../support/factories'
+import { createNote, createOrg, createUser, type Org } from '../../support/factories'
 import { PNG_BYTES } from '../../support/fixtures'
 import { expectProblem, NON_UUID_IDS, UNKNOWN_ID, readJson, request, routeParams } from '../helpers/http'
 import { expectPresignedReceipt, storeReceipt } from '../helpers/s3'
@@ -36,6 +36,18 @@ describe('GET /api/hr/expense-notes/:id/receipt-url', () => {
       await expectPresignedReceipt(url, 'receipts/21.png', PNG_BYTES)
     }
   )
+
+  it("URL présignée valide pour la note d'un employé sans manager (F33)", async () => {
+    const org = await createOrg()
+    const loose = await createUser({ company: org.company })
+    const note = await createNote({ user: loose, receiptKey: 'receipts/22.png' })
+    await storeReceipt('receipts/22.png', PNG_BYTES)
+    actAs(org.hr)
+    const response = await receiptUrl(note.id)
+    expect(response.status).toBe(200)
+    const { url } = await readJson<{ url: string }>(response)
+    await expectPresignedReceipt(url, 'receipts/22.png', PNG_BYTES)
+  })
 
   it.each<[string, (org: Org) => Promise<string>]>([
     ["note d'un employé", async (org) => (await createNote({ user: org.employee })).id],

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { decideExpenseNote } from '@/modules/expenses/application/decide-expense-note'
 import { getReceiptUrl } from '@/modules/expenses/application/get-receipt-url'
 import { listMyExpenseNotes } from '@/modules/expenses/application/list-my-expense-notes'
+import { listPendingApprovals } from '@/modules/expenses/application/list-pending-approvals'
 import { submitExpenseNote } from '@/modules/expenses/application/submit-expense-note'
-import { ReceiptUploadFailed } from '@/modules/expenses/domain/errors'
+import { AlreadyDecided, ReceiptUploadFailed } from '@/modules/expenses/domain/errors'
 import type { Submission } from '@/modules/expenses/domain/Submission'
 import { NotFound } from '@/shared/errors'
 import { FakeApprovals, FakeStorage, FakeUow, actor } from './fakes'
@@ -70,5 +72,52 @@ describe('getReceiptUrl (F1, F39)', () => {
     await expect(read(actor('e2'), 'n1', 'author')).rejects.toBeInstanceOf(NotFound)
     await expect(read(actor('e1'), 'inconnue', 'author')).rejects.toBeInstanceOf(NotFound)
     await expect(read(actor('e1'), 'n1', 'author')).rejects.toBeInstanceOf(NotFound)
+  })
+})
+
+describe('listPendingApprovals', () => {
+  it('notes en attente des personnes que l’acteur valide', async () => {
+    const uow = new FakeUow()
+    const submit = submitExpenseNote(uow, new FakeStorage())
+    await submit(actor('e1'), submission)
+    await submit(actor('e2'), submission)
+    const pending = await listPendingApprovals(uow, new FakeApprovals({ m1: ['e1'] }))(actor('m1', 'manager'))
+    expect(pending.map((n) => n.userId)).toEqual(['e1'])
+  })
+
+  it('personne à valider : aucune requête de notes', async () => {
+    const uow = new FakeUow()
+    expect(await listPendingApprovals(uow, new FakeApprovals())(actor('e1'))).toEqual([])
+    expect(uow.runs).toBe(0)
+  })
+})
+
+describe('decideExpenseNote (F9)', () => {
+  async function setup() {
+    const uow = new FakeUow()
+    await submitExpenseNote(uow, new FakeStorage())(actor('e1'), submission)
+    return { uow, decide: decideExpenseNote(uow, new FakeApprovals({ m1: ['e1'] })) }
+  }
+
+  it('le validateur décide', async () => {
+    const { decide } = await setup()
+    expect((await decide(actor('m1', 'manager'), 'n1', 'approved')).status).toBe('approved')
+  })
+
+  it('quelqu’un qui ne valide pas cette note : 404', async () => {
+    const { decide } = await setup()
+    await expect(decide(actor('m2', 'manager'), 'n1', 'approved')).rejects.toBeInstanceOf(NotFound)
+  })
+
+  it('note déjà décidée : 409', async () => {
+    const { decide } = await setup()
+    await decide(actor('m1', 'manager'), 'n1', 'approved')
+    await expect(decide(actor('m1', 'manager'), 'n1', 'rejected')).rejects.toBeInstanceOf(AlreadyDecided)
+  })
+
+  it('décision concurrente perdue (UPDATE sans effet) : 409', async () => {
+    const { uow, decide } = await setup()
+    uow.notes.saveDecision = async () => false
+    await expect(decide(actor('m1', 'manager'), 'n1', 'approved')).rejects.toBeInstanceOf(AlreadyDecided)
   })
 })

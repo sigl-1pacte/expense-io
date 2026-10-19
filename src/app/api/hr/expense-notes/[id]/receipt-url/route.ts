@@ -1,24 +1,10 @@
-import { withUserScope } from '@/lib/db'
-import { getReceiptUrl } from '@/lib/storage'
-import { NotFound } from '@/shared/errors'
-import { parseUuid, requireRole, requireSession, route, type RouteContext } from '@/shared/http'
+import { expenses } from '@/modules/expenses'
+import { parseUuid, requireRole, route, type RouteContext } from '@/shared/http'
+import { currentActor } from '../../../../_lib/current-actor'
 
 export const GET = route(async (_request, { params }: RouteContext<{ id: string }>) => {
-  const user = await requireSession()
-  requireRole(user, 'hr_admin')
+  const actor = await currentActor()
+  requireRole(actor, 'hr_admin')
   const id = parseUuid((await params).id)
-
-  const note = await withUserScope(user.id, async (client) => {
-    const result = await client.query(
-      `SELECT en.receipt_key FROM expense_notes en
-       JOIN users u ON u.id = en.user_id
-       WHERE en.id = $1 AND u.role = 'manager' AND u.manager_id IS NULL
-         AND u.company_id = (SELECT company_id FROM users WHERE id = $2)`,
-      [id, user.id]
-    )
-    return result.rows[0]
-  })
-  if (!note) throw new NotFound()
-
-  return Response.json({ url: await getReceiptUrl(note.receipt_key) })
+  return Response.json({ url: await expenses.getReceiptUrl(actor, id, 'approver') })
 })

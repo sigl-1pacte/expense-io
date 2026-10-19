@@ -16,6 +16,9 @@ Plan 2 de la refacto (modules `iam` et `expenses`).
 - Toutes les routes migrées : le rôle et l'entreprise sont relus en base à chaque requête et non plus figés dans la session. Un RH rétrogradé reçoit 403 immédiatement ; un compte supprimé reçoit 401 (F31).
 - `POST /api/expense-notes` : si le stockage des reçus est indisponible, réponse 502 « Stockage des reçus indisponible » et aucune note n'est créée (500 avec une note sans reçu auparavant) (F10).
 - `GET /api/expense-notes/{id}/receipt-url` : 404 pour une note sans clé de reçu (URL de la racine du bucket auparavant) (F39).
+- `GET /api/hr/expense-notes` et les routes RH de décision et de reçu : la file RH contient désormais aussi les notes des employés non rattachés (F33) et celles des autres RH, jamais la sienne (F14) ; ces notes étaient introuvables (404) auparavant.
+- `POST /api/{manager,hr}/expense-notes/{id}/{approve,reject}` : deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`, la note n'a qu'une décision (F9).
+- Routes manager : le manager ne voit et ne valide que ses subordonnés directs, la règle de validation vient de la seule `ApprovalPolicy` (F1).
 
 ## [0.2.0] — 2026-10-19
 

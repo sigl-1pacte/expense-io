@@ -62,18 +62,36 @@ describe('circuit de validation', () => {
     expect(await statusSeenBy(org.manager, note.id)).toBe('approved')
   })
 
-  it("[as-is] note d'un employé sans manager : dans aucune file (audit, circuit de validation)", async () => {
+  it("note d'un employé sans manager : dans la file RH (F33)", async () => {
     const org = await createOrg()
-    await createNote({ user: await createUser({ company: org.company }) })
+    const note = await createNote({ user: await createUser({ company: org.company }) })
     expect(await managerQueueOf(org.manager)).toEqual([])
-    expect(await hrQueueOf(org.hr)).toEqual([])
+    expect(await hrQueueOf(org.hr)).toEqual([note.id])
   })
 
-  it("[as-is] note d'une RH : dans aucune file (audit, circuit de validation)", async () => {
+  it("note d'une RH : dans la file des autres RH, jamais dans la sienne (F14)", async () => {
+    const org = await createOrg()
+    const otherHr = await createUser({ company: org.company, role: 'hr_admin' })
+    const note = await createNote({ user: org.hr })
+    expect(await hrQueueOf(org.hr)).toEqual([])
+    expect(await hrQueueOf(otherHr)).toEqual([note.id])
+  })
+
+  it("RH seul de son entreprise : sa note est acceptée mais n'est dans aucune file (limite documentée)", async () => {
     const org = await createOrg()
     await createNote({ user: org.hr })
-    expect(await managerQueueOf(org.manager)).toEqual([])
     expect(await hrQueueOf(org.hr)).toEqual([])
+    expect(await managerQueueOf(org.manager)).toEqual([])
+  })
+
+  it('consigne « manager direct » : un manager ne voit pas les subordonnés de ses subordonnés', async () => {
+    const org = await createOrg()
+    const sub = await createUser({ company: org.company, role: 'manager', manager: org.manager })
+    const note = await createNote({ user: await createUser({ company: org.company, manager: sub }) })
+    expect(await managerQueueOf(org.manager)).toEqual([])
+    expect(await managerQueueOf(sub)).toEqual([note.id])
+    actAs(org.manager)
+    expect((await approveAsManager(note.id)).status).toBe(404)
   })
 
   it('rattacher un manager racine déplace sa note de la file RH vers celle de son nouveau manager', async () => {
@@ -100,7 +118,19 @@ describe('circuit de validation', () => {
 })
 
 describe('rôle relu en base (F31)', () => {
-  // Réactivés en tâche 9, quand la file et l'approbation manager passent par iam.
-  it.todo('un manager rétrogradé en base perd ses droits immédiatement, même si sa session dit « manager »')
-  it.todo('un employé promu en base obtient ses droits immédiatement, même si sa session dit « employee »')
+  it('un manager rétrogradé en base perd ses droits immédiatement, même si sa session dit « manager »', async () => {
+    const org = await createOrg()
+    const note = await createNote({ user: org.employee })
+    await testDb().query("UPDATE users SET role = 'employee' WHERE id = $1", [org.manager.id])
+    actAs(org.manager, 'manager')
+    expect((await managerQueue()).status).toBe(403)
+    expect((await approveAsManager(note.id)).status).toBe(403)
+  })
+
+  it('un employé promu en base obtient ses droits immédiatement, même si sa session dit « employee »', async () => {
+    const org = await createOrg()
+    await testDb().query("UPDATE users SET role = 'manager' WHERE id = $1", [org.employee.id])
+    actAs(org.employee, 'employee')
+    expect((await managerQueue()).status).toBe(200)
+  })
 })

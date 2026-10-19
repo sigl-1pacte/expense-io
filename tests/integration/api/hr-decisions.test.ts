@@ -69,10 +69,6 @@ describe.each([
   it.each<[string, (org: Org) => Promise<string>]>([
     ["note d'un employé rattaché", async (org) => (await createNote({ user: org.employee })).id],
     [
-      "note d'un employé sans manager",
-      async (org) => (await createNote({ user: await createUser({ company: org.company }) })).id,
-    ],
-    [
       "note d'un manager rattaché",
       async (org) =>
         (
@@ -93,6 +89,16 @@ describe.each([
     actAs(org.hr)
     const response = await decide(id)
     await expectProblem(response, 404, 'Not found')
+  })
+
+  it.each<[string, (org: Org) => Promise<string>]>([
+    ["note d'un employé sans manager (F33)", async (org) => (await createNote({ user: await createUser({ company: org.company }) })).id],
+    ["note d'une autre RH (F14)", async (org) => (await createNote({ user: await createUser({ company: org.company, role: 'hr_admin' }) })).id],
+  ])('la RH décide : %s', async (_label, noteIdFor) => {
+    const org = await createOrg()
+    const id = await noteIdFor(org)
+    actAs(org.hr)
+    expect((await decide(id)).status).toBe(200)
   })
 
   it.each(['approved', 'rejected'] as const)(
