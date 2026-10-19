@@ -94,6 +94,11 @@ describe('requireSession / requireRole', () => {
     expect(await requireSession()).toEqual({ id: 'u', email: 'e@x.fr', role: 'manager' })
   })
 
+  it('session sans e-mail : email vide', async () => {
+    authMock.mockResolvedValue({ user: { id: 'u', role: 'manager' } as never, expires: '2999' })
+    expect(await requireSession()).toEqual({ id: 'u', email: '', role: 'manager' })
+  })
+
   it('mauvais rôle : Forbidden (403)', () => {
     expect(() => requireRole({ id: 'u', email: 'e', role: 'employee' }, 'manager')).toThrow(
       expect.objectContaining({ status: 403 })

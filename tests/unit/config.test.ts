@@ -1,7 +1,23 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { loadConfig } from '@/shared/config'
 
 const SECRET = 'a'.repeat(32)
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+  vi.resetModules()
+})
+
+describe('config', () => {
+  it('lit AUTH_SECRET une fois et renvoie toujours la même configuration', async () => {
+    vi.stubEnv('AUTH_SECRET', SECRET)
+    vi.resetModules()
+    const { config } = await import('@/shared/config')
+    const first = config()
+    expect(first.authSecret).toBe(SECRET)
+    expect(config()).toBe(first)
+  })
+})
 
 describe('loadConfig', () => {
   it('lit AUTH_SECRET', () => {

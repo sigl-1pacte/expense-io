@@ -21,6 +21,7 @@ _Mis à jour le 16/10/2026._
 - **Pas encore sur `main`** : la suite de tests de caractérisation (ARLA-9) et
   les plans de la refacto. Voir [À venir](#à-venir).
 - **ADR 0001 à 0004 écrites** : voir [adrs/](adrs/README.md).
+- **Plan 1 terminé** (socle et harnais agent) : SonarQube (mesures « avant » dans [audit/sonarqube-avant-apres.md](audit/sonarqube-avant-apres.md)), contrat OpenAPI vérifié en CI, erreurs RFC 9457, rôle expense_app et RLS d'isolation, F1, F3, F16, F25–F27, F34, F41–F44 corrigés.
 
 ## Par où commencer
 

@@ -78,6 +78,13 @@ describe('logger', () => {
     expect(line).toMatchObject({ level: 'info', message: 'getter', fields: 'non sérialisable' })
   })
 
+  it('un champ undefined est omis de la ligne JSON', () => {
+    logger.info('vide', { correlationId: 'c4', absent: undefined })
+    const line = JSON.parse(vi.mocked(console.log).mock.calls[0][0] as string)
+    expect(line).not.toHaveProperty('absent')
+    expect(line).toMatchObject({ level: 'info', message: 'vide', correlationId: 'c4' })
+  })
+
   it('un champ nommé level ne peut pas écraser le niveau', () => {
     logger.info('garde', { level: 'hacked', message: 'x', time: 'y' })
     const line = JSON.parse(vi.mocked(console.log).mock.calls[0][0] as string)

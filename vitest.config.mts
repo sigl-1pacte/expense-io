@@ -11,7 +11,8 @@ export default defineConfig({
       reporter: ['text', 'html', 'lcov', 'json-summary'],
       reportsDirectory: 'coverage',
       // Périmètre : le code que Vitest exécute réellement. Hors périmètre :
-      // - src/domain, src/ports, src/adapters, src/utils : code mort (audit §2) ;
+      // - src/domain, src/ports, src/adapters, src/utils : code mort (audit §2),
+      //   à traiter au plan 2 ;
       // - src/lib/auth.ts, src/proxy.ts, src/app/api/auth/** : mockés ici,
       //   couverts par Playwright ;
       // - pages, layout et composants React : couverts par Playwright ;
@@ -19,8 +20,9 @@ export default defineConfig({
       include: [
         'src/app/api/**/*.ts',
         'src/app/actions/**/*.ts',
+        'src/shared/**/*.ts',
         'src/lib/db.ts',
-        'src/lib/errors.ts',
+        'src/lib/note-sort.ts',
         'src/lib/ocr.ts',
         'src/lib/storage.ts',
       ],
