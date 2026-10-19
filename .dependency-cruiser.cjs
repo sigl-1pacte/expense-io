@@ -1,7 +1,6 @@
 // Règles de dépendance de l'architecture cible (spec, « Règles de dépendance »).
-// Plan 1 : en avertissement (les modules n'existent pas encore).
-// Plan 2 : SEVERITY passe à 'error' et la CI bloque.
-const SEVERITY = 'warn'
+// Plan 2 : bloquant (les modules existent, la CI échoue sur toute violation).
+const SEVERITY = 'error'
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
@@ -63,6 +62,14 @@ module.exports = {
       severity: SEVERITY,
       from: { path: '^src/worker/' },
       to: { path: '^src/', pathNot: ['^src/worker/', '^src/shared/(config|logger)\\.ts$'] },
+    },
+    {
+      name: 'pas-de-lib',
+      comment:
+        "Les modules n'importent jamais src/lib ; app/ n'y importe que lib/auth.ts (session).",
+      severity: SEVERITY,
+      from: { path: '^src/(modules|app)/' },
+      to: { path: '^src/lib/', pathNot: ['^src/lib/auth\\.ts$'] },
     },
     {
       name: 'pas-de-cycle',

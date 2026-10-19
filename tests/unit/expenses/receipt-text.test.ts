@@ -62,3 +62,12 @@ describe('suggestFromText — résultat et erreurs', () => {
     expect(suggestFromText('@@@ ###')).toEqual({})
   })
 })
+
+describe('suggestFromText — dates impossibles', () => {
+  it.each(['Total 5,00 le 31/02/2026', 'Total 5,00 le 2026-13-45', 'Total 5,00 le 31/02/26'])(
+    '%s : aucune date proposée',
+    (text) => {
+      expect(suggestFromText(text).expenseDate).toBeUndefined()
+    }
+  )
+})

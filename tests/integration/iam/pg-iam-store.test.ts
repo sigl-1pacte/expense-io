@@ -65,4 +65,14 @@ describe('iam sur Postgres', () => {
     expect(results).toContainEqual({ ok: true })
     expect(results).toContainEqual({ ok: false, error: 'Un compte existe déjà avec cet email.' })
   })
+
+  it('authenticate : identifiants valides, mauvais mot de passe, email inconnu', async () => {
+    await iam.signUp({ name: 'Auth', email: 'auth@credentials.fr', password: 'motdepasse' })
+    expect(await iam.authenticate('auth@credentials.fr', 'motdepasse')).toMatchObject({
+      email: 'auth@credentials.fr',
+      role: 'hr_admin',
+    })
+    expect(await iam.authenticate('auth@credentials.fr', 'mauvais')).toBeNull()
+    expect(await iam.authenticate('inconnu@credentials.fr', 'motdepasse')).toBeNull()
+  })
 })

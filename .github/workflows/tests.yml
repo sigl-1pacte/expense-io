@@ -25,6 +25,7 @@ jobs:
       - run: npm run typecheck
       - run: node scripts/agents-sync.mjs --check
       - run: npm run depcruise
+      - run: npm run check:sql
 
   vitest:
     name: Vitest (unitaires, intégration, couverture)

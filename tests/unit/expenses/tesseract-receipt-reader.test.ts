@@ -71,4 +71,14 @@ describe('TesseractReceiptReader (F17)', () => {
     expect(createWorker).toHaveBeenCalledOnce()
     expect(worker.recognize).toHaveBeenCalledTimes(2)
   })
+
+  it('une erreur de terminate ne masque pas l’erreur d’origine', async () => {
+    const broken = {
+      recognize: vi.fn().mockRejectedValue(new Error('crash')),
+      terminate: vi.fn().mockRejectedValue(new Error('terminate')),
+    }
+    vi.mocked(createWorker).mockResolvedValue(broken as unknown as TesseractWorker)
+    const reader = new TesseractReceiptReader({ maxConcurrency: 1 })
+    await expect(reader.recognize(new Uint8Array([1]))).rejects.toThrow('crash')
+  })
 })

@@ -24,6 +24,17 @@ describe('ExpenseNote', () => {
     expect(() => new ExpenseNote({ ...props, status }).decide('approved')).toThrow(AlreadyDecided)
   })
 
+  it('expose les propriétés de la note', () => {
+    const note = new ExpenseNote(props)
+    expect([note.id, note.userId, note.amount, note.expenseDate, note.receiptKey]).toEqual([
+      'n1',
+      'u1',
+      42.5,
+      '2026-10-08',
+      'receipts/1.png',
+    ])
+  })
+
   it('toDto : contrat HTTP historique', () => {
     expect(new ExpenseNote(props).toDto()).toEqual({
       id: 'n1',

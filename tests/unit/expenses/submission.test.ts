@@ -48,3 +48,9 @@ describe('receiptKeyFor', () => {
     expect(receiptKeyFor(7, { name: 'recu.bin', type })).toBe(key)
   })
 })
+
+describe('receiptKeyFor — type inconnu', () => {
+  it('retombe sur l’extension du nom de fichier', () => {
+    expect(receiptKeyFor(3, { name: 'scan.pdf', type: 'application/pdf' })).toBe('receipts/3.pdf')
+  })
+})
