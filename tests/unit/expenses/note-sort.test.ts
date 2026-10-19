@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseNoteSort } from '@/lib/note-sort'
+import { parseNoteSort } from '@/modules/expenses/domain/NoteSort'
 
 describe('parseNoteSort (F3)', () => {
   it.each<[string | null, string]>([

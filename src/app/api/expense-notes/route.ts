@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { withUserScope } from '@/lib/db'
-import { parseNoteSort } from '@/lib/note-sort'
+import { parseNoteSort } from '@/modules/expenses/domain/NoteSort'
 import { receiptKeyFor, uploadReceipt } from '@/lib/storage'
 import { InvalidInput } from '@/shared/errors'
 import {
