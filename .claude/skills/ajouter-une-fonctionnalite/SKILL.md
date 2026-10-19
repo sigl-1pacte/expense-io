@@ -21,10 +21,14 @@ Reformuler la demande en une phrase : *qui* fait *quoi*, sur *quelle ressource*,
 
 1. **Domaine** — la règle dans `src/modules/<module>/domain/`. Test unitaire d'abord (`tests/unit/<module>/`).
 2. **Use case** — `src/modules/<module>/application/<verbe-objet>.ts`, fabrique `(ports) => (actor, …) => …`. Test unitaire avec les faux de `tests/unit/<module>/` (`fakes.ts`, `fake-iam-store.ts`).
-3. **Port / adapter** si une techno nouvelle intervient (`ports/` + `infrastructure/`) ; nouvelle colonne ou table → migration `migrations/<timestamp>_<sujet>.sql` (rôle `expense_app` : penser au `GRANT`).
+3. **Port / adapter** si une techno nouvelle intervient (`ports/` + `infrastructure/`) ; nouvelle colonne ou table → migration `migrations/<timestamp>_<sujet>.sql` (rôle `expense_app` : penser au `GRANT`, exemples dans `migrations/1760600000000_rls-isolation.sql` et `migrations/1760600000002_users-column-grants.sql`).
 4. **Export** dans `src/modules/<module>/index.ts`.
 5. **Route** — adapter mince :
    ```ts
+   import { expenses } from '@/modules/expenses'
+   import { parseUuid, requireRole, route, type RouteContext } from '@/shared/http'
+   import { currentActor } from '../../../../_lib/current-actor' // chemin relatif vers src/app/api/_lib/current-actor.ts : la profondeur varie selon la route
+
    export const POST = route(async (request, { params }: RouteContext<{ id: string }>) => {
      const actor = await currentActor()
      requireRole(actor, 'manager')
@@ -52,7 +56,8 @@ Reformuler la demande en une phrase : *qui* fait *quoi*, sur *quelle ressource*,
 | décider « qui valide » soi-même | `iam.canDecide` / `iam.approveesOf` |
 | oublier l'OpenAPI | `docs/api/openapi.yaml` dans le même commit |
 | nouvelle colonne non accordée à `expense_app` | `GRANT` dans la migration |
-| requête hors unité de travail | `uow.run(actor, …)` (sinon la RLS ne voit rien) |
+| requête hors unité de travail | `uow.run(actor, …)` (`uow` = unité de travail injectée dans la fabrique du use case ; sinon la RLS ne voit rien) |
+| importer `src/lib/` depuis un module, ou autre chose que `src/lib/auth.ts` depuis `app/` | passer par un port ou `@/shared/*` |
 
 ## Résumé final (format attendu)
 

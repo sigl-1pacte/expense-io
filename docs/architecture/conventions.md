@@ -21,6 +21,7 @@ Référence courte pour ajouter du code au bon endroit. Le pourquoi est dans l'[
 - `domain` n'importe que son domaine, `@/shared/actor` et `@/shared/errors`.
 - `application` n'importe que `domain`, `ports`, `@/shared/*` et l'`index.ts` d'un autre module ; jamais `pg`, `@aws-sdk`, `tesseract.js`, `bcryptjs`, `next`.
 - Un module n'en voit un autre que par son `index.ts` ; pour un besoin récurrent, un port dans le module appelant (ex. `expenses/ports/Approvals.ts`), câblé dans son `index.ts`.
+- Un module n'importe jamais `src/lib/` ; `app/` n'importe de `src/lib/` que `auth.ts` (session).
 - Le SQL d'un module ne nomme que ses tables (`iam` : `users`, `companies` ; `expenses` : `expense_notes`).
 
 ## Qui valide quoi

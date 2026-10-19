@@ -17,7 +17,7 @@ Monolithe modulaire hexagonal ([ADR 0002](docs/adrs/0002-monolithe-modulaire-hex
 
 Recette et emplacements détaillés : [docs/architecture/conventions.md](docs/architecture/conventions.md).
 
-Règles de dépendance (vérifiées par `npm run depcruise`) : `domain` n'importe rien ; `application` n'importe que `domain`, `ports`, `shared` et l'`index.ts` d'un autre module ; un module n'en voit un autre que par son `index.ts` ; `app/` n'importe que des `index.ts` et `shared` ; `worker/` n'importe que `shared/config` et `shared/logger`. Le SQL d'`expenses` ne touche jamais `users` ni `companies` (vérifié par `npm run check:sql`, ajouté au plan 2).
+Règles de dépendance (vérifiées par `npm run depcruise`) : `domain` n'importe que son domaine, `shared/actor` et `shared/errors` ; `application` n'importe que `domain`, `ports`, `shared` et l'`index.ts` d'un autre module ; un module n'en voit un autre que par son `index.ts` ; `app/` n'importe que des `index.ts`, `shared`, `src/app/api/_lib` et `src/lib/auth.ts` (jamais le reste de `src/lib/`, jamais depuis un module) ; `worker/` n'importe que `shared/config` et `shared/logger`. Le SQL d'`expenses` ne touche jamais `users` ni `companies` (vérifié par `npm run check:sql`, ajouté au plan 2).
 
 ## Commandes
 
