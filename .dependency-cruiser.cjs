@@ -64,11 +64,17 @@ module.exports = {
       to: { path: '^src/', pathNot: ['^src/worker/', '^src/shared/(config|logger)\\.ts$'] },
     },
     {
-      name: 'pas-de-lib',
-      comment:
-        "Les modules n'importent jamais src/lib ; app/ n'y importe que lib/auth.ts (session).",
+      name: 'modules-sans-lib',
+      comment: "Un module n'importe jamais src/lib (pas même auth.ts).",
       severity: SEVERITY,
-      from: { path: '^src/(modules|app)/' },
+      from: { path: '^src/modules/' },
+      to: { path: '^src/lib/' },
+    },
+    {
+      name: 'app-sans-lib',
+      comment: "app/ n'importe de src/lib que auth.ts (session).",
+      severity: SEVERITY,
+      from: { path: '^src/app/' },
       to: { path: '^src/lib/', pathNot: ['^src/lib/auth\\.ts$'] },
     },
     {
