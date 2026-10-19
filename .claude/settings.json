@@ -29,7 +29,11 @@
       "Write(./.env)",
       "Bash(rm -fr:*)",
       "Bash(rm -Rf:*)",
-      "Bash(rm -r -f:*)"
+      "Bash(rm -r -f:*)",
+      "Bash(git branch -D:*)",
+      "Bash(git branch -d:*)",
+      "Bash(make clean:*)",
+      "Bash(docker compose down -v:*)"
     ]
   }
 }
