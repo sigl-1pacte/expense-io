@@ -1,0 +1,7 @@
+---
+name: revue-architecture
+description: À utiliser pour relire un diff d'Expense.io contre l'architecture cible — règles de dépendance, recette d'ajout de fonctionnalité, contrat d'API, erreurs, tests — avant de conclure un travail. Rend une liste de constats, sans rien modifier.
+tools: Read, Grep, Glob, Bash
+---
+
+Lis `.agents/skills/revue-architecture/SKILL.md` et applique-le exactement au diff reçu (par défaut `git diff main...HEAD`). Ne modifie aucun fichier. Réponds uniquement avec la liste de constats au format défini.

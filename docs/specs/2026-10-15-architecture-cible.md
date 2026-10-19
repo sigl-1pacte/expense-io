@@ -170,7 +170,7 @@ Tout se fait dans une transaction, **sérialisée par entreprise**.
 1. La cible appartient à l'entreprise du RH et a le rôle `employee` ou `manager`. Sinon : `404`.
 2. Si `managerId ≠ null` :
    - le manager est de la même entreprise et a le rôle `manager`, sinon `409 invalid-manager` ;
-   - il est différent de la cible et ne fait pas partie de ses descendants (`WITH RECURSIVE` sur `manager_id`), sinon `409 invalid-manager`.
+   - il est différent de la cible et ne fait pas partie de ses descendants (parcours de la chaîne des managers dans le domaine `iam`, sur les membres chargés sous le verrou d'organigramme), sinon `409 invalid-manager`.
 3. On fait l'`UPDATE` et on renvoie le même corps qu'aujourd'hui.
 
 ### `decideExpenseNote` (F9, F15)
@@ -520,7 +520,7 @@ Chacun des 46 constats de l'audit QA est soit **traité** (avec le plan qui le c
 | F27 401 et 403 incohérents | Faible | traité · plan 1 | `shared/http` |
 | F28 Décisions irréversibles, sans piste d'audit | Faible | hors périmètre | fonctionnalité |
 | F29 Défauts d'affichage | Faible | hors périmètre | cosmétique ; l'UI reste libre pour le live coding |
-| F30 Cycle dans l'organigramme | Élevé | traité · plan 2 | `assignManager` (`WITH RECURSIVE`, sous un verrou d'organigramme par entreprise) |
+| F30 Cycle dans l'organigramme | Élevé | traité · plan 2 | `assignManager` (parcours de l'organigramme sous un verrou par entreprise) |
 | F31 Rôle figé dans le JWT | Moyen | traité · plan 2 | `getActor` relu à chaque requête |
 | F32 `expenseDate` non validée | Moyen | hors périmètre | resserrement des validations ; la 500 perd sa stack |
 | F33 Employé sans manager, notes sans validateur | Moyen | traité · plan 2 | `ApprovalPolicy` ; suppose F4 |
