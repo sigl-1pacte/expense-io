@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { getPool, withUserScope } from '@/lib/db'
 import { countRows, createNote, createOrg } from '../../support/factories'
 
@@ -65,6 +65,15 @@ describe('withUserScope', () => {
 })
 
 describe('Row Level Security', () => {
+  it("n'avertit pas d'un contournement de la RLS avec le rôle de test (expense_app)", async () => {
+    vi.resetModules()
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const { withUserScope: fresh } = await import('@/lib/db')
+    const { employee } = await createOrg()
+    await fresh(employee.id, async () => undefined)
+    expect(log.mock.calls.filter((c) => String(c[0]).includes('contourne la RLS'))).toHaveLength(0)
+  })
+
   it("l'application se connecte avec un rôle soumis à la RLS (F2)", async () => {
     const { rows } = await getPool().query<{ rolsuper: boolean; rolbypassrls: boolean }>(
       'SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user'

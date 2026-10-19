@@ -1,5 +1,6 @@
 import { Pool, types, type PoolClient } from 'pg'
 import { Unauthenticated } from '@/shared/errors'
+import { logger } from '@/shared/logger'
 
 // OID 1082 = date. Garde la chaîne "YYYY-MM-DD" brute renvoyée par Postgres
 // plutôt qu'un objet Date JS calé sur le fuseau local.
@@ -20,6 +21,29 @@ export function getPool(): Pool {
   return global.__pgPool
 }
 
+let rlsBypassChecked = false
+
+/**
+ * Une fois par process : prévient si DATABASE_URL pointe un rôle qui contourne
+ * la RLS (superutilisateur ou BYPASSRLS), ce qui ruinerait l'isolation. Ne lève jamais.
+ */
+async function warnIfRlsBypassed(client: PoolClient): Promise<void> {
+  if (rlsBypassChecked) return
+  rlsBypassChecked = true
+  try {
+    const { rows } = await client.query<{ bypass: boolean }>(
+      'SELECT rolsuper OR rolbypassrls AS bypass FROM pg_roles WHERE rolname = current_user'
+    )
+    if (rows[0]?.bypass) {
+      logger.warn(
+        'DATABASE_URL utilise un rôle qui contourne la RLS : mettre à jour .env (voir docs/runbooks/dev-environnement-demarrer.md)'
+      )
+    }
+  } catch {
+    // Contrôle de confort : un échec ici ne doit pas faire échouer la requête.
+  }
+}
+
 /**
  * Pose le contexte utilisateur pour la durée de la transaction — l'isolation
  * entre utilisateurs et entre entreprises est garantie par PostgreSQL (Row
@@ -32,7 +56,9 @@ export async function withUserScope<T>(
 ): Promise<T> {
   const pool = getPool()
   const client = await pool.connect()
+  let rollbackFailed = false
   try {
+    await warnIfRlsBypassed(client)
     await client.query('BEGIN')
     // L'entreprise de l'acteur sert à l'isolation RLS (company_id). Acteur
     // supprimé : la session ne vaut plus rien, 401.
@@ -49,9 +75,15 @@ export async function withUserScope<T>(
     await client.query('COMMIT')
     return result
   } catch (error) {
-    await client.query('ROLLBACK')
+    // Un ROLLBACK qui échoue ne doit pas masquer l'erreur d'origine.
+    try {
+      await client.query('ROLLBACK')
+    } catch {
+      rollbackFailed = true
+    }
     throw error
   } finally {
-    client.release()
+    // Connexion dans un état inconnu : on la détruit au lieu de la rendre au pool.
+    client.release(rollbackFailed ? true : undefined)
   }
 }
