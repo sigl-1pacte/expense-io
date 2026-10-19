@@ -10,6 +10,13 @@ type Worker = Awaited<ReturnType<typeof createWorker>>
 
 const TESSDATA_PATH = path.join(process.cwd(), 'tessdata')
 const RETRY_AFTER_SECONDS = 5
+const DEFAULT_MAX_CONCURRENCY = 2
+
+/** Entier >= 1, sinon la valeur par défaut (une valeur absurde ne doit pas désactiver l'OCR). */
+export function parseMaxConcurrency(raw: string | undefined): number {
+  const value = Number(raw)
+  return raw && Number.isInteger(value) && value >= 1 ? value : DEFAULT_MAX_CONCURRENCY
+}
 
 export class TesseractReceiptReader implements ReceiptReader {
   private readonly maxConcurrency: number
@@ -19,7 +26,7 @@ export class TesseractReceiptReader implements ReceiptReader {
   private active = 0
 
   constructor(options: { maxConcurrency?: number; queueTimeoutMs?: number } = {}) {
-    this.maxConcurrency = options.maxConcurrency ?? Number(process.env.OCR_MAX_CONCURRENCY ?? 2)
+    this.maxConcurrency = options.maxConcurrency ?? parseMaxConcurrency(process.env.OCR_MAX_CONCURRENCY)
     this.queueTimeoutMs = options.queueTimeoutMs ?? 30_000
   }
 
