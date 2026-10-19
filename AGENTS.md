@@ -10,10 +10,10 @@ Expense.io : notes de frais (soumission, validation par le manager ou les RH, re
 
 Monolithe modulaire hexagonal ([ADR 0002](docs/adrs/0002-monolithe-modulaire-hexagonal.md), [schéma](docs/architecture/architecture-cible.html), [spec](docs/specs/2026-10-15-architecture-cible.md)) :
 
-- `src/modules/<module>/{domain,application,ports,infrastructure}` + `index.ts` (API publique). Modules : `expenses`, `iam`.
-- `src/shared/` : config, erreurs, problem (RFC 9457), logger, http, unité de travail, mail.
+- `src/modules/<module>/{domain,application,ports,infrastructure}` + `index.ts` (API publique). Modules : `expenses`, `iam`. **(cible, plans 2 et 3 : n'existe pas encore)**
+- `src/shared/` : config, erreurs, problem (RFC 9457), logger, http (existants) ; unité de travail, mail **(cible, plans 2 et 3 : pas encore)**.
 - `src/app/api/**/route.ts` : adapters d'entrée minces (parse → use case → HTTP).
-- `src/worker/` : worker de livraison des e-mails, hors de l'hexagone.
+- `src/worker/` : worker de livraison des e-mails, hors de l'hexagone **(cible, plan 3 : pas encore)**.
 
 Règles de dépendance (vérifiées par `npm run depcruise`) : `domain` n'importe rien ; `application` n'importe que `domain`, `ports`, `shared` et l'`index.ts` d'un autre module ; un module n'en voit un autre que par son `index.ts` ; `app/` n'importe que des `index.ts` et `shared` ; `worker/` n'importe que `shared/config` et `shared/logger`. Le SQL d'`expenses` ne touche jamais `users` ni `companies` (vérifié par `npm run check:sql`, ajouté au plan 2).
 
@@ -26,7 +26,7 @@ Règles de dépendance (vérifiées par `npm run depcruise`) : `domain` n'import
 
 ## Règles
 
-- Le contrat d'API (`docs/api/openapi.yaml`) ne change pas, sauf ajout. Toute nouvelle route ou réponse y est décrite dans le même commit.
+- Le contrat d'API (`docs/api/openapi.yaml`) ne change pas, sauf ajout. Toute nouvelle route ou réponse y est décrite dans le même commit. Tout changement de contrat est consigné dans `CHANGELOG.md`.
 - Erreurs : lever une erreur typée de `src/shared/errors.ts` ; jamais de `Response.json({ error })` à la main.
 - Pas de stack ni de message interne dans une réponse HTTP.
 - Tests : un test qui échoue avant tout code (TDD). Un défaut figé par un test `[as-is]` se corrige en modifiant ce test.

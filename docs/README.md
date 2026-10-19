@@ -22,6 +22,7 @@ _Mis à jour le 16/10/2026._
   les plans de la refacto. Voir [À venir](#à-venir).
 - **ADR 0001 à 0004 écrites** : voir [adrs/](adrs/README.md).
 - **Plan 1 terminé** (socle et harnais agent) : SonarQube (mesures « avant » dans [audit/sonarqube-avant-apres.md](audit/sonarqube-avant-apres.md)), contrat OpenAPI vérifié en CI, erreurs RFC 9457, rôle expense_app et RLS d'isolation, F1, F3, F16, F25–F27, F34, F41–F44 corrigés.
+- Les écarts du contrat d'API sont consignés dans le [`CHANGELOG.md`](../CHANGELOG.md) à la racine.
 
 ## Par où commencer
 

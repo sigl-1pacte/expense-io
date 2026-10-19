@@ -15,6 +15,7 @@ Démarrer l'application en local avec des données de démonstration, en une com
 
 - Docker, Node 24, `make` (Git Bash sous Windows).
 - Un `.env` créé avant le 16/10/2026 doit reprendre `MIGRATION_DATABASE_URL` et le nouveau `DATABASE_URL` de `.env.example`.
+- `MIGRATION_DATABASE_URL` doit désigner un superutilisateur (ou un rôle `BYPASSRLS`) : `expense_notes` est en `FORCE ROW LEVEL SECURITY`, donc le seed et les migrations ne passent pas avec un rôle soumis à la RLS. `DATABASE_URL`, lui, doit rester `expense_app` ; l'application avertit au premier accès si ce n'est pas le cas.
 
 ## Procédure
 

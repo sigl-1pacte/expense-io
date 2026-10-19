@@ -25,4 +25,5 @@ Nous choisissons **3**. `docs/api/openapi.yaml` est la référence ; `oasdiff br
 
 - **Positives :** clients existants intacts ; erreurs typées et traduites à un seul endroit (`src/shared/http.ts`).
 - **Négatives :** le champ `error` est redondant avec `detail`, tant qu'un client l'utilise.
+- **F34 :** un corps sans `Content-Length` n'est pas refusé d'emblée : il est lu en flux et coupé à la limite, ce qui offre une protection équivalente (400 « trop volumineux ») sans casser les clients qui n'envoient pas l'en-tête.
 - **Suivi :** retirer `error` dans une version majeure, une fois les clients migrés vers `detail`.
