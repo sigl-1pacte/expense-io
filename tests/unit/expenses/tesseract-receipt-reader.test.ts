@@ -26,7 +26,7 @@ describe('TesseractReceiptReader (F17)', () => {
     expect(await reader.recognize(new Uint8Array([1]))).toBe('TOTAL 1,00')
     expect(await reader.recognize(new Uint8Array([2]))).toBe('TOTAL 1,00')
     expect(createWorker).toHaveBeenCalledOnce()
-    expect(createWorker).toHaveBeenCalledWith('fra', undefined, { langPath: expect.stringMatching(/tessdata$/) })
+    expect(createWorker).toHaveBeenCalledWith('fra', undefined, { langPath: expect.stringMatching(/tessdata$/), cacheMethod: 'none' })
     expect(worker.terminate).not.toHaveBeenCalled()
   })
 

@@ -26,7 +26,7 @@ export class TesseractReceiptReader implements ReceiptReader {
   async recognize(image: Uint8Array): Promise<string> {
     await this.acquire()
     try {
-      const worker = this.idle.pop() ?? (await createWorker('fra', undefined, { langPath: TESSDATA_PATH }))
+      const worker = this.idle.pop() ?? (await createWorker('fra', undefined, { langPath: TESSDATA_PATH, cacheMethod: 'none' }))
       try {
         const {
           data: { text },
