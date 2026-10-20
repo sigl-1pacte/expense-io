@@ -4,7 +4,7 @@ type UserRole = 'employee' | 'manager' | 'hr_admin'
 
 declare module 'next-auth' {
   interface User {
-    role: UserRole
+    role?: UserRole
   }
 
   interface Session {
@@ -18,6 +18,5 @@ declare module 'next-auth' {
 declare module 'next-auth/jwt' {
   interface JWT {
     id?: string
-    role?: UserRole
   }
 }

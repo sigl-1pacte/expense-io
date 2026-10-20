@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { problemMessage } from '@/components/problem-message'
 
 interface ExpenseNote {
   id: string
@@ -91,12 +92,7 @@ export default function ExpensesPage() {
       setSuggestionNotice(null)
       await loadNotes()
     } else {
-      const body = await response.json().catch(() => null)
-      setError(
-        typeof body?.error === 'string'
-          ? body.error
-          : 'Échec de la soumission de la note de frais.'
-      )
+      setError(await problemMessage(response, 'Échec de la soumission de la note de frais.'))
     }
   }
 

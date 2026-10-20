@@ -100,7 +100,8 @@ describe('requireSession / requireRole', () => {
   })
 
   it('mauvais rôle : Forbidden (403)', () => {
-    expect(() => requireRole({ id: 'u', email: 'e', role: 'employee' }, 'manager')).toThrow(
+    const user = { id: 'u', email: 'e', role: 'employee' as const }
+    expect(() => requireRole(user, 'manager')).toThrow(
       expect.objectContaining({ status: 403 })
     )
   })

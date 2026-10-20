@@ -1,7 +1,6 @@
 // Règles de dépendance de l'architecture cible (spec, « Règles de dépendance »).
-// Plan 1 : en avertissement (les modules n'existent pas encore).
-// Plan 2 : SEVERITY passe à 'error' et la CI bloque.
-const SEVERITY = 'warn'
+// Plan 2 : bloquant (les modules existent, la CI échoue sur toute violation).
+const SEVERITY = 'error'
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
@@ -11,7 +10,17 @@ module.exports = {
       comment: "Le domaine n'importe que son propre domaine (et Node).",
       severity: SEVERITY,
       from: { path: '^src/modules/([^/]+)/domain/' },
-      to: { pathNot: '^src/modules/$1/domain/', dependencyTypesNot: ['core'] },
+      to: {
+        pathNot: ['^src/modules/$1/domain/', '^src/shared/(actor|errors)\\.ts$'],
+        dependencyTypesNot: ['core'],
+      },
+    },
+    {
+      name: 'shared-autonome',
+      comment: 'shared/ ne dépend que de lui-même (et de lib/auth pour la session).',
+      severity: SEVERITY,
+      from: { path: '^src/shared/' },
+      to: { path: '^src/', pathNot: ['^src/shared/', '^src/lib/auth\\.ts$'] },
     },
     {
       name: 'application-sans-infrastructure',
@@ -53,6 +62,20 @@ module.exports = {
       severity: SEVERITY,
       from: { path: '^src/worker/' },
       to: { path: '^src/', pathNot: ['^src/worker/', '^src/shared/(config|logger)\\.ts$'] },
+    },
+    {
+      name: 'modules-sans-lib',
+      comment: "Un module n'importe jamais src/lib (pas même auth.ts).",
+      severity: SEVERITY,
+      from: { path: '^src/modules/' },
+      to: { path: '^src/lib/' },
+    },
+    {
+      name: 'app-sans-lib',
+      comment: "app/ n'importe de src/lib que auth.ts (session).",
+      severity: SEVERITY,
+      from: { path: '^src/app/' },
+      to: { path: '^src/lib/', pathNot: ['^src/lib/auth\\.ts$'] },
     },
     {
       name: 'pas-de-cycle',

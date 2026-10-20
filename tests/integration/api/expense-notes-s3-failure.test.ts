@@ -1,23 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
 import { POST } from '@/app/api/expense-notes/route'
-import { uploadReceipt } from '@/lib/storage'
-import { testDb } from '../../support/db'
-import { createOrg } from '../../support/factories'
+import { S3ReceiptStorage } from '@/modules/expenses/infrastructure/S3ReceiptStorage'
+import { countRows, createOrg } from '../../support/factories'
 import { expectProblem, multipart, receiptFile } from '../helpers/http'
 import { actAs } from '../helpers/session'
 
-// Mock partiel, limité à ce fichier : le vrai uploadReceipt reste
-// l'implémentation par défaut (restaurée par vi.resetAllMocks entre tests).
-vi.mock('@/lib/storage', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/storage')>()
-  return { ...actual, uploadReceipt: vi.fn(actual.uploadReceipt) }
-})
-
-describe('POST /api/expense-notes — panne du stockage', () => {
-  it('[as-is] la note reste en base avec receipt_key vide et la réponse est une 500 (audit §5)', async () => {
+describe('POST /api/expense-notes — panne du stockage (F10)', () => {
+  it('502, aucune note créée', async () => {
     const { employee } = await createOrg()
     actAs(employee)
-    vi.mocked(uploadReceipt).mockRejectedValueOnce(new Error('S3 indisponible'))
+    vi.spyOn(S3ReceiptStorage.prototype, 'upload').mockRejectedValueOnce(new Error('S3 indisponible'))
     const response = await POST(
       multipart('/api/expense-notes', {
         amount: '42.5',
@@ -26,8 +18,7 @@ describe('POST /api/expense-notes — panne du stockage', () => {
         receipt: receiptFile(),
       })
     )
-    await expectProblem(response, 500, 'Erreur interne')
-    const { rows } = await testDb().query('SELECT receipt_key, status FROM expense_notes')
-    expect(rows).toEqual([{ receipt_key: '', status: 'pending' }])
+    await expectProblem(response, 502, 'Stockage des reçus indisponible')
+    expect(await countRows('expense_notes')).toBe(0)
   })
 })

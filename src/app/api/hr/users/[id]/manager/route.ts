@@ -1,13 +1,7 @@
-import { withUserScope } from '@/lib/db'
-import { Conflict, InvalidInput, NotFound } from '@/shared/errors'
-import {
-  parseUuid,
-  readJsonObject,
-  requireRole,
-  requireSession,
-  route,
-  type RouteContext,
-} from '@/shared/http'
+import { iam } from '@/modules/iam'
+import { InvalidInput } from '@/shared/errors'
+import { parseUuid, readJsonObject, requireRole, route, type RouteContext } from '@/shared/http'
+import { currentActor } from '../../../../_lib/current-actor'
 
 /** F41 : la clé `managerId` est obligatoire ; `null` détache explicitement. */
 function managerIdFrom(body: Record<string, unknown>): string | null {
@@ -23,44 +17,9 @@ function managerIdFrom(body: Record<string, unknown>): string | null {
 }
 
 export const PUT = route(async (request, { params }: RouteContext<{ id: string }>) => {
-  const user = await requireSession()
-  requireRole(user, 'hr_admin')
+  const actor = await currentActor()
+  requireRole(actor, 'hr_admin')
   const id = parseUuid((await params).id)
   const managerId = managerIdFrom(await readJsonObject(request))
-
-  // Une seule portée : la transaction de l'opération ; F5 et F30 au plan 2 (assignManager).
-  return withUserScope(user.id, async (client) => {
-    const hrAdminResult = await client.query('SELECT company_id FROM users WHERE id = $1', [user.id])
-    const companyId = hrAdminResult.rows[0]?.company_id
-    if (!companyId) throw new NotFound()
-
-    const targetResult = await client.query(
-      `SELECT id FROM users WHERE id = $1 AND company_id = $2 AND role IN ('employee', 'manager')`,
-      [id, companyId]
-    )
-    if (!targetResult.rows[0]) throw new NotFound()
-
-    if (managerId !== null) {
-      if (managerId === id) throw new Conflict('invalid-manager', 'Invalid manager')
-      const managerResult = await client.query(
-        `SELECT id FROM users WHERE id = $1 AND role = 'manager'`,
-        [managerId]
-      )
-      if (!managerResult.rows[0]) throw new Conflict('invalid-manager', 'Invalid manager')
-    }
-
-    const updated = await client.query(
-      `UPDATE users SET manager_id = $1 WHERE id = $2
-       RETURNING id, name, email, role, manager_id`,
-      [managerId, id]
-    )
-    const target = updated.rows[0]
-    return Response.json({
-      id: target.id,
-      name: target.name,
-      email: target.email,
-      role: target.role,
-      managerId: target.manager_id,
-    })
-  })
+  return Response.json(await iam.assignManager(actor, id, managerId))
 })

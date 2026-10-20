@@ -46,20 +46,22 @@ describe('GET /api/hr/expense-notes', () => {
     })
   })
 
-  it('exclut employés, managers rattachés, notes décidées, notes RH et autres entreprises', async () => {
+  it('contient managers racines, non rattachés et autres RH ; exclut le reste', async () => {
     const org = await createOrg()
     const expected = await createNote({ user: org.manager })
     await createNote({ user: org.manager, status: 'approved' })
     await createNote({ user: org.manager, status: 'rejected' })
     await createNote({ user: org.employee })
-    await createNote({ user: await createUser({ company: org.company }) })
+    const looseNote = await createNote({ user: await createUser({ company: org.company }) })
     await createNote({
       user: await createUser({ company: org.company, role: 'manager', manager: org.manager }),
     })
+    const otherHr = await createUser({ company: org.company, role: 'hr_admin' })
+    const otherHrNote = await createNote({ user: otherHr })
     await createNote({ user: org.hr })
     await createNote({ user: (await createOrg()).manager })
     actAs(org.hr)
-    expect(await queueIds()).toEqual([expected.id])
+    expect(new Set(await queueIds())).toEqual(new Set([expected.id, looseNote.id, otherHrNote.id]))
   })
 
   it("session d'une RH supprimée → 401", async () => {

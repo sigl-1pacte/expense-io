@@ -10,12 +10,14 @@ Expense.io : notes de frais (soumission, validation par le manager ou les RH, re
 
 Monolithe modulaire hexagonal ([ADR 0002](docs/adrs/0002-monolithe-modulaire-hexagonal.md), [schéma](docs/architecture/architecture-cible.html), [spec](docs/specs/2026-10-15-architecture-cible.md)) :
 
-- `src/modules/<module>/{domain,application,ports,infrastructure}` + `index.ts` (API publique). Modules : `expenses`, `iam`. **(cible, plans 2 et 3 : n'existe pas encore)**
-- `src/shared/` : config, erreurs, problem (RFC 9457), logger, http (existants) ; unité de travail, mail **(cible, plans 2 et 3 : pas encore)**.
+- `src/modules/<module>/{domain,application,ports,infrastructure}` + `index.ts` (API publique). Modules : `expenses`, `iam`.
+- `src/shared/` : config, erreurs, problem (RFC 9457), logger, http, unité de travail ; mail **(cible, plan 3 : pas encore)**.
 - `src/app/api/**/route.ts` : adapters d'entrée minces (parse → use case → HTTP).
 - `src/worker/` : worker de livraison des e-mails, hors de l'hexagone **(cible, plan 3 : pas encore)**.
 
-Règles de dépendance (vérifiées par `npm run depcruise`) : `domain` n'importe rien ; `application` n'importe que `domain`, `ports`, `shared` et l'`index.ts` d'un autre module ; un module n'en voit un autre que par son `index.ts` ; `app/` n'importe que des `index.ts` et `shared` ; `worker/` n'importe que `shared/config` et `shared/logger`. Le SQL d'`expenses` ne touche jamais `users` ni `companies` (vérifié par `npm run check:sql`, ajouté au plan 2).
+Recette et emplacements détaillés : [docs/architecture/conventions.md](docs/architecture/conventions.md).
+
+Règles de dépendance (vérifiées par `npm run depcruise`) : `domain` n'importe que son domaine, `shared/actor` et `shared/errors` ; `application` n'importe que `domain`, `ports`, `shared` et l'`index.ts` d'un autre module ; un module n'en voit un autre que par son `index.ts` ; `app/` n'importe que des `index.ts`, `shared`, `src/app/api/_lib`, `src/components` et `src/lib/auth.ts` (jamais le reste de `src/lib/`, jamais depuis un module) ; `worker/` n'importe que `shared/config` et `shared/logger`. Le SQL d'`expenses` ne touche jamais `users` ni `companies` (vérifié par `npm run check:sql`, ajouté au plan 2).
 
 ## Commandes
 
@@ -47,14 +49,17 @@ Toute la doc vit dans `docs/`, en français, rangée par type ([`docs/README.md`
 - `superpowers:writing-plans` → plan dans `docs/plans/YYYY-MM-DD-<sujet>.md`, d'après `docs/plans/plan-template.md`. Jamais `docs/superpowers/plans/`.
 - Les décisions transverses sont extraites en ADR dans `docs/adrs/`.
 
-## Skills
+## Skills et sous-agents
 
-Skills du projet au format Agent Skills dans `.agents/skills/<nom>/SKILL.md`, copiés vers `.claude/skills/` par `npm run agents:sync` (pas de lien symbolique : clones Windows, [ADR 0001](docs/adrs/0001-structure-de-la-doc-et-harnais-agent.md)). Après toute modification d'un skill, lancer `npm run agents:sync`.
+Skills au format Agent Skills dans `.agents/skills/<nom>/SKILL.md`, copiés vers `.claude/skills/` par `npm run agents:sync` (pas de lien symbolique : clones Windows, [ADR 0001](docs/adrs/0001-structure-de-la-doc-et-harnais-agent.md)). Après toute modification d'un skill, lancer `npm run agents:sync`.
 
 | Skill | Quand |
 |---|---|
-| `utiliser-la-doc` | avant d'écrire ou de modifier un document de `docs/` |
+| `ajouter-une-fonctionnalite` | **toute demande de fonctionnalité** (y compris en un prompt, en démo) |
 | `verifier-avant-de-livrer` | avant de déclarer un travail terminé |
+| `utiliser-la-doc` | avant d'écrire ou de modifier un document de `docs/` |
+
+Sous-agent `revue-architecture` (méthode dans `.agents/skills/revue-architecture/`, définitions minces dans `.claude/agents/`, `.opencode/agents/`, `.codex/agents/`, mêmes nom et description) : le lancer sur le diff avant de conclure une fonctionnalité.
 
 ## Préférences personnelles
 

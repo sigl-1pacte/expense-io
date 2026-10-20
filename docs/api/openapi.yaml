@@ -26,13 +26,19 @@ info:
 
     ## Circuit de validation
 
+    Qui valide qui est décidé en un seul endroit (règle `ApprovalPolicy`) :
+
     - Une note d'un utilisateur ayant un manager est tranchée par **ce
-      manager** (`/api/manager/*`).
-    - Une note d'un **manager racine** (rôle `manager`, sans manager
-      assigné) est tranchée par un **RH de la même entreprise**
-      (`/api/hr/*`).
+      manager direct** (`/api/manager/*`) ; un manager ne voit pas les
+      subordonnés de ses subordonnés.
+    - Sinon, elle est tranchée par **les RH de la même entreprise**
+      (`/api/hr/*`). Cela couvre les managers racines, les employés non
+      rattachés et les autres RH.
+    - Personne ne valide sa propre note : un RH seul dans son entreprise n'a
+      pas de validateur.
     - Une note n'est tranchée qu'une fois : `pending` → `approved` ou
-      `rejected`, sinon `409 Already decided`.
+      `rejected`, sinon `409 Already decided`. Deux décisions simultanées
+      sur la même note donnent un `200` et un `409`.
 
     ## Erreurs
 
@@ -306,6 +312,13 @@ paths:
                   value: { error: Fichier trop volumineux }
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '502':
+          description: Stockage des reçus indisponible ; aucune note n'est créée.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example: { error: Stockage des reçus indisponible }
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -317,7 +330,8 @@ paths:
       description: |
         Analyse le reçu par OCR (Tesseract, langue française) sans rien
         enregistrer. Seuls PNG, JPEG et WebP sont analysés ; tout autre type,
-        ou un échec de l'OCR, renvoie `{}`. Taille limitée à 10 Mio.
+        ou un échec de l'OCR, renvoie `{}`. Taille limitée à 10 Mio (400 au-delà,
+        sans analyse). Si l'analyse est saturée, 503 avec `Retry-After`.
       requestBody:
         required: true
         content:
@@ -355,6 +369,18 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+        '503':
+          description: Analyse de reçu momentanément saturée ; réessayer après le délai indiqué.
+          headers:
+            Retry-After:
+              description: Délai conseillé avant de réessayer, en secondes.
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example: { error: 'Analyse de reçu momentanément saturée, réessaie dans quelques secondes.' }
 
   /api/expense-notes/{id}/receipt-url:
     get:
@@ -371,7 +397,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
-          description: Note inexistante ou n'appartenant pas à l'utilisateur.
+          description: Note d'un autre utilisateur, inconnue, ou sans reçu.
           content:
             application/problem+json:
               schema:
@@ -407,6 +433,7 @@ paths:
       tags: [Manager]
       operationId: managerApproveExpenseNote
       summary: Approuver une note d'un subordonné direct
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`.
       parameters:
         - $ref: '#/components/parameters/NoteId'
       responses:
@@ -430,6 +457,7 @@ paths:
       tags: [Manager]
       operationId: managerRejectExpenseNote
       summary: Rejeter une note d'un subordonné direct
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`.
       parameters:
         - $ref: '#/components/parameters/NoteId'
       responses:
@@ -479,8 +507,8 @@ paths:
     get:
       tags: [RH]
       operationId: listRootManagerPendingExpenseNotes
-      summary: Lister les notes en attente des managers racines
-      description: Notes `pending` des managers sans manager assigné, de la même entreprise que le RH connecté, de la plus ancienne à la plus récente.
+      summary: Lister les notes en attente dont la RH est validatrice
+      description: Notes `pending` des utilisateurs de l'entreprise sans manager assigné (managers racines, employés non rattachés, autres RH), à l'exclusion des notes de la RH connectée, de la plus ancienne à la plus récente.
       responses:
         '200':
           description: Notes en attente.
@@ -501,7 +529,8 @@ paths:
     post:
       tags: [RH]
       operationId: hrApproveExpenseNote
-      summary: Approuver une note d'un manager racine
+      summary: Approuver une note dont la RH est validatrice
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`.
       parameters:
         - $ref: '#/components/parameters/NoteId'
       responses:
@@ -524,7 +553,8 @@ paths:
     post:
       tags: [RH]
       operationId: hrRejectExpenseNote
-      summary: Rejeter une note d'un manager racine
+      summary: Rejeter une note dont la RH est validatrice
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`.
       parameters:
         - $ref: '#/components/parameters/NoteId'
       responses:
@@ -547,7 +577,7 @@ paths:
     get:
       tags: [RH]
       operationId: hrGetReceiptUrl
-      summary: Obtenir l'URL du reçu d'une note d'un manager racine
+      summary: Obtenir l'URL du reçu d'une note dont la RH est validatrice
       description: Fonctionne quel que soit le statut de la note.
       parameters:
         - $ref: '#/components/parameters/NoteId'
@@ -651,7 +681,8 @@ paths:
             Manager invalide : `managerId` ne désigne pas, dans l'entreprise
             du RH, un utilisateur de rôle `manager` (un manager d'une autre
             entreprise est invisible, donc refusé), ou l'utilisateur serait
-            son propre manager.
+            son propre manager, ou le rattachement fermerait un cycle
+            d'organigramme (direct ou long).
           content:
             application/problem+json:
               schema:
@@ -826,7 +857,7 @@ components:
           example: { error: Not found }
 
     RootManagerNoteNotInScope:
-      description: Note inexistante, ou dont l'auteur n'est pas un manager racine de l'entreprise du RH.
+      description: Note inexistante, ou dont la RH n'est pas validatrice (ni manager racine, ni employé sans manager, ni autre RH de son entreprise) ou sa propre note.
       content:
         application/problem+json:
           schema:

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { problemMessage } from '@/components/problem-message'
 
 interface ExpenseNote {
   id: string
@@ -61,12 +62,7 @@ export function PendingApprovalsPanel() {
     if (response.ok) {
       await loadPending()
     } else {
-      const body = await response.json().catch(() => null)
-      setError(
-        typeof body?.error === 'string'
-          ? body.error
-          : "Échec de la décision sur cette note de frais."
-      )
+      setError(await problemMessage(response, "Échec de la décision sur cette note de frais."))
     }
   }
 

@@ -55,6 +55,17 @@ describe('signup', () => {
     expect(signInMock).not.toHaveBeenCalled()
   })
 
+  it.each(['alice@gmail.com', 'bob@outlook.fr', 'carla@yahoo.fr'])(
+    'refuse un domaine de messagerie publique (F4) : %s',
+    async (email) => {
+      expect(await signup({}, form({ ...VALID, email }))).toEqual({
+        error: 'Utilise ton adresse professionnelle : les adresses de messagerie publique ne peuvent pas créer d’entreprise.',
+      })
+      expect(await countRows('companies')).toBe(0)
+      expect(signInMock).not.toHaveBeenCalled()
+    }
+  )
+
   it("premier inscrit d'un domaine : crée l'entreprise et devient hr_admin", async () => {
     expect(await signup({}, form({ ...VALID, name: '  Alice Martin  ' }))).toEqual({})
     const user = await userByEmail(VALID.email)
