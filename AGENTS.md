@@ -11,9 +11,9 @@ Expense.io : notes de frais (soumission, validation par le manager ou les RH, re
 Monolithe modulaire hexagonal ([ADR 0002](docs/adrs/0002-monolithe-modulaire-hexagonal.md), [schéma](docs/architecture/architecture-cible.html), [spec](docs/specs/2026-10-15-architecture-cible.md)) :
 
 - `src/modules/<module>/{domain,application,ports,infrastructure}` + `index.ts` (API publique). Modules : `expenses`, `iam`.
-- `src/shared/` : config, erreurs, problem (RFC 9457), logger, http, unité de travail ; mail **(cible, plan 3 : pas encore)**.
+- `src/shared/` : config, erreurs, problem (RFC 9457), logger, http, unité de travail, mail (port `Mailer`, outbox).
 - `src/app/api/**/route.ts` : adapters d'entrée minces (parse → use case → HTTP).
-- `src/worker/` : worker de livraison des e-mails, hors de l'hexagone **(cible, plan 3 : pas encore)**.
+- `src/worker/` : worker de livraison des e-mails, hors de l'hexagone.
 
 Recette et emplacements détaillés : [docs/architecture/conventions.md](docs/architecture/conventions.md).
 
@@ -21,7 +21,8 @@ Règles de dépendance (vérifiées par `npm run depcruise`) : `domain` n'import
 
 ## Commandes
 
-- `make dev` : tout démarrer (Docker, migrations, seed, application).
+- `make dev` : tout démarrer (Docker, migrations, seed, application et worker de livraison).
+- Mailpit : http://localhost:8025 (e-mails de dev).
 - `npm run verify` : lint, typecheck, règles de dépendance, Vitest. **À lancer avant de conclure.**
 - `npm run verify:full` : idem plus les E2E Playwright.
 - `make sonar` : analyse SonarQube ([runbook](docs/runbooks/sonarqube-analyse.md)).
@@ -56,6 +57,7 @@ Skills au format Agent Skills dans `.agents/skills/<nom>/SKILL.md`, copiés vers
 | Skill | Quand |
 |---|---|
 | `ajouter-une-fonctionnalite` | **toute demande de fonctionnalité** (y compris en un prompt, en démo) |
+| `envoyer-un-email` | une fonctionnalité doit prévenir quelqu'un par e-mail |
 | `verifier-avant-de-livrer` | avant de déclarer un travail terminé |
 | `utiliser-la-doc` | avant d'écrire ou de modifier un document de `docs/` |
 

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | En revue |
+| **Statut** | Implémentée |
 | **Auteur(s)** | Louis Bertrand (avec Claude Code) ; flux de notification proposé par Maxime |
 | **Créée** | 2026-10-15 |
 | **Mise à jour** | 2026-10-16 |
@@ -288,7 +288,7 @@ Toutes les 1 à 2 secondes, le worker :
 
 **Ce que le bail apporte.** Aucune transaction ni aucun verrou ne restent ouverts pendant un appel SMTP. Si le worker plante, seul l'e-mail en cours peut repartir, et seulement à l'expiration du bail. Plusieurs workers peuvent tourner en parallèle sans se gêner.
 
-**Règle : le bail dure plus longtemps que le pire cas d'un lot.** Le pire cas vaut taille du lot × (timeout de connexion + timeout de socket), soit 5 × (5 s + 10 s) = 75 s, pour un bail de 2 min. Sinon, un second worker réserverait des lignes encore en cours d'envoi et les enverrait une seconde fois. Les trois valeurs sont configurables (`MAIL_BATCH_SIZE`, `MAIL_LEASE_SECONDS` et les timeouts SMTP), et le worker **refuse de démarrer** si la règle n'est pas respectée.
+**Règle : le bail dure plus longtemps que le pire cas d'un lot.** Le pire cas vaut taille du lot × (timeout de connexion + timeout d'accueil + timeout de socket), soit 5 × (5 s + 5 s + 10 s) = 100 s, pour un bail de 2 min. Le timeout de socket de nodemailer n'étant qu'un délai d'inactivité, le worker borne en plus chaque envoi par un délai dur égal à cette somme. Sinon, un second worker réserverait des lignes encore en cours d'envoi et les enverrait une seconde fois. Les valeurs sont configurables (`MAIL_BATCH_SIZE`, `MAIL_LEASE_SECONDS` et les timeouts SMTP), et le worker **refuse de démarrer** si la règle n'est pas respectée.
 
 **Exploitation :**
 - un log JSON d'erreur (avec `correlationId`) à chaque passage en `dead` ;

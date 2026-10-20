@@ -16,10 +16,13 @@ d'API, choix d'architecture) est dans [`docs/`](docs/README.md).
 make dev
 ```
 
-Ceci installe les dépendances, démarre Postgres et LocalStack, applique les
+Ceci installe les dépendances, démarre Postgres, LocalStack et Mailpit, applique les
 migrations, crée le bucket de stockage, peuple des comptes de démonstration
 (voir "Comptes" plus bas), puis lance le serveur de développement sur
-http://localhost:3000.
+http://localhost:3000 et le worker de livraison des e-mails (`npm run worker`).
+Les e-mails de décision arrivent dans Mailpit : http://localhost:8025.
+Variables associées dans `.env.example` : `MAILER_DATABASE_URL`, `SMTP_HOST`,
+`SMTP_PORT`, `MAIL_FROM`.
 
 Sans `make`, l'équivalent manuel :
 

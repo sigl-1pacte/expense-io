@@ -22,3 +22,23 @@ La couverture Sonar porte sur tout `src/` (pages et code mort compris), contrair
 Commit analysé : 88cbfee.
 
 Données brutes : [sonarqube-avant.json](sonarqube-avant.json)
+
+## Après
+
+Non mesuré. Sans `make` (Git Bash sous Windows), les commandes du Makefile ont été lancées directement :
+
+1. `docker compose --profile quality up -d sonarqube` : SonarQube 26.10 répond `UP`.
+2. `npm run test:coverage` : réussi (rapport de couverture produit).
+3. `set -a; . ./.env; set +a; npm run sonar` : **bloqué** — le chargement de `.env` dans le shell de l'agent a été refusé par le contrôle d'autorisation, le scanner n'a donc pas été lancé.
+
+À faire sur le commit de fusion du plan 3 sur `main`, une fois le jeton `SONAR_TOKEN` créé (étape « première fois seulement » de [sonarqube-analyse](../runbooks/sonarqube-analyse.md)), depuis un shell où `.env` peut être chargé (SonarQube est arrêté ; le relancer d'abord) :
+
+```sh
+docker compose --profile quality up -d sonarqube   # attendre « UP » sur http://localhost:9000/api/system/status
+npm run test:coverage
+set -a; . ./.env; set +a; npm run sonar
+npm run --silent sonar:report >> docs/audit/sonarqube-avant-apres.md
+docker compose --profile quality stop sonarqube
+```
+
+Puis noter « Commit analysé : <hash> », ajouter la capture `docs/audit/sonarqube-apres.png` et une section `## Lecture` de trois à cinq lignes comparant les chiffres à la section « Avant ».

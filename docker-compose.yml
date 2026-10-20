@@ -35,6 +35,14 @@ services:
       timeout: 5s
       retries: 10
 
+  mailpit:
+    # Serveur SMTP de dev : capture les e-mails (interface sur http://localhost:8025).
+    image: axllent/mailpit:v1.21
+    restart: unless-stopped
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
   sonarqube:
     # Analyse de qualité, à la demande : `make sonar-up`. Hors du `up` habituel.
     image: sonarqube@sha256:0b3408443fb6a311253de27941b10977c9b977fd53be2265947bfe14161308b8 # sonarqube:community

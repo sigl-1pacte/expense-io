@@ -7,7 +7,11 @@ d'un client légitime, d'où une version MINOR.
 
 ## [Non publié]
 
-Plan 2 de la refacto (modules `iam` et `expenses`).
+Plans 2 et 3 de la refacto (modules `iam` et `expenses`, notification par e-mail des décisions).
+
+### Ajouté
+
+- `POST /api/{manager,hr}/expense-notes/{id}/{approve,reject}` : l'employé est prévenu par e-mail après coup (outbox, ADR 0003), décrit dans les opérations ; `mail_outbox` est documentée comme contrat interne entre l'application et le worker. Les réponses ne changent pas (F15).
 
 ### Modifié
 

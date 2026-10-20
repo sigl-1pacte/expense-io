@@ -197,7 +197,7 @@ export function setup() {
   return { token }
 }
 
-export default function (data) {
+export default function iteration(data) {
   const measuring = exec.scenario.name === 'measure'
   // Index unique par appel, pour que chaque décision consomme sa propre note
   // (l'échauffement prend les WARMUP_ITERATIONS premières).

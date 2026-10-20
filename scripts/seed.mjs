@@ -1,8 +1,8 @@
 // Peuple une base de démonstration entièrement navigable dès `make dev` :
-// une entreprise, un hr_admin, un manager racine, un employé qui lui est
-// rattaché, et une note de frais en attente pour chacun des deux (avec un
-// vrai reçu uploadé) — pour qu'il n'y ait aucune étape manuelle (signup,
-// promotion de rôle, soumission d'une note) avant de pouvoir naviguer.
+// une entreprise avec deux RH, un manager racine, un manager rattaché, des
+// employés rattachés et non rattachés, et des notes de frais dans tous les
+// états (avec un vrai reçu uploadé) — pour qu'il n'y ait aucune étape manuelle
+// (signup, promotion de rôle, soumission d'une note) avant de pouvoir naviguer.
 // Idempotent : relançable sans dupliquer les comptes ni les notes.
 import bcrypt from 'bcryptjs'
 import { config as loadEnv } from 'dotenv'
@@ -73,7 +73,7 @@ async function upsertUser(email, name, password, role, companyId, managerId = nu
   return inserted.rows[0].id
 }
 
-async function seedExpenseNote(userId, companyId, description, amount) {
+async function seedExpenseNote(userId, companyId, description, amount, status = 'pending') {
   const existing = await pool.query(
     'SELECT id FROM expense_notes WHERE user_id = $1 AND description = $2',
     [userId, description]
@@ -81,10 +81,10 @@ async function seedExpenseNote(userId, companyId, description, amount) {
   if (existing.rows[0]) return
 
   const inserted = await pool.query(
-    `INSERT INTO expense_notes (user_id, company_id, amount, expense_date, description, receipt_key)
-     VALUES ($1, $2, $3, CURRENT_DATE, $4, '')
+    `INSERT INTO expense_notes (user_id, company_id, amount, expense_date, description, receipt_key, status)
+     VALUES ($1, $2, $3, CURRENT_DATE, $4, '', $5)
      RETURNING id, receipt_seq`,
-    [userId, companyId, amount, description]
+    [userId, companyId, amount, description, status]
   )
   const { id, receipt_seq: receiptSeq } = inserted.rows[0]
   const receiptKey = `receipts/${receiptSeq}.png`
@@ -104,11 +104,26 @@ try {
   await seedExpenseNote(employeeId, companyId, 'Taxi aéroport (seed)', 42.5)
   await seedExpenseNote(managerId, companyId, 'Café client (seed)', 5.9)
 
+  const subManagerId = await upsertUser('chef@expense.io', 'Chef d’équipe', 'chef1234', 'manager', companyId, managerId)
+  const teamMemberId = await upsertUser('equipe@expense.io', 'Membre d’équipe', 'equipe1234', 'employee', companyId, subManagerId)
+  const looseId = await upsertUser('nouveau@expense.io', 'Nouvel arrivant', 'nouveau1234', 'employee', companyId)
+  const secondHrId = await upsertUser('rh2@expense.io', 'Seconde RH', 'rh21234', 'hr_admin', companyId)
+
+  await seedExpenseNote(teamMemberId, companyId, 'Train Lyon (seed)', 87.3)
+  await seedExpenseNote(looseId, companyId, 'Matériel de bureau (seed)', 24.99)
+  await seedExpenseNote(secondHrId, companyId, 'Salon RH (seed)', 120)
+  await seedExpenseNote(employeeId, companyId, 'Hôtel Paris (seed)', 142, 'approved')
+  await seedExpenseNote(employeeId, companyId, 'Restaurant (seed)', 64.5, 'rejected')
+
   console.log('')
   console.log('Comptes de démonstration prêts :')
   console.log(`  RH       ${hrEmail} / ${hrPassword}`)
   console.log(`  Manager  ${managerEmail} / ${managerPassword} (racine, sans manager assigné)`)
   console.log(`  Employé  ${employeeEmail} / ${employeePassword} (rattaché au manager ci-dessus)`)
+  console.log('  Chef     chef@expense.io / chef1234 (manager rattaché au manager racine, « Chef d’équipe »)')
+  console.log('  Équipe   equipe@expense.io / equipe1234 (employé rattaché au chef d’équipe, « Membre d’équipe »)')
+  console.log('  Nouveau  nouveau@expense.io / nouveau1234 (« Nouvel arrivant » : sans manager, ses notes vont aux RH)')
+  console.log('  RH 2     rh2@expense.io / rh21234 (« Seconde RH » : valide les notes de la première)')
 } finally {
   await pool.end()
 }

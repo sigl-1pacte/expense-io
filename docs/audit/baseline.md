@@ -115,6 +115,17 @@ Les 14 routes métier de l'API, plus la connexion. Ne sont **pas** mesurés :
 Durées en millisecondes. Les lignes « Après » sont à remplir (voir
 [Remplir la colonne « Après »](#remplir-la-colonne-après)).
 
+> **Mesure « Après » à faire sur la machine de référence.** Elle n'a pas été
+> prise : la machine de développement du plan 3 (Intel Core Ultra 5 125H,
+> 31 Gio) n'est pas celle de la mesure « Avant » (AMD Ryzen 5 4600H, 14 Gio),
+> et une comparaison entre deux machines n'aurait aucune valeur. Sur la machine
+> décrite dans [Conditions de mesure](#conditions-de-mesure), à la fin du plan 3
+> (le commit de fusion du plan 3 sur `main`), après avoir créé le jeton
+> `SONAR_TOKEN` (étape « première fois seulement » de
+> [sonarqube-analyse](../runbooks/sonarqube-analyse.md)), suivre
+> [Remplir la colonne « Après »](#remplir-la-colonne-après) et recopier les
+> tableaux ci-dessous. Les cellules « Après » restent vides d'ici là.
+
 ### Charge unitaire (1 VU)
 
 | Endpoint | VUs | Version | Débit (req/s) | Moyenne (ms) | Médiane (ms) | P95 (ms) | P99 (ms) | Max (ms) | Erreurs | Requêtes |

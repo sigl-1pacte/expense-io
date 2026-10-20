@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { POST as approve } from '@/app/api/manager/expense-notes/[id]/approve/route'
 import { POST as reject } from '@/app/api/manager/expense-notes/[id]/reject/route'
+import { OutboxMailer } from '@/shared/mail/OutboxMailer'
+import { testDb } from '../../support/db'
 import { createNote, createOrg, createUser, findNote, type Org } from '../../support/factories'
 import { expectProblem, NON_UUID_IDS, type NoteDto, UNKNOWN_ID, readJson, request, routeParams } from '../helpers/http'
 import { actAs, actAsCaller, actAsGhost, type Caller } from '../helpers/session'
@@ -9,6 +11,10 @@ describe.each([
   { action: 'approve', handler: approve, decided: 'approved' },
   { action: 'reject', handler: reject, decided: 'rejected' },
 ] as const)('POST /api/manager/expense-notes/:id/$action', ({ action, handler, decided }) => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   function decide(id: string, init?: RequestInit) {
     return handler(
       request(`/api/manager/expense-notes/${id}/${action}`, { method: 'POST', ...init }),
@@ -53,6 +59,30 @@ describe.each([
       createdAt: '2026-10-07T12:00:00.000Z',
     })
     expect((await findNote(note.id))?.status).toBe(decided)
+  })
+
+  it("écrit l'e-mail de décision dans mail_outbox, avec la corrélation de la requête (F15)", async () => {
+    const org = await createOrg()
+    const note = await createNote({ user: org.employee })
+    actAs(org.manager)
+    expect((await decide(note.id, { headers: { 'x-correlation-id': 'corr-e2e' } })).status).toBe(200)
+    const { rows } = await testDb().query('SELECT recipient, subject, correlation_id FROM mail_outbox')
+    expect(rows).toEqual([
+      {
+        recipient: org.employee.email,
+        subject: `Votre note de frais a été ${decided === 'approved' ? 'approuvée' : 'refusée'}`,
+        correlation_id: 'corr-e2e',
+      },
+    ])
+  })
+
+  it("si l'outbox refuse l'écriture, la décision est annulée (point de vigilance 3)", async () => {
+    const org = await createOrg()
+    const note = await createNote({ user: org.employee })
+    actAs(org.manager)
+    vi.spyOn(OutboxMailer.prototype, 'send').mockRejectedValueOnce(new Error('outbox indisponible'))
+    await expectProblem(await decide(note.id), 500, 'Erreur interne')
+    expect((await findNote(note.id))?.status).toBe('pending')
   })
 
   it('ignore le corps de la requête', async () => {

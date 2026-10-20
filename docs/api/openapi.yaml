@@ -66,10 +66,20 @@ info:
       « Email ou mot de passe incorrect. ».
     - `logout()` : redirection vers `/login`.
 
-    **Ports** (`src/ports/`) : `ReceiptStoragePort` (`upload`,
-    `getSignedUrl`, implémenté par `S3ReceiptAdapter`) et `NotificationPort`
-    (`notifyDecision`, implémenté par `ConsoleNotificationAdapter`). Ils ne
-    sont actuellement branchés sur aucune route.
+    **Ports** : `ReceiptStoragePort` (`upload`, `getSignedUrl`, implémenté
+    par `S3ReceiptAdapter`) et `Mailer` (`send(email)` avec `to`, `subject`,
+    `text`, `correlationId`, implémenté par `OutboxMailer`). `send` écrit
+    l'e-mail dans la table `mail_outbox` dans la transaction de la décision.
+
+    **Table `mail_outbox`** : contrat entre l'application et le worker de
+    livraison (`npm run worker`). Colonnes : `id` (uuid), `recipient`,
+    `subject`, `body_text`, `correlation_id`, `status` (`pending`, `sent`,
+    `dead`), `attempts`, `next_attempt_at`, `last_error`, `created_at`,
+    `sent_at`. L'application n'a que `INSERT` ; le worker (rôle
+    `expense_mailer`) réserve des lots par bail (plus long que le pire cas d'un lot,
+    lot × (connexion + accueil + socket)), envoie, marque `sent`,
+    réessaie (10 s puis 1 min), passe en `dead` au troisième échec et purge
+    les lignes `sent` de plus de 30 jours. Livraison au moins une fois.
 
     **Dépendances sortantes** : PostgreSQL (isolation par Row Level Security
     via `app.current_user_id`) et stockage objet S3 (bucket `receipts`,
@@ -433,7 +443,7 @@ paths:
       tags: [Manager]
       operationId: managerApproveExpenseNote
       summary: Approuver une note d'un subordonné direct
-      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`.
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
       parameters:
         - $ref: '#/components/parameters/NoteId'
       responses:
@@ -457,7 +467,7 @@ paths:
       tags: [Manager]
       operationId: managerRejectExpenseNote
       summary: Rejeter une note d'un subordonné direct
-      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`.
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
       parameters:
         - $ref: '#/components/parameters/NoteId'
       responses:
@@ -530,7 +540,7 @@ paths:
       tags: [RH]
       operationId: hrApproveExpenseNote
       summary: Approuver une note dont la RH est validatrice
-      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`.
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
       parameters:
         - $ref: '#/components/parameters/NoteId'
       responses:
@@ -554,7 +564,7 @@ paths:
       tags: [RH]
       operationId: hrRejectExpenseNote
       summary: Rejeter une note dont la RH est validatrice
-      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`.
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
       parameters:
         - $ref: '#/components/parameters/NoteId'
       responses:
