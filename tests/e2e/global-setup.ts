@@ -1,7 +1,6 @@
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { closeTestDb, truncateAll } from '../support/db'
 import { E2E_DATABASE_NAME, E2E_ENV } from '../support/env'
 import { emptyBucket, ensureBucket, ensureDatabase, migrate } from '../support/infra'
@@ -9,7 +8,7 @@ import { clearMailpit } from '../support/mailpit'
 
 const WORKER_STOP_TIMEOUT_MS = 5_000
 const WORKER_STARTUP_CHECK_MS = 2_000
-const REPO_ROOT = resolve(fileURLToPath(import.meta.url), '..', '..', '..')
+const REPO_ROOT = resolve(__dirname, '..', '..')
 
 export default async function setupE2e(): Promise<() => Promise<void>> {
   await ensureDatabase(E2E_DATABASE_NAME)
