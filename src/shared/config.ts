@@ -47,6 +47,11 @@ function positiveInt(env: Env, name: string, fallback: number): number {
   return value
 }
 
+/** Plafond d'un envoi : connexion + accueil + socket (le délai de socket nodemailer n'est qu'un délai d'inactivité). */
+export function sendDeadlineMs(config: Pick<MailerConfig, 'connectionTimeoutMs' | 'greetingTimeoutMs' | 'socketTimeoutMs'>): number {
+  return config.connectionTimeoutMs + config.greetingTimeoutMs + config.socketTimeoutMs
+}
+
 /** Configuration du worker de livraison, avec la règle du bail (ADR 0003). */
 export function loadMailerConfig(env: Env = process.env): MailerConfig {
   const config: MailerConfig = {
@@ -62,8 +67,9 @@ export function loadMailerConfig(env: Env = process.env): MailerConfig {
     pollIntervalMs: positiveInt(env, 'MAIL_POLL_INTERVAL_MS', 1000),
     purgeAfterDays: positiveInt(env, 'MAIL_PURGE_AFTER_DAYS', 30),
   }
-  // Sinon un second worker réserverait des lignes encore en cours d'envoi.
-  const worstBatchSeconds = (config.batchSize * (config.connectionTimeoutMs + config.socketTimeoutMs)) / 1000
+  // Sinon un second worker réserverait des lignes encore en cours d'envoi. Le délai
+  // dur du worker (sendDeadlineMs) borne chaque envoi à cette somme.
+  const worstBatchSeconds = (config.batchSize * sendDeadlineMs(config)) / 1000
   if (config.leaseSeconds <= worstBatchSeconds) {
     throw new Error(
       `MAIL_LEASE_SECONDS (${config.leaseSeconds} s) doit dépasser le pire cas d’un lot (${worstBatchSeconds} s)`

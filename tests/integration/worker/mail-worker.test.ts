@@ -1,11 +1,11 @@
 import { Pool } from 'pg'
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { loadMailerConfig } from '@/shared/config'
-import { claimBatch, deliverBatch, markFailed, purgeSent } from '@/worker/mail-worker'
+import { claimBatch, deliverBatch, markFailed, markSent, purgeSent } from '@/worker/mail-worker'
 import { createTransport } from 'nodemailer'
 import { testDb } from '../../support/db'
 import { TEST_ENV } from '../../support/env'
-import { clearMailpit, mailpitMessages } from '../../support/mailpit'
+import { mailpitMessages } from '../../support/mailpit'
 
 const config = loadMailerConfig(TEST_ENV)
 const pool = new Pool({ connectionString: TEST_ENV.MAILER_DATABASE_URL, max: 4 })
@@ -23,10 +23,6 @@ async function queue(recipient: string, overrides: Record<string, unknown> = {})
 const rowOf = async (id: string) =>
   (await testDb().query('SELECT status, attempts, last_error FROM mail_outbox WHERE id = $1', [id])).rows[0]
 
-beforeEach(async () => {
-  await clearMailpit()
-})
-
 afterAll(async () => {
   transport.close()
   await pool.end()
@@ -36,7 +32,7 @@ describe('worker de livraison', () => {
   it('envoie une ligne pending à Mailpit puis la marque sent, Message-ID = id de la ligne', async () => {
     const id = await queue('emma@acme.fr')
     expect(await deliverBatch({ pool, transport, config })).toEqual({ sent: 1, failed: 0 })
-    const [message] = await mailpitMessages()
+    const message = (await mailpitMessages()).find((m) => m.MessageID === `${id}@expense.io`)!
     expect(message.To[0].Address).toBe('emma@acme.fr')
     expect(message.MessageID).toBe(`${id}@expense.io`)
     expect((await rowOf(id)).status).toBe('sent')
@@ -67,6 +63,36 @@ describe('worker de livraison', () => {
     await testDb().query('UPDATE mail_outbox SET next_attempt_at = now() WHERE id = $1', [id])
     expect(await deliverBatch({ pool, transport: broken, config })).toEqual({ sent: 0, failed: 1 })
     expect(await rowOf(id)).toEqual({ status: 'dead', attempts: 3, last_error: 'SMTP indisponible' })
+  })
+
+  it('markSent et markFailed ne touchent pas une ligne déjà sent (P3-R12)', async () => {
+    const id = await queue('e@acme.fr', { status: 'sent', sent_at: new Date() })
+    expect(await markFailed(pool, id, new Error('tard'))).toBeNull()
+    await markSent(pool, id)
+    expect(await rowOf(id)).toEqual({ status: 'sent', attempts: 0, last_error: null })
+  })
+
+  it('un envoi qui ne se termine jamais est coupé par le délai dur puis marqué échoué (P3-R12)', async () => {
+    const id = await queue('f@acme.fr')
+    const hanging = { sendMail: () => new Promise<never>(() => {}) }
+    const tiny = { ...config, connectionTimeoutMs: 20, greetingTimeoutMs: 20, socketTimeoutMs: 20 }
+    expect(await deliverBatch({ pool, transport: hanging, config: tiny })).toEqual({ sent: 0, failed: 1 })
+    expect(await rowOf(id)).toMatchObject({ status: 'pending', attempts: 1 })
+    expect((await rowOf(id)).last_error).toMatch(/délai/)
+  })
+
+  it('e-mail envoyé mais markSent en échec : pas de markFailed, la ligne repartira au bail (P3-R12)', async () => {
+    const id = await queue('g@acme.fr')
+    const sendMail = vi.fn(async () => ({}))
+    const brokenPool = {
+      query: async (sql: string, params?: unknown[]) => {
+        if (sql.includes("status = 'sent'")) throw new Error('base indisponible')
+        return pool.query(sql, params)
+      },
+    } as unknown as Pool
+    await deliverBatch({ pool: brokenPool, transport: { sendMail }, config })
+    expect(sendMail).toHaveBeenCalledTimes(1)
+    expect(await rowOf(id)).toMatchObject({ status: 'pending', attempts: 0 })
   })
 
   it('premier échec : nouvel essai dans 10 s', async () => {

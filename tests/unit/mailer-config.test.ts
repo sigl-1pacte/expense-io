@@ -22,8 +22,14 @@ describe('loadMailerConfig', () => {
 
   it('refuse un bail plus court que le pire cas d’un lot', () => {
     expect(() => loadMailerConfig({ ...BASE, MAIL_BATCH_SIZE: '20', MAIL_LEASE_SECONDS: '60' })).toThrow(
-      'MAIL_LEASE_SECONDS (60 s) doit dépasser le pire cas d’un lot (300 s)'
+      'MAIL_LEASE_SECONDS (60 s) doit dépasser le pire cas d’un lot (400 s)'
     )
+  })
+
+  it('le pire cas d’un lot compte connexion + accueil + socket (P3-R12)', () => {
+    // 5 × (5 + 5 + 10) = 100 s : 100 s est refusé, 101 s passe.
+    expect(() => loadMailerConfig({ ...BASE, MAIL_LEASE_SECONDS: '100' })).toThrow('(100 s)')
+    expect(loadMailerConfig({ ...BASE, MAIL_LEASE_SECONDS: '101' }).leaseSeconds).toBe(101)
   })
 
   it('exige MAILER_DATABASE_URL, SMTP_HOST et MAIL_FROM', () => {
