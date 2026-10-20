@@ -4,6 +4,7 @@ import type { ExpensesContext, ExpensesUnitOfWork } from '@/modules/expenses/por
 import type { NewNote, NoteRepository } from '@/modules/expenses/ports/NoteRepository'
 import type { ReceiptStorage } from '@/modules/expenses/ports/ReceiptStorage'
 import type { Actor } from '@/shared/actor'
+import { InMemoryMailer } from '@/shared/mail/InMemoryMailer'
 
 export class InMemoryNotes implements NoteRepository {
   seq = 0
@@ -50,10 +51,13 @@ export class InMemoryNotes implements NoteRepository {
 
 export class FakeUow implements ExpensesUnitOfWork {
   runs = 0
-  constructor(readonly notes = new InMemoryNotes()) {}
+  constructor(
+    readonly notes = new InMemoryNotes(),
+    readonly mailer = new InMemoryMailer()
+  ) {}
   async run<T>(_actor: Actor, fn: (ctx: ExpensesContext) => Promise<T>): Promise<T> {
     this.runs++
-    return fn({ notes: this.notes })
+    return fn({ notes: this.notes, mailer: this.mailer })
   }
 }
 
@@ -70,12 +74,18 @@ export class FakeStorage implements ReceiptStorage {
 }
 
 export class FakeApprovals implements Approvals {
-  constructor(private readonly approvees: Record<string, string[]> = {}) {}
+  constructor(
+    private readonly approvees: Record<string, string[]> = {},
+    private readonly contacts: Record<string, { name: string; email: string }> = {}
+  ) {}
   async approveesOf(actor: Actor): Promise<string[]> {
     return this.approvees[actor.id] ?? []
   }
   async canDecide(actor: Actor, ownerId: string): Promise<boolean> {
     return (this.approvees[actor.id] ?? []).includes(ownerId)
+  }
+  async contactOf(_actor: Actor, userId: string) {
+    return this.contacts[userId] ?? null
   }
 }
 

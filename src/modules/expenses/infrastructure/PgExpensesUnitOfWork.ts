@@ -1,4 +1,5 @@
 import type { Actor } from '@/shared/actor'
+import { OutboxMailer } from '@/shared/mail/OutboxMailer'
 import { runInScope } from '@/shared/unit-of-work'
 import type { ExpensesContext, ExpensesUnitOfWork } from '../ports/ExpensesUnitOfWork'
 import { PgNoteRepository } from './PgNoteRepository'
@@ -7,7 +8,7 @@ import { PgNoteRepository } from './PgNoteRepository'
 export class PgExpensesUnitOfWork implements ExpensesUnitOfWork {
   run<T>(actor: Actor, fn: (ctx: ExpensesContext) => Promise<T>): Promise<T> {
     return runInScope({ userId: actor.id, companyId: actor.companyId }, (sql) =>
-      fn({ notes: new PgNoteRepository(sql) })
+      fn({ notes: new PgNoteRepository(sql), mailer: new OutboxMailer(sql) })
     )
   }
 }

@@ -97,32 +97,36 @@ describe('decideExpenseNote (F9)', () => {
   async function setup() {
     const uow = new FakeUow()
     await submitExpenseNote(uow, new FakeStorage())(actor('e1'), submission)
-    return { uow, decide: decideExpenseNote(uow, new FakeApprovals({ m1: ['e1'] })) }
+    return { uow, decide: decideExpenseNote(
+        uow,
+        new FakeApprovals({ m1: ['e1'] }, { e1: { name: 'Emma', email: 'emma@acme.fr' } })
+      ),
+    }
   }
 
   it('le validateur décide', async () => {
     const { decide } = await setup()
-    expect((await decide(actor('m1', 'manager'), 'n1', 'approved')).status).toBe('approved')
+    expect((await decide(actor('m1', 'manager'), 'n1', 'approved', 'corr-1')).status).toBe('approved')
   })
 
   it('quelqu’un qui ne valide pas cette note : 404', async () => {
     const { decide } = await setup()
-    await expect(decide(actor('m2', 'manager'), 'n1', 'approved')).rejects.toBeInstanceOf(NotFound)
+    await expect(decide(actor('m2', 'manager'), 'n1', 'approved', 'corr-1')).rejects.toBeInstanceOf(NotFound)
   })
 
   it('note déjà décidée : 409', async () => {
     const { decide } = await setup()
-    await decide(actor('m1', 'manager'), 'n1', 'approved')
-    await expect(decide(actor('m1', 'manager'), 'n1', 'rejected')).rejects.toBeInstanceOf(AlreadyDecided)
+    await decide(actor('m1', 'manager'), 'n1', 'approved', 'corr-1')
+    await expect(decide(actor('m1', 'manager'), 'n1', 'rejected', 'corr-1')).rejects.toBeInstanceOf(AlreadyDecided)
   })
 
   it('décision concurrente perdue (UPDATE sans effet) : 409', async () => {
     const { uow, decide } = await setup()
     uow.notes.saveDecision = async () => false
-    await expect(decide(actor('m1', 'manager'), 'n1', 'approved')).rejects.toBeInstanceOf(AlreadyDecided)
+    await expect(decide(actor('m1', 'manager'), 'n1', 'approved', 'corr-1')).rejects.toBeInstanceOf(AlreadyDecided)
   })
 
-  it('aucune transaction ouverte pendant canDecide (une seule connexion à la fois)', async () => {
+  it('aucune transaction ouverte pendant canDecide (iam ouvre sa propre connexion)', async () => {
     const uow = new FakeUow()
     await submitExpenseNote(uow, new FakeStorage())(actor('e1'), submission)
     let open = false
@@ -136,15 +140,44 @@ describe('decideExpenseNote (F9)', () => {
       }
     }
     let openDuringCanDecide: boolean | undefined
+    let openDuringContactOf: boolean | undefined
     const approvals = {
       approveesOf: async () => ['e1'],
       canDecide: async () => {
         openDuringCanDecide = open
         return true
       },
+      contactOf: async () => {
+        openDuringContactOf = open
+        return null
+      },
     }
-    await decideExpenseNote(uow, approvals)(actor('m1', 'manager'), 'n1', 'approved')
+    await decideExpenseNote(uow, approvals)(actor('m1', 'manager'), 'n1', 'approved', 'corr-1')
     expect(openDuringCanDecide).toBe(false)
+    expect(openDuringContactOf).toBe(false)
+  })
+
+  it('écrit l’e-mail de décision dans la même unité de travail (F15)', async () => {
+    const { uow, decide } = await setup()
+    await decide(actor('m1', 'manager'), 'n1', 'approved', 'corr-1')
+    expect(uow.mailer.sent).toEqual([
+      expect.objectContaining({ to: 'emma@acme.fr', subject: 'Votre note de frais a été approuvée', correlationId: 'corr-1' }),
+    ])
+  })
+
+  it('note déjà décidée : aucun e-mail', async () => {
+    const { uow, decide } = await setup()
+    uow.notes.saveDecision = async () => false
+    await expect(decide(actor('m1', 'manager'), 'n1', 'approved', 'c')).rejects.toBeInstanceOf(AlreadyDecided)
+    expect(uow.mailer.sent).toEqual([])
+  })
+
+  it('destinataire introuvable : la décision passe, sans e-mail (point de vigilance 4)', async () => {
+    const uow = new FakeUow()
+    await submitExpenseNote(uow, new FakeStorage())(actor('e1'), submission)
+    const decide = decideExpenseNote(uow, new FakeApprovals({ m1: ['e1'] }))
+    expect((await decide(actor('m1', 'manager'), 'n1', 'approved', 'c')).status).toBe('approved')
+    expect(uow.mailer.sent).toEqual([])
   })
 })
 

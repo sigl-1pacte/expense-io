@@ -19,7 +19,7 @@ const uow = new PgExpensesUnitOfWork()
 const storage = new S3ReceiptStorage()
 const reader = new TesseractReceiptReader()
 // D4 : expenses ne lit jamais l'organigramme ; il le demande à iam.
-const approvals: Approvals = { approveesOf: iam.approveesOf, canDecide: iam.canDecide }
+const approvals: Approvals = { approveesOf: iam.approveesOf, canDecide: iam.canDecide, contactOf: iam.getContact }
 
 export const expenses = {
   submitExpenseNote: submitExpenseNote(uow, storage),
