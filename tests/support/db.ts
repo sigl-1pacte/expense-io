@@ -35,5 +35,5 @@ export async function closeTestDb(): Promise<void> {
 
 /** `RESTART IDENTITY` remet `receipt_seq` à 1 : clés de reçu déterministes. */
 export async function truncateAll(): Promise<void> {
-  await testDb().query('TRUNCATE expense_notes, users, companies RESTART IDENTITY CASCADE')
+  await testDb().query('TRUNCATE mail_outbox, expense_notes, users, companies RESTART IDENTITY CASCADE')
 }
