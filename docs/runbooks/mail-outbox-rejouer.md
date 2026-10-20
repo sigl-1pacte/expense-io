@@ -47,7 +47,7 @@ Ouvrir Mailpit (http://localhost:8025) ou chercher le log `E-mail envoyé`.
 
 ## Retour arrière
 
-Aucun : rejouer ne fait qu'avancer `next_attempt_at` des lignes `dead`. Un doublon est possible si le worker a planté entre l'envoi et le marquage `sent` ; le `Message-ID` (`<id>@expense.io`) permet de le repérer.
+Aucun retour arrière automatique : rejouer remet les lignes `dead` en `pending`, `attempts` à 0, `next_attempt_at` à `now()` et efface `last_error`. Pour ne rejouer que certaines lignes : `npm run mail:replay -- <id> …`. Un doublon est possible si le worker a planté entre l'envoi et le marquage `sent` ; le `Message-ID` (`<id>@expense.io`) permet de le repérer.
 
 ## Références
 

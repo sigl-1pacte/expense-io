@@ -442,7 +442,7 @@ paths:
       tags: [Manager]
       operationId: managerApproveExpenseNote
       summary: Approuver une note d'un subordonné direct
-      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided` L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
       parameters:
         - $ref: '#/components/parameters/NoteId'
       responses:
@@ -466,7 +466,7 @@ paths:
       tags: [Manager]
       operationId: managerRejectExpenseNote
       summary: Rejeter une note d'un subordonné direct
-      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided` L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
       parameters:
         - $ref: '#/components/parameters/NoteId'
       responses:
@@ -539,7 +539,7 @@ paths:
       tags: [RH]
       operationId: hrApproveExpenseNote
       summary: Approuver une note dont la RH est validatrice
-      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided` L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
       parameters:
         - $ref: '#/components/parameters/NoteId'
       responses:
@@ -563,7 +563,7 @@ paths:
       tags: [RH]
       operationId: hrRejectExpenseNote
       summary: Rejeter une note dont la RH est validatrice
-      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided` L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
       parameters:
         - $ref: '#/components/parameters/NoteId'
       responses:
