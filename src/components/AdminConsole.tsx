@@ -63,8 +63,8 @@ export function AdminConsole() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadUsers()
-    loadNotes()
+    void loadUsers()
+    void loadNotes()
   }, [loadUsers, loadNotes])
 
   const managers = users.filter((user) => user.role === 'manager')

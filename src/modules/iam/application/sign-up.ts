@@ -6,18 +6,29 @@ import type { PasswordHasher } from '../ports/PasswordHasher'
 export type SignUpResult = { ok: true } | { ok: false; error: string }
 
 const MIN_PASSWORD_LENGTH = 8
-const EMAIL_PATTERN = /^[^\s@]+@([^\s@]+\.[^\s@]+)$/
 const VALIDATION_ERROR = `Nom requis, email invalide, ou mot de passe trop court (${MIN_PASSWORD_LENGTH} caractères minimum).`
+
+/**
+ * Domaine d'un email `local@domaine` : un seul `@`, aucun espace, partie locale
+ * non vide, un point dans le domaine avec au moins un caractère de chaque côté.
+ * Vérification en temps linéaire (une regex équivalente revenait en arrière).
+ */
+function emailDomain(email: string): string | null {
+  const at = email.indexOf('@')
+  if (at <= 0 || at !== email.lastIndexOf('@') || /\s/.test(email)) return null
+  const domain = email.slice(at + 1)
+  return domain.slice(1, -1).includes('.') ? domain : null
+}
 
 /** Premier inscrit d'un domaine : RH de la nouvelle entreprise ; suivants : employés sans manager. */
 export function signUp(store: IamStore, hasher: PasswordHasher) {
   return async (input: { name?: unknown; email?: unknown; password?: unknown }): Promise<SignUpResult> => {
     const { name, email, password } = input
-    const emailMatch = typeof email === 'string' ? EMAIL_PATTERN.exec(email) : null
+    const emailDomainPart = typeof email === 'string' ? emailDomain(email) : null
     if (
       typeof name !== 'string' ||
       name.trim().length === 0 ||
-      !emailMatch ||
+      emailDomainPart === null ||
       typeof email !== 'string' ||
       typeof password !== 'string' ||
       password.length < MIN_PASSWORD_LENGTH
@@ -25,7 +36,7 @@ export function signUp(store: IamStore, hasher: PasswordHasher) {
       return { ok: false, error: VALIDATION_ERROR }
     }
 
-    const domain = emailMatch[1].toLowerCase()
+    const domain = emailDomainPart.toLowerCase()
     if (isPublicEmailDomain(domain)) {
       return {
         ok: false,

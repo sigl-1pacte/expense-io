@@ -33,7 +33,7 @@ export function parseSubmission(fields: {
   description: unknown
   receipt: ReceiptFile | null
 }): Submission {
-  const amount = typeof fields.amount === 'string' ? Number.parseFloat(fields.amount) : NaN
+  const amount = typeof fields.amount === 'string' ? Number.parseFloat(fields.amount) : Number.NaN
   const { expenseDate, description, receipt } = fields
   if (
     !Number.isFinite(amount) ||

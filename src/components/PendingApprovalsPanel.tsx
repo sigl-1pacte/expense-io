@@ -37,7 +37,7 @@ export function PendingApprovalsPanel() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadPending()
+    void loadPending()
   }, [loadPending])
 
   async function handleViewReceipt(id: string) {

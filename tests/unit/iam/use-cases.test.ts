@@ -65,6 +65,28 @@ describe('signUp', () => {
     expect(await signUp(new FakeIamStore(), fakeHasher)(input as never)).toEqual({ ok: false, error: VALIDATION_ERROR })
   })
 
+  it.each(['a@acme', 'a@.fr', 'a@acme.', '@acme.fr', 'a b@acme.fr', 'a@ac me.fr', 'a@b@acme.fr', 'a@acme.fr ', ''])(
+    'email invalide : %j',
+    async (email) => {
+      expect(await signUp(new FakeIamStore(), fakeHasher)({ name: 'A', email, password: 'motdepasse' })).toEqual({
+        ok: false,
+        error: VALIDATION_ERROR,
+      })
+    }
+  )
+
+  it.each([
+    ['a@acme.fr', 'acme.fr'],
+    ['A.B+tag@Sub.ACME.fr', 'sub.acme.fr'],
+    ['a@..fr', '..fr'],
+    ['a@acme..fr', 'acme..fr'],
+  ])('email valide : %s → domaine %s', async (email, domain) => {
+    const store = new FakeIamStore()
+    expect(await signUp(store, fakeHasher)({ name: 'A', email, password: 'motdepasse' })).toEqual({ ok: true })
+    // Premier inscrit : le faux magasin prend le domaine comme identifiant d'entreprise.
+    expect(store.users[0]).toMatchObject({ email, companyId: domain })
+  })
+
   it('refuse un domaine de messagerie publique (F4)', async () => {
     const store = new FakeIamStore()
     expect(await signUp(store, fakeHasher)({ name: 'G', email: 'g@gmail.com', password: 'motdepasse' })).toEqual({
