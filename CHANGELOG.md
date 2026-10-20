@@ -9,6 +9,10 @@ d'un client légitime, d'où une version MINOR.
 
 Plan 2 de la refacto (modules `iam` et `expenses`).
 
+### Ajouté
+
+- `POST /api/{manager,hr}/expense-notes/{id}/{approve,reject}` : l'employé est prévenu par e-mail après coup (outbox, ADR 0003), décrit dans les opérations ; `mail_outbox` est documentée comme contrat interne entre l'application et le worker. Les réponses ne changent pas (F15).
+
 ### Modifié
 
 - Inscription : une adresse de messagerie publique (gmail.com, outlook.fr, yahoo.fr…) ne peut plus créer d'entreprise (F4) ; l'action renvoie un message d'erreur.

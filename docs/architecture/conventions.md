@@ -12,7 +12,7 @@ Référence courte pour ajouter du code au bon endroit. Le pourquoi est dans l'[
 | exposer le use case | l'ajouter à l'objet exporté par `src/modules/<module>/index.ts` |
 | une route HTTP | `src/app/api/**/route.ts` : `currentActor()` → `requireRole` → parsing → **un** use case → `Response.json` |
 | une erreur métier | une classe dans `domain/errors.ts` qui étend une erreur de `src/shared/errors.ts` (`NotFound`, `Conflict`, `InvalidInput`…) |
-| un e-mail | le port `Mailer` de `src/shared/mail` : **n'existe pas avant le plan 3**, ne rien envoyer d'ici là (ni SMTP, ni nodemailer) ; skill `envoyer-un-email` idem |
+| un e-mail | composer dans le module, lire `iam` hors de l'unité de travail, puis envoyer avec `ctx.mailer.send` (port `Mailer`, `src/shared/mail`) dans `uow.run`, après l'écriture métier — skill `envoyer-un-email` |
 | une table | une migration dans `migrations/` ; la table appartient à un seul module (`scripts/check-sql-boundaries.mjs`) |
 | un futur module (ex. facturation) | `src/modules/billing/`, avec ses ports (ex. `PaymentProvider`) |
 

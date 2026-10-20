@@ -40,7 +40,7 @@ Reformuler la demande en une phrase : *qui* fait *quoi*, sur *quelle ressource*,
 7. **Test d'intégration** de la route, rôle par rôle (`tests/integration/api/`, helpers `actAs`, `expectProblem`).
 8. **UI** si la fonctionnalité est visible (`src/app/**/page.tsx`, `src/components/`), messages d'erreur via `problemMessage`.
 9. **E2E** si un parcours utilisateur change (`tests/e2e/`).
-10. **E-mail** à envoyer ? Le port `Mailer` et le skill `envoyer-un-email` n'existent pas avant le plan 3 : ne rien envoyer (ni SMTP, ni nodemailer), le signaler dans « Choix faits » du résumé.
+10. **E-mail** à envoyer ? Suivre le skill `envoyer-un-email` : composer dans le module, lire `iam` hors de `uow.run`, puis `ctx.mailer.send` dans l'unité de travail après l'écriture métier ; jamais de SMTP ni de nodemailer directs.
 
 ## 3. Vérifier
 

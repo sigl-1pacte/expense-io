@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Composant** | Postgres, LocalStack, application Next.js |
+| **Composant** | Postgres, LocalStack, Mailpit, application Next.js, worker de livraison |
 | **Responsable** | axe Asynchrone & run |
 | **Dernière vérification** | 2026-10-16 |
 | **Criticité** | Moyenne |
@@ -23,8 +23,10 @@ Démarrer l'application en local avec des données de démonstration, en une com
    ```sh
    make dev
    ```
-   **Attendu :** l'application répond sur http://localhost:3000.
+   **Attendu :** l'application répond sur http://localhost:3000 ; Mailpit (http://localhost:8025) reçoit les e-mails de décision, livrés par le worker lancé en même temps (`make worker` pour le lancer seul).
 2. Se connecter avec un compte du seed (`hr@expense.io` / `hr1234`, `manager@expense.io` / `manager1234`, `demo@expense.io` / `demo1234`).
+
+Pour rejouer des e-mails en échec : [mail-outbox-rejouer](mail-outbox-rejouer.md).
 
 ## Vérification finale
 
