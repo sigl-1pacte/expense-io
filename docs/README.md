@@ -23,7 +23,7 @@ _Mis à jour le 20/10/2026._
 - **ADR 0001 à 0004 écrites** : voir [adrs/](adrs/README.md).
 - **Plan 1 terminé** (socle et harnais agent) : SonarQube (mesures « avant » dans [audit/sonarqube-avant-apres.md](audit/sonarqube-avant-apres.md)), contrat OpenAPI vérifié en CI, erreurs RFC 9457, rôle expense_app et RLS d'isolation, F1, F3, F16, F25–F27, F34, F41–F44 corrigés.
 - **Plan 2 terminé** (modules) : iam et expenses en hexagonal, ApprovalPolicy seule source de vérité, routes en adapters minces, règles de dépendance bloquantes, skill de live coding et sous-agent de revue.
-- **Refacto terminée** : plan 3 (notification par outbox d'e-mails, worker de livraison), mesures après dans [audit/sonarqube-avant-apres.md](audit/sonarqube-avant-apres.md) et [audit/baseline.md](audit/baseline.md), répétition du live coding dans [audit/repetition-live-coding.md](audit/repetition-live-coding.md). Les mesures « après » (SonarQube, benchmark) restent à prendre à la main sur la machine de référence : voir [audit/](audit/sonarqube-avant-apres.md).
+- **Refacto terminée** : plan 3 (notification par outbox d'e-mails, worker de livraison), mesures après dans [audit/sonarqube-avant-apres.md](audit/sonarqube-avant-apres.md) et [audit/baseline.md](audit/baseline.md), répétition du live coding dans [audit/repetition-live-coding.md](audit/repetition-live-coding.md). SonarQube « après » mesuré le 2026-10-20 (quality gate en échec : 2 problèmes dans le code nouveau) ; le benchmark « après » reste à prendre sur la machine de référence.
 - Les écarts du contrat d'API sont consignés dans le [`CHANGELOG.md`](../CHANGELOG.md) à la racine.
 
 ## Par où commencer
@@ -89,7 +89,7 @@ Ces documents existent mais n'ont pas encore rejoint `main` :
 Restent à écrire :
 
 - le schéma cible en Excalidraw, dans le style de `as-is.excalidraw` ;
-- la colonne « Après » du benchmark et les mesures SonarQube après, à prendre à la main.
+- la colonne « Après » du benchmark, à prendre à la main sur la machine de référence ; les 2 problèmes SonarQube du code nouveau, à corriger.
 
 ## Types de documents
 

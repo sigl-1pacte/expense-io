@@ -25,20 +25,29 @@ Données brutes : [sonarqube-avant.json](sonarqube-avant.json)
 
 ## Après
 
-Non mesuré. Sans `make` (Git Bash sous Windows), les commandes du Makefile ont été lancées directement :
+### SonarQube — 2026-10-20 — quality gate : ERROR
 
-1. `docker compose --profile quality up -d sonarqube` : SonarQube 26.10 répond `UP`.
-2. `npm run test:coverage` : réussi (rapport de couverture produit).
-3. `set -a; . ./.env; set +a; npm run sonar` : **bloqué** — le chargement de `.env` dans le shell de l'agent a été refusé par le contrôle d'autorisation, le scanner n'a donc pas été lancé.
+| Métrique | Valeur |
+|---|---|
+| Bugs | 4 |
+| Vulnérabilités | 0 |
+| Security hotspots | 0 |
+| Code smells | 2 |
+| Duplication (%) | 0.0 |
+| Complexité cognitive | 250 |
+| Couverture (%) | 74.8 |
+| Lignes de code | 2804 |
 
-À faire sur le commit de fusion du plan 3 sur `main`, une fois le jeton `SONAR_TOKEN` créé (étape « première fois seulement » de [sonarqube-analyse](../runbooks/sonarqube-analyse.md)), depuis un shell où `.env` peut être chargé (SonarQube est arrêté ; le relancer d'abord) :
+Commit analysé : 6b3c2f5 (fusion du plan 3 sur `main`).
 
-```sh
-docker compose --profile quality up -d sonarqube   # attendre « UP » sur http://localhost:9000/api/system/status
-npm run test:coverage
-set -a; . ./.env; set +a; npm run sonar
-npm run --silent sonar:report >> docs/audit/sonarqube-avant-apres.md
-docker compose --profile quality stop sonarqube
-```
+Quality gate en échec sur une seule condition, qui porte sur le code nouveau depuis l'analyse précédente (2026-10-18) : `new_violations` = 2 (seuil 0). Les deux autres conditions passent : couverture du code nouveau 90,0 % (seuil 80 %), duplication du code nouveau 0,0 % (seuil 3 %).
 
-Puis noter « Commit analysé : <hash> », ajouter la capture `docs/audit/sonarqube-apres.png` et une section `## Lecture` de trois à cinq lignes comparant les chiffres à la section « Avant ».
+Capture : à ajouter (`docs/audit/sonarqube-apres.png`, tableau de bord http://localhost:9000/dashboard?id=expense-io).
+
+## Lecture
+
+- Bugs : 4 avant, 4 après. Vulnérabilités et security hotspots : 0 avant, 0 après.
+- Code smells : 3 → 2. Duplication : 9,3 % → 0,0 %.
+- Couverture Sonar (tout `src/`) : 66,4 % → 74,8 %.
+- Lignes de code : 1 970 → 2 804 ; complexité cognitive : 192 → 250. Les deux mesures sont des totaux du projet.
+- Quality gate : OK → ERROR, à cause de 2 problèmes introduits dans le code nouveau (condition `new_violations`).
