@@ -35,6 +35,10 @@ export const TEST_ENV = {
   APP_DATABASE_URL: `${PG_APP_SERVER_URL}/${TEST_DATABASE_NAME}`,
   MAILER_DATABASE_URL: `${PG_MAILER_SERVER_URL}/${TEST_DATABASE_NAME}`,
   S3_BUCKET: 'receipts-test',
+  SMTP_HOST: 'localhost',
+  SMTP_PORT: '1025',
+  MAIL_FROM: 'Expense.io <no-reply@expense.io>',
+  MAILPIT_URL: process.env.TEST_MAILPIT_URL ?? 'http://localhost:8025',
 }
 
 export const E2E_ENV = {
@@ -45,6 +49,10 @@ export const E2E_ENV = {
   MAILER_DATABASE_URL: `${PG_MAILER_SERVER_URL}/${E2E_DATABASE_NAME}`,
   AUTH_SECRET: 'secret-de-test-e2e-uniquement-0123456789',
   S3_BUCKET: 'receipts-e2e',
+  SMTP_HOST: 'localhost',
+  SMTP_PORT: '1025',
+  MAIL_FROM: 'Expense.io <no-reply@expense.io>',
+  MAILPIT_URL: process.env.TEST_MAILPIT_URL ?? 'http://localhost:8025',
 }
 
 export const E2E_PORT = 3100
