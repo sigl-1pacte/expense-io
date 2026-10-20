@@ -29,7 +29,7 @@ try {
   const passwordHash = await bcrypt.hash(PASSWORD, 12)
 
   await client.query('BEGIN')
-  await client.query('TRUNCATE expense_notes, users, companies RESTART IDENTITY CASCADE')
+  await client.query('TRUNCATE mail_outbox, expense_notes, users, companies RESTART IDENTITY CASCADE')
   await client.query(`
     CREATE FUNCTION pg_temp.bench_id(prefix text, n bigint) RETURNS uuid
       LANGUAGE sql IMMUTABLE AS $$ SELECT (prefix || lpad(to_hex(n), 12, '0'))::uuid $$

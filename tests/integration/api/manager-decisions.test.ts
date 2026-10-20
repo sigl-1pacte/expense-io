@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { POST as approve } from '@/app/api/manager/expense-notes/[id]/approve/route'
 import { POST as reject } from '@/app/api/manager/expense-notes/[id]/reject/route'
 import { OutboxMailer } from '@/shared/mail/OutboxMailer'
@@ -11,6 +11,10 @@ describe.each([
   { action: 'approve', handler: approve, decided: 'approved' },
   { action: 'reject', handler: reject, decided: 'rejected' },
 ] as const)('POST /api/manager/expense-notes/:id/$action', ({ action, handler, decided }) => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   function decide(id: string, init?: RequestInit) {
     return handler(
       request(`/api/manager/expense-notes/${id}/${action}`, { method: 'POST', ...init }),

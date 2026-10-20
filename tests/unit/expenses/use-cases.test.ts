@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { decideExpenseNote } from '@/modules/expenses/application/decide-expense-note'
 import { getReceiptUrl } from '@/modules/expenses/application/get-receipt-url'
 import { listMyExpenseNotes } from '@/modules/expenses/application/list-my-expense-notes'
@@ -8,6 +8,7 @@ import { suggestFromReceipt } from '@/modules/expenses/application/suggest-from-
 import { AlreadyDecided, ReceiptUploadFailed } from '@/modules/expenses/domain/errors'
 import type { Submission } from '@/modules/expenses/domain/Submission'
 import { InvalidInput, NotFound, Unavailable } from '@/shared/errors'
+import { logger } from '@/shared/logger'
 import { FakeApprovals, FakeStorage, FakeUow, actor } from './fakes'
 
 const submission: Submission = {
@@ -176,8 +177,14 @@ describe('decideExpenseNote (F9)', () => {
     const uow = new FakeUow()
     await submitExpenseNote(uow, new FakeStorage())(actor('e1'), submission)
     const decide = decideExpenseNote(uow, new FakeApprovals({ m1: ['e1'] }))
-    expect((await decide(actor('m1', 'manager'), 'n1', 'approved', 'c')).status).toBe('approved')
-    expect(uow.mailer.sent).toEqual([])
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+    try {
+      expect((await decide(actor('m1', 'manager'), 'n1', 'approved', 'c')).status).toBe('approved')
+      expect(uow.mailer.sent).toEqual([])
+      expect(warn).toHaveBeenCalledWith('Décision sans destinataire : aucun e-mail', expect.objectContaining({ noteId: 'n1' }))
+    } finally {
+      warn.mockRestore()
+    }
   })
 })
 
