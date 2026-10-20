@@ -31,7 +31,7 @@ Non mesuré. Sans `make` (Git Bash sous Windows), les commandes du Makefile ont 
 2. `npm run test:coverage` : réussi (rapport de couverture produit).
 3. `set -a; . ./.env; set +a; npm run sonar` : **bloqué** — le chargement de `.env` dans le shell de l'agent a été refusé par le contrôle d'autorisation, le scanner n'a donc pas été lancé.
 
-À faire à la main, depuis un shell où `.env` peut être chargé (SonarQube est arrêté ; le relancer d'abord) :
+À faire sur le commit de fusion du plan 3 sur `main`, une fois le jeton `SONAR_TOKEN` créé (étape « première fois seulement » de [sonarqube-analyse](../runbooks/sonarqube-analyse.md)), depuis un shell où `.env` peut être chargé (SonarQube est arrêté ; le relancer d'abord) :
 
 ```sh
 docker compose --profile quality up -d sonarqube   # attendre « UP » sur http://localhost:9000/api/system/status

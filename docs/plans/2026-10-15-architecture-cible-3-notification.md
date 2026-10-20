@@ -24,7 +24,7 @@
 - La réponse de `POST …/approve` et `…/reject` ne change pas (même code, même corps) : seul l'ordre d'exécution change.
 - `worker/` n'importe que `@/shared/config` et `@/shared/logger` ; il ne lit ni `expense_notes` ni `users`.
 - Le rôle `expense_mailer` n'a de droits que sur `mail_outbox` ; `expense_app` n'y a que `INSERT`.
-- Règle du bail : `MAIL_LEASE_SECONDS × 1000 > MAIL_BATCH_SIZE × (connexion + socket)` ; défauts 120 s, 5, 5 000 ms, 10 000 ms.
+- Règle du bail : `MAIL_LEASE_SECONDS × 1000 > MAIL_BATCH_SIZE × (connexion + accueil + socket)` ; défauts 120 s, 5, 5 000 ms, 5 000 ms, 10 000 ms.
 - Retry : 10 s après le premier échec, puis 1 min ; `dead` au troisième échec. Purge des lignes `sent` de plus de 30 jours.
 
 ## Points de vigilance (review focus)

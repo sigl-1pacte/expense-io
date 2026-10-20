@@ -7,7 +7,7 @@ d'un client légitime, d'où une version MINOR.
 
 ## [Non publié]
 
-Plan 2 de la refacto (modules `iam` et `expenses`).
+Plans 2 et 3 de la refacto (modules `iam` et `expenses`, notification par e-mail des décisions).
 
 ### Ajouté
 

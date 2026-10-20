@@ -7,7 +7,11 @@ description: À utiliser pour toute demande d'ajout ou de modification de foncti
 
 Objectif : livrer une fonctionnalité **complète et vérifiée** à partir d'une seule phrase, sans sortir de l'architecture. Lire d'abord `docs/architecture/conventions.md` (deux minutes).
 
-## 0. Cadrer en une ligne
+## 0. Être sur la bonne branche
+
+Vérifier `git branch --show-current` : être sur une branche `<prénom>/…`, jamais `main` (sinon `git switch -c <prénom>/<sujet>`).
+
+## 0 bis. Cadrer en une ligne
 
 Reformuler la demande en une phrase : *qui* fait *quoi*, sur *quelle ressource*, avec *quelle règle*. Si une décision métier manque et change le résultat, poser **une** question ; sinon, choisir l'option la plus simple, l'écrire dans le résumé final et avancer.
 

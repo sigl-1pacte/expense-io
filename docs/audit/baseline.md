@@ -120,8 +120,9 @@ Durées en millisecondes. Les lignes « Après » sont à remplir (voir
 > 31 Gio) n'est pas celle de la mesure « Avant » (AMD Ryzen 5 4600H, 14 Gio),
 > et une comparaison entre deux machines n'aurait aucune valeur. Sur la machine
 > décrite dans [Conditions de mesure](#conditions-de-mesure), à la fin du plan 3
-> (commit `69f1091` ou son successeur sur la branche
-> `louisbert91/refacto-plan3-notification`), suivre
+> (le commit de fusion du plan 3 sur `main`), après avoir créé le jeton
+> `SONAR_TOKEN` (étape « première fois seulement » de
+> [sonarqube-analyse](../runbooks/sonarqube-analyse.md)), suivre
 > [Remplir la colonne « Après »](#remplir-la-colonne-après) et recopier les
 > tableaux ci-dessous. Les cellules « Après » restent vides d'ici là.
 

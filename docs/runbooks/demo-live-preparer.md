@@ -89,8 +89,16 @@ Arriver devant le jury avec un dépôt propre, une entreprise de démonstration 
 5. Vérifier qu'aucune demande de permission n'apparaît pour `npm run verify`. `.claude/settings.json` autorise `Bash(npm run:*)`, ce qui couvre `npm run verify` ; lancer la commande une fois via l'agent pour s'en assurer. Ne pas modifier ce fichier pendant la démo.
    **Attendu :** la commande s'exécute sans invite.
 
-6. Formuler la demande du jury en une phrase, sans détail d'implémentation. Laisser l'agent suivre le skill `ajouter-une-fonctionnalite`. À la fin, exiger `npm run verify` puis le sous-agent `revue-architecture` sur le diff.
+6. Créer une branche de démo avant la demande, pour que l'agent ne travaille jamais sur `main` :
+   ```sh
+   git switch -c <prénom>/demo-<sujet>
+   ```
+   **Attendu :** `git branch --show-current` affiche la branche de démo.
+
+7. Formuler la demande du jury en une phrase, sans détail d'implémentation. Laisser l'agent suivre le skill `ajouter-une-fonctionnalite`. À la fin, exiger `npm run verify` puis le sous-agent `revue-architecture` sur le diff.
    **Attendu :** `npm run verify` vert et aucun constat bloquant de `revue-architecture`.
+
+> **Mailpit :** `npm run verify` et les E2E vident la boîte Mailpit. Montrer l'e-mail au jury après `verify`, pas avant.
 
 ## Vérification finale
 

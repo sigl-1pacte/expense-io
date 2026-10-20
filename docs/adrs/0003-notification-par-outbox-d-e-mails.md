@@ -21,7 +21,7 @@ L'employé n'est jamais prévenu d'une décision (F15). Écrire la décision en 
 
 ## Décision
 
-Nous choisissons **5**. `decideExpenseNote` compose l'e-mail et l'écrit par le port `Mailer` (adapter `OutboxMailer`) dans la même transaction que la décision. Un worker hors de l'hexagone réserve des lots de 5 (bail de 2 min, plus long que le pire cas d'un lot), envoie hors transaction, marque `sent`, réessaie, puis passe la ligne en `dead` après 3 échecs.
+Nous choisissons **5**. `decideExpenseNote` compose l'e-mail et l'écrit par le port `Mailer` (adapter `OutboxMailer`) dans la même transaction que la décision. Un worker hors de l'hexagone réserve des lots de 5 (bail de 2 min, plus long que le pire cas d'un lot : lot × (connexion + accueil + socket), chaque envoi étant borné par ce délai), envoie hors transaction, marque `sent`, réessaie, puis passe la ligne en `dead` après 3 échecs.
 
 ## Conséquences
 

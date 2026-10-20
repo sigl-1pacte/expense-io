@@ -76,7 +76,8 @@ info:
     `subject`, `body_text`, `correlation_id`, `status` (`pending`, `sent`,
     `dead`), `attempts`, `next_attempt_at`, `last_error`, `created_at`,
     `sent_at`. L'application n'a que `INSERT` ; le worker (rôle
-    `expense_mailer`) réserve des lots par bail, envoie, marque `sent`,
+    `expense_mailer`) réserve des lots par bail (plus long que le pire cas d'un lot,
+    lot × (connexion + accueil + socket)), envoie, marque `sent`,
     réessaie (10 s puis 1 min), passe en `dead` au troisième échec et purge
     les lignes `sent` de plus de 30 jours. Livraison au moins une fois.
 
