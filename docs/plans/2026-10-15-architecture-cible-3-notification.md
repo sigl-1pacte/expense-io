@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Statut** | Brouillon |
+| **Statut** | Terminé |
 | **Spec** | [2026-10-15-architecture-cible](../specs/2026-10-15-architecture-cible.md) |
 | **Auteur(s)** | Louis Bertrand (avec Claude Code) |
 | **Créé** | 2026-10-16 |

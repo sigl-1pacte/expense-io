@@ -12,7 +12,7 @@ Le cœur décide **à qui** et **quoi** écrire ; le worker de livraison ne fait
 1. **Composer** l'e-mail dans le module, dans `application/<objet>-email.ts`, sur le modèle de `src/modules/expenses/application/decision-email.ts` : une fonction pure qui renvoie un `Email` (`to`, `subject`, `text`, `correlationId`). Montants avec `Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' })`, dates civiles avec `timeZone: 'UTC'`. Test unitaire du texte.
 2. **Lire ce qui vient d'`iam`** (contact du destinataire, droits) par son API publique, via un port du module appelant, **hors de `uow.run`** : `iam` ouvre sa propre connexion, l'imbriquer dans une unité de travail tiendrait deux connexions du pool à la fois.
 3. **Envoyer dans l'unité de travail** : dans `uow.run(actor, async (ctx) => …)`, après l'écriture métier, `await ctx.mailer.send(email)`. L'e-mail est écrit dans `mail_outbox` dans la même transaction : si l'écriture échoue, l'opération est annulée. Modèle : `src/modules/expenses/application/decide-expense-note.ts`.
-4. **Tester** : unitaire avec `InMemoryMailer` (`uow.mailer.sent`) ; intégration en lisant `mail_outbox` ; E2E avec `waitForMail` (Mailpit).
+4. **Tester** : unitaire avec `InMemoryMailer` (`uow.mailer.sent`) ; intégration en lisant `mail_outbox` ; E2E avec `waitForMail` (Mailpit, `tests/support/mailpit.ts`) ; `mailText(id)` lit le corps texte du message trouvé (`waitForMail(to)` renvoie son `ID`).
 
 ## Interdits
 

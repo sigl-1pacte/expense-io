@@ -16,6 +16,12 @@ export async function clearMailpit(): Promise<void> {
   await fetch(`${BASE}/api/v1/messages`, { method: 'DELETE' })
 }
 
+/** Corps texte d'un message (API Mailpit `GET /api/v1/message/{ID}`, champ `Text`). */
+export async function mailText(id: string): Promise<string> {
+  const response = await fetch(`${BASE}/api/v1/message/${id}`)
+  return ((await response.json()) as { Text: string }).Text
+}
+
 /** Attend qu'un e-mail pour `to` arrive (polling de l'API Mailpit). */
 export async function waitForMail(to: string, timeoutMs = 15_000): Promise<MailpitMessage> {
   const deadline = Date.now() + timeoutMs

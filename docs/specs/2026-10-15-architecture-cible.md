@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | En revue |
+| **Statut** | Implémentée |
 | **Auteur(s)** | Louis Bertrand (avec Claude Code) ; flux de notification proposé par Maxime |
 | **Créée** | 2026-10-15 |
 | **Mise à jour** | 2026-10-16 |

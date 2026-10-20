@@ -16,12 +16,14 @@ Reformuler la demande en une phrase : *qui* fait *quoi*, sur *quelle ressource*,
 - Quel module ? Notes de frais, reçus, validation → `expenses`. Comptes, rôles, organigramme, « qui valide qui » → `iam`.
 - Quelle route existante ressemble le plus ? La copier comme point de départ (`src/app/api/**/route.ts`).
 - Le contrat change-t-il ? Ajouter est permis (nouvelle route, nouveau champ **optionnel**) ; retirer ou rendre obligatoire est interdit.
+- Un champ optionnel ajouté à un DTO de réponse est **absent** quand il est vide, jamais `null` : les tests existants comparent les DTO avec un `toEqual` exact, et un champ présent change la forme du succès.
+- Un corps facultatif ajouté à une route qui l'ignorait : le contrat prime. Les tests d'intégration existants qui figent l'ancien comportement (ex. « ignore le corps de la requête ») font foi ; un corps illisible garde l'ancien comportement sauf demande contraire.
 
 ## 2. Recette (TDD, dans cet ordre)
 
 1. **Domaine** — la règle dans `src/modules/<module>/domain/`. Test unitaire d'abord (`tests/unit/<module>/`).
 2. **Use case** — `src/modules/<module>/application/<verbe-objet>.ts`, fabrique `(ports) => (actor, …) => …`. Test unitaire avec les faux de `tests/unit/<module>/` (`fakes.ts`, `fake-iam-store.ts`).
-3. **Port / adapter** si une techno nouvelle intervient (`ports/` + `infrastructure/`) ; nouvelle colonne ou table → migration `migrations/<timestamp>_<sujet>.sql` (rôle `expense_app` : penser au `GRANT`, exemples dans `migrations/1760600000000_rls-isolation.sql` et `migrations/1760600000002_users-column-grants.sql`).
+3. **Port / adapter** si une techno nouvelle intervient (`ports/` + `infrastructure/`) ; nouvelle colonne ou table → migration `migrations/<timestamp>_<sujet>.sql`, puis `npm run migrate:up` pour que la base de dev (celle de la démo) l'ait : les tests migrent leur propre base. `GRANT` pour `expense_app` : inutile pour une colonne d'une table accordée en entier (`expense_notes`), nécessaire colonne par colonne sur `users` (exemples : `migrations/1760600000000_rls-isolation.sql`, `migrations/1760600000002_users-column-grants.sql`).
 4. **Export** dans `src/modules/<module>/index.ts`.
 5. **Route** — adapter mince :
    ```ts
@@ -55,7 +57,8 @@ Reformuler la demande en une phrase : *qui* fait *quoi*, sur *quelle ressource*,
 | `Response.json({ error }, { status })` à la main | lever une erreur de `src/shared/errors.ts` |
 | décider « qui valide » soi-même | `iam.canDecide` / `iam.approveesOf` |
 | oublier l'OpenAPI ou le CHANGELOG | `docs/api/openapi.yaml` et une ligne sous `## [Non publié]` de `CHANGELOG.md`, dans le même commit |
-| nouvelle colonne non accordée à `expense_app` | `GRANT` dans la migration |
+| nouvelle colonne de `users` non accordée à `expense_app` | `GRANT` par colonne dans la migration (inutile pour `expense_notes`, accordée en entier) |
+| migration ajoutée, base de dev non migrée | `npm run migrate:up` |
 | requête hors unité de travail | `uow.run(actor, …)` (`uow` = unité de travail injectée dans la fabrique du use case ; sinon la RLS ne voit rien) |
 | importer `src/lib/` depuis un module, ou autre chose que `src/lib/auth.ts` depuis `app/` | passer par un port ou `@/shared/*` |
 
