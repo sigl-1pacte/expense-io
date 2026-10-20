@@ -7,7 +7,7 @@ COMPOSE := docker compose
 -include .env
 export SONAR_HOST_URL SONAR_TOKEN
 
-.PHONY: help install env up down restart logs migrate ensure-bucket seed dev build start lint typecheck test coverage e2e clean sonar-up sonar sonar-down
+.PHONY: help install env up down restart logs migrate ensure-bucket seed dev worker build start lint typecheck test coverage e2e clean sonar-up sonar sonar-down
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -46,8 +46,11 @@ ensure-bucket: ## Crée le bucket S3 "receipts" s'il n'existe pas déjà
 seed: ## Peuple une base de démonstration navigable (RH, manager, employé, notes de frais)
 	npm run seed
 
-dev: install up migrate ensure-bucket seed ## Tout lancer : install, Docker, migrations, bucket, seed, puis le serveur de dev
-	npm run dev
+dev: install up migrate ensure-bucket seed ## Tout lancer : Docker, migrations, bucket, seed, puis l'application et le worker de livraison
+	trap 'kill 0' EXIT; npm run worker & npm run dev
+
+worker: ## Lance seul le worker de livraison des e-mails (Mailpit : http://localhost:8025)
+	npm run worker
 
 build: ## Build de production
 	npm run build
