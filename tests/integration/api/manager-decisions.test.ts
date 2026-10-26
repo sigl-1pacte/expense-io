@@ -85,6 +85,41 @@ describe.each([
     expect((await findNote(note.id))?.status).toBe('pending')
   })
 
+
+  it('commentaire du validateur : renvoyé, stocké et placé dans l’e-mail', async () => {
+    const org = await createOrg()
+    const note = await createNote({ user: org.employee })
+    actAs(org.manager)
+    const response = await decide(note.id, {
+      body: JSON.stringify({ comment: 'Merci de joindre la facture.' }),
+      headers: { 'content-type': 'application/json' },
+    })
+    expect(response.status).toBe(200)
+    expect((await readJson<NoteDto>(response)).decisionComment).toBe('Merci de joindre la facture.')
+    const { rows } = await testDb().query<{ decision_comment: string }>(
+      'SELECT decision_comment FROM expense_notes WHERE id = $1',
+      [note.id]
+    )
+    expect(rows[0].decision_comment).toBe('Merci de joindre la facture.')
+    const { rows: mails } = await testDb().query<{ body_text: string }>('SELECT body_text FROM mail_outbox')
+    expect(mails[0].body_text).toContain('Commentaire de votre validateur : Merci de joindre la facture.')
+  })
+
+  it.each([
+    ['trop long', { comment: 'a'.repeat(501) }, 'comment ne doit pas dépasser 500 caractères'],
+    ['pas du texte', { comment: 42 }, 'comment doit être du texte'],
+  ])('commentaire %s : 400, note inchangée', async (_label, payload, message) => {
+    const org = await createOrg()
+    const note = await createNote({ user: org.employee })
+    actAs(org.manager)
+    const response = await decide(note.id, {
+      body: JSON.stringify(payload),
+      headers: { 'content-type': 'application/json' },
+    })
+    await expectProblem(response, 400, message)
+    expect((await findNote(note.id))?.status).toBe('pending')
+  })
+
   it('ignore le corps de la requête', async () => {
     const org = await createOrg()
     const note = await createNote({ user: org.employee })

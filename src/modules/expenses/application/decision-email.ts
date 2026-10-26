@@ -9,7 +9,7 @@ const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZon
 
 export function decisionEmail(
   contact: { name: string; email: string },
-  note: { amount: number; expenseDate: string; status: Decision },
+  note: { amount: number; expenseDate: string; status: Decision; comment?: string },
   correlationId: string
 ): Email {
   const verdict = note.status === 'approved' ? 'approuvée' : 'refusée'
@@ -20,6 +20,7 @@ export function decisionEmail(
       `Bonjour ${contact.name},`,
       '',
       `Votre note de frais de ${amountFormat.format(note.amount)} du ${dateFormat.format(new Date(note.expenseDate))} a été ${verdict}.`,
+      ...(note.comment ? ['', `Commentaire de votre validateur : ${note.comment}`] : []),
       '',
       '— Expense.io',
     ].join('\n'),

@@ -9,6 +9,7 @@ interface ExpenseNote {
   expenseDate: string
   description: string
   status: string
+  decisionComment?: string
   createdAt: string
 }
 
@@ -286,6 +287,11 @@ export default function ExpensesPage() {
                     </td>
                     <td className="px-6 py-3">
                       <StatusBadge status={note.status} />
+                      {note.decisionComment && (
+                        <p className="mt-1 max-w-xs text-xs text-gray-500 dark:text-gray-400">
+                          Validateur : {note.decisionComment}
+                        </p>
+                      )}
                     </td>
                     <td className="px-6 py-3 text-right">
                       <button

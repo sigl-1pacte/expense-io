@@ -110,6 +110,21 @@ describe('decideExpenseNote (F9)', () => {
     expect((await decide(actor('m1', 'manager'), 'n1', 'approved', 'corr-1')).status).toBe('approved')
   })
 
+  it('le commentaire est enregistré avec la décision et placé dans l’e-mail', async () => {
+    const { uow, decide } = await setup()
+    const dto = await decide(actor('m1', 'manager'), 'n1', 'rejected', 'corr-1', 'Reçu illisible')
+    expect(dto.decisionComment).toBe('Reçu illisible')
+    expect(uow.notes.notes[0].decisionComment).toBe('Reçu illisible')
+    expect(uow.mailer.sent[0].text).toContain('Reçu illisible')
+  })
+
+  it('sans commentaire : rien de stocké, DTO inchangé', async () => {
+    const { uow, decide } = await setup()
+    const dto = await decide(actor('m1', 'manager'), 'n1', 'approved', 'corr-1')
+    expect('decisionComment' in dto).toBe(false)
+    expect(uow.notes.notes[0].decisionComment).toBeUndefined()
+  })
+
   it('quelqu’un qui ne valide pas cette note : 404', async () => {
     const { decide } = await setup()
     await expect(decide(actor('m2', 'manager'), 'n1', 'approved', 'corr-1')).rejects.toBeInstanceOf(NotFound)

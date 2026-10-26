@@ -11,6 +11,7 @@ Plans 2 et 3 de la refacto (modules `iam` et `expenses`, notification par e-mail
 
 ### Ajouté
 
+- `POST /api/{manager,hr}/expense-notes/{id}/{approve,reject}` : corps JSON facultatif `{ "comment" }` (500 caractères au plus) ; le commentaire est stocké, repris dans l'e-mail de décision et renvoyé dans le champ optionnel `decisionComment` de la note, absent quand il n'y en a pas. Un corps absent ou illisible garde l'ancien comportement ; un commentaire trop long ou qui n'est pas du texte donne `400`.
 - `POST /api/{manager,hr}/expense-notes/{id}/{approve,reject}` : l'employé est prévenu par e-mail après coup (outbox, ADR 0003), décrit dans les opérations ; `mail_outbox` est documentée comme contrat interne entre l'application et le worker. Les réponses ne changent pas (F15).
 
 ### Modifié

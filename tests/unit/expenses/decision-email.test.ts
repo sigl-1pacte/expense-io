@@ -19,4 +19,14 @@ describe('decisionEmail (point de vigilance 5)', () => {
     expect(email.subject).toBe('Votre note de frais a été refusée')
     expect(email.text).toContain('1 janvier 2026')
   })
+
+  it('le commentaire du validateur figure dans le message', () => {
+    const email = decisionEmail(emma, { amount: 7, expenseDate: '2026-01-01', status: 'rejected', comment: 'Reçu illisible' }, 'c')
+    expect(email.text).toContain('Commentaire de votre validateur : Reçu illisible')
+  })
+
+  it('sans commentaire, aucune ligne de commentaire', () => {
+    const email = decisionEmail(emma, { amount: 7, expenseDate: '2026-01-01', status: 'approved' }, 'c')
+    expect(email.text).not.toContain('Commentaire')
+  })
 })

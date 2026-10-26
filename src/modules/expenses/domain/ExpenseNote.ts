@@ -12,6 +12,7 @@ export interface ExpenseNoteProps {
   description: string
   receiptKey: string
   status: NoteStatus
+  decisionComment?: string
   createdAt: Date
 }
 
@@ -24,6 +25,8 @@ export interface ExpenseNoteDto {
   description: string
   receiptKey: string
   status: NoteStatus
+  /** Absent quand le validateur n'a rien écrit (jamais `null`). */
+  decisionComment?: string
   createdAt: string
 }
 
@@ -55,13 +58,27 @@ export class ExpenseNote {
     return this.props.expenseDate
   }
 
-  decide(decision: Decision): ExpenseNote {
+  get decisionComment(): string | undefined {
+    return this.props.decisionComment
+  }
+
+  decide(decision: Decision, comment?: string): ExpenseNote {
     if (this.props.status !== 'pending') throw new AlreadyDecided()
-    return new ExpenseNote({ ...this.props, status: decision })
+    return new ExpenseNote({ ...this.props, status: decision, decisionComment: comment })
   }
 
   toDto(): ExpenseNoteDto {
-    const { id, userId, amount, expenseDate, description, receiptKey, status, createdAt } = this.props
-    return { id, userId, amount, expenseDate, description, receiptKey, status, createdAt: createdAt.toISOString() }
+    const { id, userId, amount, expenseDate, description, receiptKey, status, decisionComment, createdAt } = this.props
+    return {
+      id,
+      userId,
+      amount,
+      expenseDate,
+      description,
+      receiptKey,
+      status,
+      ...(decisionComment ? { decisionComment } : {}),
+      createdAt: createdAt.toISOString(),
+    }
   }
 }

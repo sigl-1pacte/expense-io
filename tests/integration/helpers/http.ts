@@ -12,6 +12,7 @@ export interface NoteDto {
   description: string
   receiptKey: string
   status: string
+  decisionComment?: string
   createdAt: string
 }
 

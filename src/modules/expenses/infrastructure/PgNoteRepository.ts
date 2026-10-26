@@ -4,7 +4,7 @@ import { ExpenseNote, type NoteStatus } from '../domain/ExpenseNote'
 import type { NewNote, NoteRepository } from '../ports/NoteRepository'
 
 const COLUMNS =
-  'id, user_id, company_id, amount, expense_date, description, receipt_key, status, created_at'
+  'id, user_id, company_id, amount, expense_date, description, receipt_key, status, decision_comment, created_at'
 
 interface NoteRow {
   id: string
@@ -15,6 +15,7 @@ interface NoteRow {
   description: string
   receipt_key: string
   status: NoteStatus
+  decision_comment: string | null
   created_at: Date
 }
 
@@ -28,6 +29,7 @@ function toNote(row: NoteRow): ExpenseNote {
     description: row.description,
     receiptKey: row.receipt_key,
     status: row.status,
+    decisionComment: row.decision_comment ?? undefined,
     createdAt: new Date(row.created_at),
   })
 }
@@ -79,8 +81,8 @@ export class PgNoteRepository implements NoteRepository {
 
   async saveDecision(note: ExpenseNote): Promise<boolean> {
     const { rowCount } = await this.sql.query(
-      `UPDATE expense_notes SET status = $2 WHERE id = $1 AND status = 'pending'`,
-      [note.id, note.status]
+      `UPDATE expense_notes SET status = $2, decision_comment = $3 WHERE id = $1 AND status = 'pending'`,
+      [note.id, note.status, note.decisionComment ?? null]
     )
     return rowCount === 1
   }

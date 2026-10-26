@@ -24,6 +24,7 @@ export function PendingApprovalsPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [decidingId, setDecidingId] = useState<string | null>(null)
+  const [comments, setComments] = useState<Record<string, string>>({})
 
   const loadPending = useCallback(async () => {
     const response = await fetch('/api/manager/expense-notes')
@@ -56,6 +57,8 @@ export function PendingApprovalsPanel() {
     setError(null)
     const response = await fetch(`/api/manager/expense-notes/${id}/${decision}`, {
       method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ comment: comments[id] ?? '' }),
     })
     setDecidingId(null)
 
@@ -103,6 +106,7 @@ export function PendingApprovalsPanel() {
                   <th className="px-6 py-3 font-medium">Date</th>
                   <th className="px-6 py-3 font-medium">Description</th>
                   <th className="px-6 py-3 text-right font-medium">Montant</th>
+                  <th className="px-6 py-3 font-medium">Commentaire</th>
                   <th className="px-6 py-3" />
                 </tr>
               </thead>
@@ -118,6 +122,17 @@ export function PendingApprovalsPanel() {
                     <td className="px-6 py-3">{note.description}</td>
                     <td className="px-6 py-3 text-right font-medium whitespace-nowrap">
                       {currencyFormatter.format(note.amount)}
+                    </td>
+                    <td className="px-6 py-3">
+                      <input
+                        type="text"
+                        maxLength={500}
+                        aria-label={`Commentaire sur la note « ${note.description} »`}
+                        placeholder="Facultatif"
+                        value={comments[note.id] ?? ''}
+                        onChange={(event) => setComments((previous) => ({ ...previous, [note.id]: event.target.value }))}
+                        className="w-48 rounded-md border border-gray-300 px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-900"
+                      />
                     </td>
                     <td className="px-6 py-3 text-right whitespace-nowrap">
                       <button

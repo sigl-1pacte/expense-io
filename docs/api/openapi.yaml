@@ -443,9 +443,15 @@ paths:
       tags: [Manager]
       operationId: managerApproveExpenseNote
       summary: Approuver une note d'un subordonné direct
-      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003). Un corps JSON facultatif, avec le champ `comment`, ajoute un commentaire du validateur, repris dans l'e-mail et dans `decisionComment` ; sans corps, ou avec un corps illisible, la décision se comporte comme avant.
       parameters:
         - $ref: '#/components/parameters/NoteId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
       responses:
         '200':
           $ref: '#/components/responses/DecidedNote'
@@ -467,9 +473,15 @@ paths:
       tags: [Manager]
       operationId: managerRejectExpenseNote
       summary: Rejeter une note d'un subordonné direct
-      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003). Un corps JSON facultatif, avec le champ `comment`, ajoute un commentaire du validateur, repris dans l'e-mail et dans `decisionComment` ; sans corps, ou avec un corps illisible, la décision se comporte comme avant.
       parameters:
         - $ref: '#/components/parameters/NoteId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
       responses:
         '200':
           $ref: '#/components/responses/DecidedNote'
@@ -540,9 +552,15 @@ paths:
       tags: [RH]
       operationId: hrApproveExpenseNote
       summary: Approuver une note dont la RH est validatrice
-      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003). Un corps JSON facultatif, avec le champ `comment`, ajoute un commentaire du validateur, repris dans l'e-mail et dans `decisionComment` ; sans corps, ou avec un corps illisible, la décision se comporte comme avant.
       parameters:
         - $ref: '#/components/parameters/NoteId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
       responses:
         '200':
           $ref: '#/components/responses/DecidedNote'
@@ -564,9 +582,15 @@ paths:
       tags: [RH]
       operationId: hrRejectExpenseNote
       summary: Rejeter une note dont la RH est validatrice
-      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003) ; la réponse ne change pas.
+      description: Deux décisions simultanées sur la même note donnent un `200` et un `409 Already decided`. L'employé est prévenu par e-mail après coup (outbox, ADR 0003). Un corps JSON facultatif, avec le champ `comment`, ajoute un commentaire du validateur, repris dans l'e-mail et dans `decisionComment` ; sans corps, ou avec un corps illisible, la décision se comporte comme avant.
       parameters:
         - $ref: '#/components/parameters/NoteId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
       responses:
         '200':
           $ref: '#/components/responses/DecidedNote'
@@ -752,9 +776,21 @@ components:
           example: receipts/1.png
         status:
           $ref: '#/components/schemas/ExpenseNoteStatus'
+        decisionComment:
+          type: string
+          maxLength: 500
+          description: Commentaire du validateur. Absent quand il n'en a pas écrit.
         createdAt:
           type: string
           format: date-time
+
+    DecisionInput:
+      type: object
+      properties:
+        comment:
+          type: string
+          maxLength: 500
+          description: Commentaire facultatif ; vide ou blanc, il est ignoré. Au-delà de 500 caractères, ou s'il n'est pas du texte, `400`.
 
     ReceiptSuggestion:
       type: object
@@ -851,7 +887,7 @@ components:
           example: { error: Unauthorized, type: 'https://expense.io/problems/forbidden', title: Accès refusé, status: 403, detail: Unauthorized }
 
     InvalidId:
-      description: L'identifiant du chemin n'est pas un UUID.
+      description: L'identifiant du chemin n'est pas un UUID, ou le commentaire de la décision est invalide.
       content:
         application/problem+json:
           schema:

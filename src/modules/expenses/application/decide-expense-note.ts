@@ -18,16 +18,22 @@ import { decisionEmail } from './decision-email'
  * est fait par le worker.
  */
 export function decideExpenseNote(uow: ExpensesUnitOfWork, approvals: Approvals) {
-  return async (actor: Actor, noteId: string, decision: Decision, correlationId: string): Promise<ExpenseNoteDto> => {
+  return async (
+    actor: Actor,
+    noteId: string,
+    decision: Decision,
+    correlationId: string,
+    comment?: string
+  ): Promise<ExpenseNoteDto> => {
     const note = await uow.run(actor, (ctx) => ctx.notes.findById(noteId))
     if (!note || !(await approvals.canDecide(actor, note.userId))) throw new NotFound()
-    const decided = note.decide(decision)
+    const decided = note.decide(decision, comment)
     const contact = await approvals.contactOf(actor, note.userId)
     await uow.run(actor, async (ctx) => {
       if (!(await ctx.notes.saveDecision(decided))) throw new AlreadyDecided()
       if (contact) {
         await ctx.mailer.send(
-          decisionEmail(contact, { amount: decided.amount, expenseDate: decided.expenseDate, status: decision }, correlationId)
+          decisionEmail(contact, { amount: decided.amount, expenseDate: decided.expenseDate, status: decision, comment: decided.decisionComment }, correlationId)
         )
       } else {
         logger.warn('Décision sans destinataire : aucun e-mail', { correlationId, noteId })

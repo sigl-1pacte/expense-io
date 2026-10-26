@@ -24,6 +24,17 @@ describe('ExpenseNote', () => {
     expect(() => new ExpenseNote({ ...props, status }).decide('approved')).toThrow(AlreadyDecided)
   })
 
+  it('decide enregistre le commentaire, qui apparaît dans le DTO', () => {
+    const decided = new ExpenseNote(props).decide('rejected', 'Reçu illisible')
+    expect(decided.decisionComment).toBe('Reçu illisible')
+    expect(decided.toDto()).toMatchObject({ status: 'rejected', decisionComment: 'Reçu illisible' })
+  })
+
+  it('sans commentaire, le champ est absent du DTO (jamais null)', () => {
+    const dto = new ExpenseNote(props).decide('approved').toDto()
+    expect('decisionComment' in dto).toBe(false)
+  })
+
   it('expose les propriétés de la note', () => {
     const note = new ExpenseNote(props)
     expect([note.id, note.userId, note.amount, note.expenseDate, note.receiptKey]).toEqual([

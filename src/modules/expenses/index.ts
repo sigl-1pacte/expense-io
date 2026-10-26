@@ -13,6 +13,7 @@ import type { Approvals } from './ports/Approvals'
 
 export { MAX_RECEIPT_BYTES, parseSubmission } from './domain/Submission'
 export type { ReceiptFile, Submission } from './domain/Submission'
+export { parseDecisionComment } from './domain/DecisionComment'
 export type { Decision, ExpenseNoteDto } from './domain/ExpenseNote'
 
 const uow = new PgExpensesUnitOfWork()

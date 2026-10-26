@@ -45,6 +45,7 @@ export class InMemoryNotes implements NoteRepository {
     const stored = this.notes.find((n) => n.id === note.id)
     if (!stored || stored.status !== 'pending') return false
     stored.status = note.status
+    stored.decisionComment = note.decisionComment
     return true
   }
 }
