@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expense.io — Annexes (version complète)</title>
+<style>
+:root{
+  --navy:#071426; --indigo:#2A3B8C; --sky:#45BBEC; --blue:#3D9FD7; --pale:#98D6E1;
+  --ice:#EAF5FB; --slate:#5E7187; --line:#C1D2E6; --deep:#122347; --soft:#6C8BC6;
+  --ok:#1f9d6b; --warn:#e08a1e; --bad:#d6455d;
+  --font:"Aptos","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0b0f1a;overflow:hidden;font-family:var(--font);color:var(--navy)}
+#viewport{position:fixed;inset:0}
+#stage{width:1600px;height:900px;position:absolute;left:50%;top:50%;transform-origin:center center}
+.slide{position:absolute;inset:0;width:1600px;height:900px;overflow:hidden;background:#fff center/cover no-repeat;
+  opacity:0;visibility:hidden;transition:opacity .25s ease}
+.slide.active{opacity:1;visibility:visible}
+
+/* ---------- gabarits ---------- */
+.content{background-image:url(assets/bg-light-left.jpg)}
+.cover{background-image:url(assets/bg-cover-light.jpg)}
+.dark{background-image:url(assets/bg-dark.jpg);color:#fff}
+.blue{background-image:url(assets/bg-blue.jpg);color:#fff}
+.pad{position:absolute;left:96px;right:96px;top:70px;bottom:150px}
+.kicker{font-size:20px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;color:var(--blue)}
+.dark .kicker,.blue .kicker{color:var(--sky)}
+h1{font-size:92px;line-height:1.02;font-weight:800;color:var(--indigo);letter-spacing:-.02em}
+h2{font-size:56px;line-height:1.08;font-weight:800;color:var(--indigo);letter-spacing:-.015em;margin-top:10px}
+.dark h2,.blue h2{color:#fff}
+.sub{font-size:26px;color:var(--slate);margin-top:12px;max-width:1100px}
+.dark .sub,.blue .sub{color:var(--line)}
+.body{position:absolute;left:96px;right:96px;top:250px;bottom:160px}
+.foot{position:absolute;left:96px;right:96px;bottom:34px;display:flex;justify-content:space-between;
+  font-size:16px;color:var(--slate);letter-spacing:.04em}
+.dark .foot,.blue .foot{color:var(--line)}
+.take{position:absolute;left:96px;bottom:78px;max-width:1010px;display:flex;align-items:center;gap:18px;
+  background:var(--navy);color:#fff;border-radius:14px;padding:14px 26px 14px 14px;font-size:22px;line-height:1.25}
+.take b{background:var(--sky);color:var(--navy);font-size:14px;letter-spacing:.14em;text-transform:uppercase;
+  padding:8px 12px;border-radius:8px;white-space:nowrap}
+.dark .take,.blue .take{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25)}
+.num{position:absolute;right:96px;top:50px;font-size:18px;font-weight:700;color:var(--slate);letter-spacing:.12em}
+.dark .num,.blue .num{color:var(--pale)}
+.ill{position:absolute;pointer-events:none}
+aside.notes{display:none}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:8px 20px;height:100%}
+.fx{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:6px 16px 7px;font-size:18px;line-height:1.25;color:#26364d;box-shadow:0 8px 22px -16px rgba(18,35,71,.35)}
+.fx b{display:block;font-size:21px;color:var(--indigo);margin:2px 0 1px}
+.fx .fd{display:block;color:#3b4d66}
+.fx .pill{font-size:14px;padding:2px 10px}
+.fx code{font-size:.9em}
+
+
+/* ---------- briques ---------- */
+.cards{display:grid;gap:26px;height:100%}
+.c2{grid-template-columns:repeat(2,1fr)} .c3{grid-template-columns:repeat(3,1fr)} .c4{grid-template-columns:repeat(4,1fr)}
+.card{background:#fff;border:1.5px solid var(--line);border-radius:20px;padding:28px 30px;position:relative;
+  box-shadow:0 10px 30px -18px rgba(18,35,71,.35)}
+.card.fill{background:var(--indigo);color:#fff;border-color:var(--indigo)}
+.card.ice{background:var(--ice);border-color:#d3e8f4}
+.dark .card,.blue .card{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.22);box-shadow:none}
+.card h3{font-size:32px;line-height:1.15;color:var(--indigo);margin-bottom:10px}
+.card.fill h3,.dark .card h3,.blue .card h3{color:#fff}
+.card p,.card li{font-size:25px;line-height:1.38;color:#26364d}
+.card.fill p,.card.fill li,.dark .card p,.dark .card li,.blue .card p{color:var(--line)}
+.card ul{list-style:none}
+.card li{padding-left:22px;position:relative;margin:7px 0}
+.card li::before{content:"";position:absolute;left:0;top:.62em;width:9px;height:9px;border-radius:2px;background:var(--sky);transform:rotate(45deg)}
+.tag{display:inline-block;font-size:15px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--blue);margin-bottom:10px}
+.dark .tag,.card.fill .tag{color:var(--sky)}
+.bignum{font-size:96px;font-weight:800;line-height:1;color:var(--indigo);letter-spacing:-.03em}
+.dark .bignum,.card.fill .bignum{color:#fff}
+.bubble{width:52px;height:52px;border-radius:50%;background:var(--sky);color:var(--navy);font-weight:800;font-size:26px;
+  display:grid;place-items:center;margin-bottom:14px;flex:none}
+.pill{display:inline-block;padding:4px 12px;border-radius:99px;font-size:17px;font-weight:700}
+.p-crit{background:#fde3e8;color:#a3223a}.p-high{background:#fdeed7;color:#9a5a0b}
+.p-ok{background:#dcf3e8;color:#12714c}.p-mid{background:var(--ice);color:var(--indigo)}
+code,.mono{font-family:"Cascadia Mono","Consolas",ui-monospace,monospace;font-size:.88em}
+code{background:var(--ice);color:var(--indigo);padding:1px 7px;border-radius:6px}
+.dark code,.card.fill code{background:rgba(255,255,255,.14);color:#fff}
+table{border-collapse:collapse;width:100%}
+th{font-size:16px;letter-spacing:.1em;text-transform:uppercase;color:var(--slate);text-align:left;padding:10px 16px;border-bottom:2px solid var(--line)}
+td{font-size:23px;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.3}
+tr.win td{background:var(--ice);font-weight:600}
+tr.win td:first-child{border-left:6px solid var(--sky)}
+.cols{display:grid;gap:40px;height:100%}
+svg text{font-family:var(--font)}
+
+/* ---------- couverture ---------- */
+.cover .logo{left:96px;top:70px;width:150px}
+.cover .org{position:absolute;left:96px;top:300px;font-size:22px;letter-spacing:.28em;font-weight:700;color:var(--slate);line-height:1.6}
+.cover h1{position:absolute;left:96px;top:380px;width:900px}
+.cover .rule{position:absolute;left:96px;top:700px;width:180px;height:5px;background:var(--blue);border-radius:3px}
+.cover .who{position:absolute;left:96px;top:728px;font-size:26px;font-weight:700;color:var(--indigo)}
+.cover .meta{position:absolute;left:290px;top:100px;font-size:20px;color:var(--slate);letter-spacing:.06em}
+
+/* ---------- intercalaires ---------- */
+.section .big{position:absolute;left:110px;top:150px;font-size:330px;font-weight:800;line-height:1;color:rgba(61,159,215,.16);letter-spacing:-.05em}
+.section .kicker{position:absolute;left:110px;top:430px}
+.section h2{color:var(--indigo);position:absolute;left:110px;top:470px;font-size:84px;width:880px;line-height:1.04}
+.section .sub{color:var(--slate);position:absolute;left:110px;top:760px;font-size:28px;width:760px}
+
+/* ---------- barres ---------- */
+.bars .row{display:grid;grid-template-columns:400px 1fr 130px;align-items:center;gap:18px;margin:10px 0}
+.bars .lab{font-size:21px;color:#26364d} .bars .lab code{font-size:18px}
+.bars .track{height:26px;border-radius:13px;background:var(--ice);overflow:hidden}
+.bars .fillb{height:100%;border-radius:13px;background:linear-gradient(90deg,var(--indigo),var(--sky))}
+.bars .val{font-size:22px;font-weight:700;color:var(--indigo)}
+
+/* ---------- notes ---------- */
+#notes{position:fixed;left:0;right:0;bottom:0;max-height:34vh;overflow:auto;background:rgba(7,20,38,.96);color:#e5eefb;
+  padding:16px 28px 20px;font-size:17px;line-height:1.5;display:none;z-index:9;border-top:3px solid var(--sky)}
+#notes.on{display:block}
+#notes h4{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--sky);margin-bottom:6px}
+#bar{position:fixed;left:0;top:0;height:4px;background:var(--sky);z-index:10;transition:width .25s}
+#hint{position:fixed;right:14px;bottom:10px;font-size:13px;color:#8aa0c4;z-index:8;opacity:.8}
+#grid{position:fixed;inset:0;background:rgba(7,20,38,.97);z-index:20;display:none;overflow:auto;padding:30px;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;align-content:start}
+#grid.on{display:grid}
+#grid button{all:unset;cursor:pointer;display:block;border:2px solid #2a3b60;border-radius:10px;overflow:hidden;background:#fff}
+#grid button:hover,#grid button.cur{border-color:var(--sky)}
+#grid .t{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden}
+#grid .t>div{width:1600px;height:900px;transform-origin:0 0;position:absolute;left:0;top:0}
+#grid .l{font-size:13px;padding:6px 10px;background:#0e1c34;color:#cfe0f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- impression PDF : une slide par page ---------- */
+@page{size:1600px 900px;margin:0}
+@media print{
+  html,body{overflow:visible;height:auto;background:#fff}
+  #viewport{position:static;display:block}
+  #stage{transform:none!important;position:static;width:1600px;height:auto}
+  .slide{position:relative;opacity:1;visibility:visible;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #notes,#bar,#hint,#grid{display:none!important}
+}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="viewport"><div id="stage">
+
+<!-- 1 · COUVERTURE -->
+<section class="slide cover" data-title="Couverture">
+  <img class="ill logo" src="assets/logo.webp" alt="EPITA SIGL">
+  <div class="meta">Expense.io &nbsp;/&nbsp; SIGL Promo 2027 &nbsp;/&nbsp; 30 octobre 2026</div>
+  <div class="org">SYSTÈMES D’INFORMATION<br>&amp; GÉNIE LOGICIEL — ARLA</div>
+  <h1>Expense.io :<br>audit et refacto<br>d’architecture</h1>
+  <div class="rule"></div>
+  <div class="who">Louis Bertrand &amp; Maxime — équipe 1pacte</div>
+  <aside class="notes">Présentation en deux temps : 15 min d’audit et de choix d’architecture, puis 15 min de live coding assisté par IA. Annoncer le fil rouge : « on a rendu une codebase vibecodée durable, et on peut maintenant y ajouter une fonctionnalité en une phrase ».</aside>
+</section>
+
+<!-- 2 · SOMMAIRE -->
+<section class="slide content" data-title="Au programme">
+  <div class="num">01</div>
+  <div class="pad"><div class="kicker">Sommaire</div><h2>Au programme</h2><p class="sub">Deux parties de 15 minutes, comme demandé : l’audit, puis le live coding.</p></div>
+  <div class="body" style="top:270px">
+    <div class="cards c4" style="height:380px">
+      <div class="card"><div class="bubble">1</div><h3>Contexte &amp; audit</h3><p>Ce que contenait la codebase : 46 constats, des mesures de départ.</p><p style="margin-top:18px"><span class="pill p-mid">≈ 4 min</span></p></div>
+      <div class="card"><div class="bubble">2</div><h3>Décisions d’architecture</h3><p>Quatre options, une retenue, et pourquoi, à la lumière du cours.</p><p style="margin-top:18px"><span class="pill p-mid">≈ 6 min</span></p></div>
+      <div class="card"><div class="bubble">3</div><h3>Résultats &amp; limites</h3><p>Ce qui est corrigé, prouvé, mesuré — et ce qu’on a choisi de ne pas faire.</p><p style="margin-top:18px"><span class="pill p-mid">≈ 5 min</span></p></div>
+      <div class="card fill"><div class="bubble">4</div><h3>Live coding assisté par IA</h3><p>Une fonctionnalité en un seul prompt, devant vous.</p><p style="margin-top:18px"><span class="pill" style="background:var(--sky);color:var(--navy)">15 min</span></p></div>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Une refacto n’est réussie que si l’on peut ensuite y travailler vite et sans risque.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span></span></div>
+  <aside class="notes">Rappeler le format de la soutenance (slide 49 du cours 2) : présentation des résultats de l’audit, chaque choix expliqué avec les concepts du cours et l’état de la codebase ; puis live coding avec prompts détaillés.</aside>
+</section>
+
+<!-- 3 · SYNTHÈSE -->
+<section class="slide content" data-title="Synthèse exécutive">
+  <div class="num">02</div>
+  <div class="pad"><div class="kicker">Synthèse exécutive</div><h2>L’essentiel du projet</h2>
+    <p class="sub">Une codebase qui marche, mais qui fuit, se copie-colle et ne se laisse pas faire évoluer. Nous l’avons rendue durable sans casser son API.</p></div>
+  <div class="body" style="top:300px;bottom:170px">
+    <div class="cards c3">
+      <div class="card"><div class="bubble">1</div><h3>L’enjeu</h3><p>SaaS B2B : une fuite entre entreprises est « le pire incident possible ». L’audit en trouve 3 critiques de plus, des règles d’accès copiées 7 fois et une architecture hexagonale <b>morte</b>.</p></div>
+      <div class="card"><div class="bubble">2</div><h3>La réponse</h3><p>Un <b>monolithe modulaire hexagonal</b> (<code>expenses</code>, <code>iam</code>) et une <b>outbox d’e-mails</b> pour notifier les décisions. Contrat d’API inchangé en succès.</p></div>
+      <div class="card"><div class="bubble">3</div><h3>Le résultat</h3><p><b>29 constats sur 46</b> corrigés et testés, règles d’architecture vérifiées en CI, SonarQube sur le dépôt, et un harnais qui permet d’ajouter une fonctionnalité <b>en un prompt</b>.</p></div>
+    </div>
+  </div>
+  <img class="ill" src="assets/target.webp" style="right:190px;top:28px;width:130px" alt="">
+  <div class="take"><b>À retenir</b>On n’a pas réécrit : on a rendu les bonnes décisions faciles et les mauvaises impossibles.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span></span></div>
+  <aside class="notes">Message d’ouverture, 45 secondes. Trois phrases : enjeu, réponse, résultat. « 3 critiques de plus » : F1 (reçus lisibles d’une autre entreprise), F2 (RLS contournée), F3 (injection SQL) ; le 4e critique est le secret en dur F25. Le premier incident du cours (fuite A→B) n’est pas théorique ici.</aside>
+</section>
+
+<!-- 4 · INTERCALAIRE 1 -->
+<section class="slide cover section" data-title="01 · Contexte & audit">
+  <div class="num">03</div><div class="big">01</div><div class="kicker">Contexte &amp; audit</div>
+  <h2>Ce que contenait la codebase</h2>
+  <p class="sub">Un audit en trois temps : lire, rejouer, figer.</p>
+  <img class="ill" src="assets/shield.webp" style="right:120px;top:240px;width:520px" alt="">
+</section>
+
+<!-- 5 · CONTEXTE -->
+<section class="slide content" data-title="Contexte">
+  <div class="num">04</div>
+  <div class="pad"><div class="kicker">Contexte</div><h2>Expense.io, le point de départ</h2><p class="sub">Étude de cas du cours 2 : un SaaS B2B de notes de frais, entièrement vibecodé.</p></div>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:1fr 1fr">
+      <div class="card ice"><span class="tag">Le produit</span>
+        <ul><li>Soumission d’une note de frais avec reçu</li><li>Validation par le manager ou les RH</li><li>Reçus stockés sur S3, pré-remplissage par OCR</li><li>Next.js 16, PostgreSQL (RLS), LocalStack S3</li></ul>
+        <p style="margin-top:14px"><b>Départ :</b> un seul process Node, tout synchrone, SQL brut dans les routes.</p></div>
+      <div class="card"><span class="tag">Les consignes de soutenance</span>
+        <ul><li>Tout le monde peut créer une note</li><li>Un manager ne valide que ses <b>subordonnés directs</b></li><li>Un RH valide les <b>managers racines</b>, jamais ses propres notes</li><li><b>SonarQube</b> doit tourner sur le dépôt</li><li>L’<b>API ne change pas</b> (ajouts permis)</li></ul></div>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Deux contraintes dictent tout : l’API est figée, et la preuve doit être chiffrée.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span></span></div>
+  <aside class="notes">Relier au cours : Manu a ajouté des rôles « à la va-vite » (slide 27-29 du cours 2), copié-collé les contrôles dans chaque route, et un premier incident de fuite est arrivé. Notre codebase est cet état-là, réel. L’API figée est la contrainte qui oriente le choix d’architecture.</aside>
+</section>
+
+<!-- 6 · MÉTHODE -->
+<section class="slide content" data-title="Méthode d'audit">
+  <div class="num">05</div>
+  <div class="pad"><div class="kicker">Méthode</div><h2>Lire, rejouer, figer</h2><p class="sub">Chaque constat est étiqueté par la preuve qui le soutient.</p></div>
+  <div class="body" style="top:270px">
+    <div class="cards c4">
+      <div class="card"><div class="bubble">1</div><h3>Lire</h3><p>État des lieux ARLA-8 : stack, découpage par domaine, schéma as-is, points d’attention.</p></div>
+      <div class="card"><div class="bubble">2</div><h3>Rejouer</h3><p>Application lancée, parcourue pour chaque rôle, cas d’accès rejoués avec le vrai cookie de session.</p></div>
+      <div class="card"><div class="bubble">3</div><h3>Figer</h3><p>Suite de caractérisation ARLA-9 : plus de <b>140 tests</b>, défauts connus étiquetés <code>[as-is]</code>.</p></div>
+      <div class="card fill"><div class="bignum">46</div><p style="margin-top:6px"><b>constats</b> F1–F46, statut <b>Confirmé</b>, <b>Code</b> ou <b>Test</b>.</p></div>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Les tests de caractérisation sont le filet : on refactore à comportement constant, et on corrige en le changeant exprès.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span></span></div>
+  <aside class="notes">Convention ARLA-9 : un défaut figé par un test [as-is] se corrige en modifiant ce test (c’est aussi écrit dans AGENTS.md). Cela transforme la refacto en suite de petits pas vérifiés par une suite verte à chaque commit.</aside>
+</section>
+
+<!-- 7 · GRAVITÉ -->
+<section class="slide content" data-title="Gravité des constats">
+  <div class="num">06</div>
+  <div class="pad"><div class="kicker">Résultats de l’audit</div><h2>Quatre critiques, huit élevés</h2><p class="sub">46 constats : l’isolation entre entreprises et la sécurité dominent le haut du tableau.</p></div>
+  <div class="body" style="top:270px">
+    <div class="cols" style="grid-template-columns:480px 1fr;gap:50px;height:auto">
+      <div>
+        <svg viewBox="0 0 480 420" width="480" height="420" role="img" aria-label="Répartition des constats par gravité">
+          <g font-size="22" fill="#26364d">
+            <text x="0" y="40">Critique</text><rect x="120" y="18" width="40" height="30" rx="8" fill="#d6455d"/><text x="172" y="42" font-weight="700">4</text>
+            <text x="0" y="120">Élevé</text><rect x="120" y="98" width="80" height="30" rx="8" fill="#e08a1e"/><text x="212" y="122" font-weight="700">8</text>
+            <text x="0" y="200">Moyen</text><rect x="120" y="178" width="200" height="30" rx="8" fill="#3D9FD7"/><text x="332" y="202" font-weight="700">20</text>
+            <text x="0" y="280">Faible</text><rect x="120" y="258" width="140" height="30" rx="8" fill="#98D6E1"/><text x="272" y="282" font-weight="700">14</text>
+          </g>
+          <text x="0" y="360" font-size="20" fill="#5E7187">Total : 46 constats (F1–F46)</text>
+        </svg>
+      </div>
+      <div class="cards c2" style="gap:20px">
+        <div class="card"><span class="pill p-crit">F1 · Critique</span><h3 style="margin-top:8px;font-size:26px">Reçus d’une autre entreprise</h3><p style="font-size:21px">Un manager obtient une URL S3 signée sur la note de <b>n’importe quelle</b> entreprise.</p></div>
+        <div class="card"><span class="pill p-crit">F2 · Critique</span><h3 style="margin-top:8px;font-size:26px">RLS de fait désactivée</h3><p style="font-size:21px">L’appli se connecte en <b>superuser</b> : les policies Postgres ne s’appliquent jamais.</p></div>
+        <div class="card"><span class="pill p-crit">F3 · Critique</span><h3 style="margin-top:8px;font-size:26px">Injection SQL via <code>sort</code></h3><p style="font-size:21px">Le paramètre est concaténé tel quel dans le <code>ORDER BY</code>.</p></div>
+        <div class="card"><span class="pill p-crit">F25 · Critique</span><h3 style="margin-top:8px;font-size:26px">Secret d’auth en dur</h3><p style="font-size:21px">Le secret de signature des sessions est écrit dans le code source.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Le pire n’était pas un bug isolé : c’est qu’aucune barrière ne tenait si une route oubliait son filtre.</div>
+  <div class="foot"><span>Source : docs/audit/AUDIT.md</span><span></span></div>
+  <aside class="notes">Citer le lien avec le cours : « une requête mal filtrée » du slide 29. Ici F1 et F2 se combinent : la seule barrière est la clause WHERE de chaque route, et la RLS qui devait être la défense en profondeur est contournée. Les 8 élevés incluent F4 (1er inscrit d’un domaine = RH), F5, F9 (décision concurrente approve+reject), F16 (aucun index), F17/F19 (OCR), F26 (stack dans les 500), F30 (cycle d’organigramme).</aside>
+</section>
+
+<!-- 8 · AS-IS -->
+<section class="slide content" data-title="Architecture de départ">
+  <div class="num">07</div>
+  <div class="pad"><div class="kicker">Architecture as-is</div><h2>Un monolithe où tout se mélange</h2><p class="sub">La couche hexagonale existait, mais personne ne l’importait.</p></div>
+  <div class="body" style="top:250px">
+    <svg viewBox="0 0 1400 490" width="1408" height="494" role="img" aria-label="Architecture de départ">
+      <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2A3B8C"/></marker></defs>
+      <rect x="0" y="40" width="240" height="150" rx="16" fill="#EAF5FB" stroke="#C1D2E6" stroke-width="2"/>
+      <text x="120" y="90" text-anchor="middle" font-size="24" font-weight="700" fill="#2A3B8C">Pages React</text>
+      <text x="120" y="125" text-anchor="middle" font-size="17" fill="#5E7187">/expenses · /manager · /hr</text>
+      <rect x="320" y="0" width="620" height="400" rx="20" fill="#fff" stroke="#2A3B8C" stroke-width="3"/>
+      <text x="630" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#2A3B8C">Next.js — un seul process Node.js</text>
+      <rect x="350" y="70" width="560" height="190" rx="14" fill="#2A3B8C"/>
+      <text x="630" y="108" text-anchor="middle" font-size="23" font-weight="700" fill="#fff">Route handlers (api/)</text>
+      <g font-size="19" fill="#EAF5FB" text-anchor="middle">
+        <text x="630" y="142">SQL brut + règles d’accès</text><text x="630" y="170">recopiés dans chaque route</text>
+        <text x="630" y="206">validation · rôles · mapping DTO ×7</text><text x="630" y="234">OCR synchrone · upload S3</text></g>
+      <rect x="350" y="285" width="560" height="90" rx="14" fill="#fff" stroke="#9aa9bd" stroke-width="2" stroke-dasharray="8 6"/>
+      <text x="630" y="322" text-anchor="middle" font-size="21" font-weight="700" fill="#5E7187">domain/ · ports/ · adapters/ · utils/</text>
+      <text x="630" y="352" text-anchor="middle" font-size="19" fill="#5E7187">code présent, jamais importé (F22)</text>
+      <rect x="1090" y="0" width="300" height="110" rx="16" fill="#EAF5FB" stroke="#C1D2E6" stroke-width="2"/>
+      <text x="1240" y="48" text-anchor="middle" font-size="23" font-weight="700" fill="#2A3B8C">PostgreSQL 16</text>
+      <text x="1240" y="80" text-anchor="middle" font-size="18" fill="#5E7187">RLS contournée (superuser)</text>
+      <rect x="1090" y="150" width="300" height="100" rx="16" fill="#EAF5FB" stroke="#C1D2E6" stroke-width="2"/>
+      <text x="1240" y="196" text-anchor="middle" font-size="23" font-weight="700" fill="#2A3B8C">Stockage S3</text>
+      <text x="1240" y="226" text-anchor="middle" font-size="18" fill="#5E7187">LocalStack · reçus</text>
+      <rect x="1090" y="290" width="300" height="100" rx="16" fill="#fff" stroke="#9aa9bd" stroke-width="2" stroke-dasharray="8 6"/>
+      <text x="1240" y="336" text-anchor="middle" font-size="23" font-weight="700" fill="#5E7187">Notifications</text>
+      <text x="1240" y="366" text-anchor="middle" font-size="18" fill="#5E7187">port défini, jamais appelé (F15)</text>
+      <g stroke="#2A3B8C" stroke-width="3" fill="none" marker-end="url(#a1)">
+        <path d="M240 115H320"/><path d="M910 110H1090"/><path d="M910 190H1090"/></g>
+    </svg>
+  </div>
+  <div class="take"><b>À retenir</b>Même « terminologie hexagonale » que Netflix au cours 2, mais un métier couplé à l’infrastructure.</div>
+  <div class="foot"><span>Source : docs/audit/as-is.md (ARLA-8)</span><span></span></div>
+  <aside class="notes">Slide 48 du cours : « on peut retrouver les idées mais pas forcément bien implémentées ». Ici, c’est pire : les dossiers domain/ports/adapters existent mais sont du code mort. Conséquences : règles d’accès recopiées dans 7 routes, un « manager-receipt-url » qui oublie le filtre (F1), aucune notification de décision (F15).</aside>
+</section>
+
+<!-- 9 · BASELINE -->
+<section class="slide content" data-title="Performances de référence">
+  <div class="num">08</div>
+  <div class="pad"><div class="kicker">Mesures de départ</div><h2>Un seul vrai goulot : la connexion</h2><p class="sub">Benchmark k6 sur 15 000 notes, commit <code>265924b</code> — 169 147 requêtes, aucune erreur.</p></div>
+  <div class="body" style="top:285px">
+    <div class="cols" style="grid-template-columns:1.15fr .85fr;gap:50px">
+      <div class="bars">
+        <div class="row"><div class="lab">Connexion (20 VU)</div><div class="track"><div class="fillb" style="width:1%"></div></div><div class="val">3,3 req/s</div></div>
+        <div class="row"><div class="lab">OCR du reçu (4 VU)</div><div class="track"><div class="fillb" style="width:2%"></div></div><div class="val">7,6 req/s</div></div>
+        <div class="row"><div class="lab">Création de note (20 VU)</div><div class="track"><div class="fillb" style="width:44%"></div></div><div class="val">248 req/s</div></div>
+        <div class="row"><div class="lab">Liste manager (20 VU)</div><div class="track"><div class="fillb" style="width:74%"></div></div><div class="val">415 req/s</div></div>
+        <div class="row"><div class="lab">Liste des notes (20 VU)</div><div class="track"><div class="fillb" style="width:87%"></div></div><div class="val">486 req/s</div></div>
+        <div class="row"><div class="lab">Annuaire RH (20 VU)</div><div class="track"><div class="fillb" style="width:100%"></div></div><div class="val">559 req/s</div></div>
+        <p style="font-size:18px;color:var(--slate);margin-top:14px">Débit maximal mesuré, échelle linéaire ; toutes les autres routes répondent en 4 à 15 ms à 1 utilisateur.</p>
+      </div>
+      <div class="cards" style="grid-template-rows:1fr 1fr;gap:20px">
+        <div class="card fill"><div class="bignum" style="font-size:72px">4,5 s</div><p>médiane d’une connexion à 20 utilisateurs simultanés (bcrypt, coût voulu).</p></div>
+        <div class="card"><div class="bignum" style="font-size:72px">≈ 450 ms</div><p>pour l’OCR d’un reçu, dans le process web : saturation rapide (F17).</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Le débit n’est pas le problème : la refacto doit le préserver, pas l’optimiser.</div>
+  <div class="foot"><span>Source : docs/audit/baseline.md · AMD Ryzen 5 4600H · k6 1.3.0</span><span></span></div>
+  <aside class="notes">Pourquoi un benchmark « avant » : pour montrer que la refacto ne dégrade pas. Honnêteté : la mesure « après » n’a pas pu être prise sur la machine de référence (une comparaison entre deux machines n’a aucune valeur), le tableau « Après » du dépôt est donc vide. Dire clairement que c’est une limite assumée, pas un oubli.</aside>
+</section>
+
+<!-- 10 · INTERCALAIRE 2 -->
+<section class="slide cover section" data-title="02 · Décisions d'architecture">
+  <div class="num">09</div><div class="big">02</div><div class="kicker">Décisions d’architecture</div>
+  <h2>Choisir, puis expliquer</h2>
+  <p class="sub">Quatre options, une décision, trois ADR pour s’en souvenir.</p>
+  <img class="ill" src="assets/modules.webp" style="right:100px;top:230px;width:540px" alt="">
+</section>
+
+<!-- 11 · CONTRAINTES -->
+<section class="slide content" data-title="Arbitrer">
+  <div class="num">10</div>
+  <div class="pad"><div class="kicker">Tradeoffs — cours 2</div><h2>Ce qui a guidé l’arbitrage</h2><p class="sub">Les critères du cours, lus à la lumière de ce dépôt.</p></div>
+  <div class="body" style="top:270px">
+    <table>
+      <tr><th style="width:260px">Critère du cours</th><th>Réponse pour Expense.io</th><th style="width:330px">Effet</th></tr>
+      <tr><td><b>Time to market</b></td><td>Refacto du 19 au 26/10, soutenance le 30/10 : des jalons livrables.</td><td>Deux jalons : B puis C</td></tr>
+      <tr><td><b>Maturité de l’équipe</b></td><td>Un seul déployable à opérer, pas de système distribué.</td><td>Microservices écartés</td></tr>
+      <tr><td><b>Sécurité</b></td><td>Isolation entre entreprises = risque n°1 du produit.</td><td>RLS réellement active</td></tr>
+      <tr><td><b>Scalabilité</b></td><td>Aucune contrainte de charge connue : benchmark = 360–560 req/s.</td><td>Pas de distribution</td></tr>
+      <tr><td><b>Contrat</b></td><td>L’API ne change pas ; les succès restent identiques.</td><td>Ports &amp; adapters</td></tr>
+      <tr><td><b>KISS</b></td><td>« L’absence d’architecture doit être un choix. »</td><td>Décision écrite, ADR</td></tr>
+    </table>
+  </div>
+  <div class="take"><b>À retenir</b>Aucune contrainte de charge ne justifie un système distribué : le coût serait pur, sans bénéfice.</div>
+  <div class="foot"><span>Sources : cours 2 (slides 20 et 48), docs/architecture/options-refacto.md</span><span></span></div>
+  <aside class="notes">Reprendre la grille de tradeoffs du cours : deadline, coûts, maturité, souveraineté, sécurité, scalabilité. Insister sur la sécurité (isolation B2B) et l’absence de contrainte de charge : c’est ce qui écarte les microservices. Le « principe cours 2 » : il n’y a pas de vérité universelle, seulement des solutions adaptées à des contraintes réelles.</aside>
+</section>
+
+<!-- 12 · OPTIONS -->
+<section class="slide content" data-title="Quatre options">
+  <div class="num">11</div>
+  <div class="pad"><div class="kicker">ADR 0002</div><h2>Quatre options, l’option C retenue</h2><p class="sub">Du plus léger au plus lourd.</p></div>
+  <div class="body" style="top:265px">
+    <table>
+      <tr><th style="width:420px">Option</th><th>Ce qu’elle apporte</th><th style="width:470px">Pourquoi pas / limite</th></tr>
+      <tr><td><b>A</b> · Monolithe en couches nettoyé</td><td>Léger, rapide.</td><td>Ne montre aucune notion du cours ; axe asynchrone vide.</td></tr>
+      <tr><td><b>B</b> · Monolithe modulaire, hexagonal par module</td><td>Frontières nettes, métier testable.</td><td>Pas d’asynchrone.</td></tr>
+      <tr class="win"><td><b>C</b> · B + flux asynchrone ✔</td><td>Couvre les trois axes : architecture, contrat d’API, asynchrone &amp; run.</td><td>Un process de plus (le worker).</td></tr>
+      <tr><td><b>D</b> · Microservices</td><td>Déploiement indépendant.</td><td>Aucune charge ne le justifie ; transactions distribuées ; monitoring plus complexe (cours, slide 31).</td></tr>
+    </table>
+  </div>
+  <div class="take"><b>À retenir</b>Le critère décisif : une seule option couvre les trois axes sans ajouter de distribution inutile.</div>
+  <div class="foot"><span>Sources : docs/adrs/0002 · docs/architecture/options-refacto.md</span><span></span></div>
+  <aside class="notes">Lien direct avec le slide 30-31 du cours (monolithe modulaire vs micro-services) : « une architecture distribuée ⇒ déploiements et monitoring plus complexes ». Le choix de C est expliqué par la couverture des trois axes et par l’absence de contrainte de charge, pas par un argument d’effort.</aside>
+</section>
+
+<!-- 13 · ARCHI CIBLE -->
+<section class="slide content" data-title="Architecture cible">
+  <div class="num">12</div>
+  <div class="pad"><div class="kicker">Architecture cible</div><h2>Deux modules, quatre couches chacun</h2><p class="sub">Un module n’en voit un autre que par son <code>index.ts</code>.</p></div>
+  <div class="body" style="top:232px;bottom:146px">
+    <svg viewBox="0 0 1408 505" width="1300" height="466" role="img" aria-label="Architecture cible">
+      <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2A3B8C"/></marker></defs>
+      <rect x="0" y="0" width="1040" height="50" rx="12" fill="#2A3B8C"/>
+      <text x="520" y="33" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">src/app/api/**/route.ts — adapters d’entrée minces : parse → use case → HTTP</text>
+      <!-- expenses -->
+      <rect x="0" y="80" width="470" height="330" rx="18" fill="#fff" stroke="#2A3B8C" stroke-width="3"/>
+      <text x="235" y="116" text-anchor="middle" font-size="25" font-weight="800" fill="#2A3B8C">module expenses</text>
+      <g font-size="19" text-anchor="middle">
+        <rect x="24" y="136" width="422" height="52" rx="10" fill="#EAF5FB"/><text x="235" y="169" fill="#122347"><tspan font-weight="700">domain</tspan> · ExpenseNote, NoteSort, Submission</text>
+        <rect x="24" y="200" width="422" height="52" rx="10" fill="#EAF5FB"/><text x="235" y="233" fill="#122347"><tspan font-weight="700">application</tspan> · un fichier par use case</text>
+        <rect x="24" y="264" width="422" height="52" rx="10" fill="#EAF5FB"/><text x="235" y="297" fill="#122347"><tspan font-weight="700">ports</tspan> · NoteRepository, ReceiptStorage…</text>
+        <rect x="24" y="328" width="422" height="52" rx="10" fill="#98D6E1"/><text x="235" y="361" fill="#071426"><tspan font-weight="700">infrastructure</tspan> · Pg, S3, Tesseract</text></g>
+      <!-- iam -->
+      <rect x="570" y="80" width="470" height="330" rx="18" fill="#fff" stroke="#2A3B8C" stroke-width="3"/>
+      <text x="805" y="116" text-anchor="middle" font-size="25" font-weight="800" fill="#2A3B8C">module iam</text>
+      <g font-size="19" text-anchor="middle">
+        <rect x="594" y="136" width="422" height="52" rx="10" fill="#EAF5FB"/><text x="805" y="169" fill="#122347"><tspan font-weight="700">domain</tspan> · ApprovalPolicy, OrgChart</text>
+        <rect x="594" y="200" width="422" height="52" rx="10" fill="#EAF5FB"/><text x="805" y="233" fill="#122347"><tspan font-weight="700">application</tspan> · sign-up, can-decide…</text>
+        <rect x="594" y="264" width="422" height="52" rx="10" fill="#EAF5FB"/><text x="805" y="297" fill="#122347"><tspan font-weight="700">ports</tspan> · IamStore, PasswordHasher</text>
+        <rect x="594" y="328" width="422" height="52" rx="10" fill="#98D6E1"/><text x="805" y="361" fill="#071426"><tspan font-weight="700">infrastructure</tspan> · Pg, bcrypt</text></g>
+      <path d="M470 245H568" stroke="#2A3B8C" stroke-width="4" marker-end="url(#a2)"/>
+      <text x="520" y="232" text-anchor="middle" font-size="15" font-weight="700" fill="#2A3B8C">Approvals</text>
+      <rect x="0" y="430" width="1040" height="60" rx="12" fill="#EAF5FB" stroke="#C1D2E6" stroke-width="2"/>
+      <text x="520" y="468" text-anchor="middle" font-size="21" fill="#122347"><tspan font-weight="700">shared/</tspan> config · errors · problem (RFC 9457) · logger · http · unité de travail · mail</text>
+      <!-- droite -->
+      <rect x="1100" y="80" width="308" height="100" rx="16" fill="#EAF5FB" stroke="#C1D2E6" stroke-width="2"/>
+      <text x="1254" y="122" text-anchor="middle" font-size="22" font-weight="700" fill="#2A3B8C">PostgreSQL + RLS</text><text x="1254" y="152" text-anchor="middle" font-size="17" fill="#5E7187">isolation entre entreprises</text>
+      <rect x="1100" y="205" width="308" height="100" rx="16" fill="#EAF5FB" stroke="#C1D2E6" stroke-width="2"/>
+      <text x="1254" y="247" text-anchor="middle" font-size="22" font-weight="700" fill="#2A3B8C">S3 · reçus</text><text x="1254" y="277" text-anchor="middle" font-size="17" fill="#5E7187">URL présignées</text>
+      <rect x="1100" y="330" width="308" height="160" rx="16" fill="#2A3B8C"/>
+      <text x="1254" y="372" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">worker de livraison</text>
+      <text x="1254" y="404" text-anchor="middle" font-size="17" fill="#EAF5FB">hors de l’hexagone</text>
+      <text x="1254" y="430" text-anchor="middle" font-size="17" fill="#EAF5FB">aucun import de modules/</text>
+      <text x="1254" y="456" text-anchor="middle" font-size="17" fill="#98D6E1">outbox → SMTP (Mailpit)</text>
+      <g stroke="#2A3B8C" stroke-width="3" fill="none" marker-end="url(#a2)"><path d="M1040 350H1100"/></g>
+    </svg>
+  </div>
+  <div class="take"><b>À retenir</b>Où va le nouveau code ? La réponse tient en une table — pour l’équipe comme pour l’agent.</div>
+  <div class="foot"><span>Source : docs/architecture/architecture-cible.html · conventions.md</span><span></span></div>
+  <aside class="notes">Vocabulaire hexagonal assumé (cours : « Hexagonal est moins guidé, Clean fortement guidé »). Nous avons choisi hexagonal avec un fichier par use case pour réduire l’ambiguïté sans la lourdeur de Clean. Un futur module (facturation) irait dans modules/billing avec un port PaymentProvider : on documente l’emplacement, on ne crée pas (YAGNI).</aside>
+</section>
+
+<!-- 14 · RÈGLES -->
+<section class="slide content" data-title="Règles de dépendance">
+  <div class="num">13</div>
+  <div class="pad"><div class="kicker">Inversion des dépendances</div><h2>Les règles sont vérifiées, pas espérées</h2><p class="sub">Le métier ne dépend pas de la technique (cours 2, slide 47).</p></div>
+  <div class="body" style="top:265px">
+    <div class="cols" style="grid-template-columns:1.1fr .9fr;gap:36px">
+      <div class="card"><span class="tag">dependency-cruiser · CI bloquante</span>
+        <ul>
+          <li><code>domain</code> n’importe que son domaine, <code>shared/actor</code> et <code>shared/errors</code></li>
+          <li><code>application</code> : jamais <code>pg</code>, <code>aws-sdk</code>, <code>next</code>, <code>bcryptjs</code></li>
+          <li>un module n’en voit un autre que par son <code>index.ts</code></li>
+          <li><code>worker/</code> n’importe jamais <code>modules/</code></li>
+          <li>SQL d’<code>expenses</code> : jamais <code>users</code> ni <code>companies</code> (<code>check:sql</code>)</li>
+        </ul></div>
+      <div class="card fill"><span class="tag">Une règle, un seul endroit</span>
+        <h3 style="font-size:28px">ApprovalPolicy fait seule foi</h3>
+        <p>Qui valide quoi : manager direct, sinon les RH de l’entreprise, <b>jamais sa propre note</b>.</p>
+        <p style="margin-top:12px">La RLS ne garde que l’isolation entre entreprises. Plus de règle recopiée 7 fois : celle qui causait F1.</p></div>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Une règle écrite une seule fois ne peut pas diverger — et une règle vérifiée en CI ne se contourne pas par oubli.</div>
+  <div class="foot"><span>Source : ADR 0002 · .dependency-cruiser.cjs · scripts/check-sql-boundaries.mjs</span><span></span></div>
+  <aside class="notes">Cette slide répond à « Testabilité du coeur métier » et « Inversion des dépendances » du slide 47. Montrer que ce sont des contrôles automatiques : npm run verify enchaîne lint, typecheck, depcruise, check:sql et Vitest. Les consignes (manager = subordonnés directs, RH = managers racines) sont toutes encodées dans ApprovalPolicy.</aside>
+</section>
+
+<!-- 15 · OUTBOX -->
+<section class="slide content" data-title="Flux asynchrone">
+  <div class="num">14</div>
+  <div class="pad"><div class="kicker">ADR 0003 · asynchrone</div><h2>Notifier sans dépendre du SMTP</h2><p class="sub">Une décision et son e-mail sont écrits dans la même transaction ; un worker livre ensuite.</p></div>
+  <div class="body" style="top:250px">
+    <svg viewBox="0 0 1408 230" width="1408" height="230" role="img" aria-label="Flux outbox">
+      <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2A3B8C"/></marker></defs>
+      <g font-size="21" text-anchor="middle">
+        <rect x="0" y="40" width="250" height="130" rx="16" fill="#EAF5FB" stroke="#C1D2E6" stroke-width="2"/><text x="125" y="95" font-weight="700" fill="#2A3B8C">Manager / RH</text><text x="125" y="128" font-size="18" fill="#5E7187">approve · reject</text>
+        <rect x="320" y="40" width="360" height="130" rx="16" fill="#2A3B8C"/><text x="500" y="85" font-weight="700" fill="#fff">decideExpenseNote</text><text x="500" y="115" font-size="18" fill="#EAF5FB">décision + e-mail composé</text><text x="500" y="142" font-size="18" fill="#98D6E1">même transaction (unité de travail)</text>
+        <rect x="750" y="40" width="250" height="130" rx="16" fill="#EAF5FB" stroke="#2A3B8C" stroke-width="3"/><text x="875" y="95" font-weight="700" fill="#2A3B8C">mail_outbox</text><text x="875" y="128" font-size="18" fill="#5E7187">pending → sent | dead</text>
+        <rect x="1070" y="40" width="160" height="130" rx="16" fill="#122347"/><text x="1150" y="95" font-weight="700" fill="#fff">Worker</text><text x="1150" y="125" font-size="17" fill="#98D6E1">lots de 5 · bail</text>
+        <rect x="1280" y="40" width="128" height="130" rx="16" fill="#EAF5FB" stroke="#C1D2E6" stroke-width="2"/><text x="1344" y="95" font-weight="700" fill="#2A3B8C">SMTP</text><text x="1344" y="125" font-size="17" fill="#5E7187">Mailpit</text></g>
+      <g stroke="#2A3B8C" stroke-width="3" fill="none" marker-end="url(#a3)"><path d="M250 105H318"/><path d="M680 105H748"/><path d="M1000 105H1068"/><path d="M1230 105H1278"/></g>
+    </svg>
+    <div class="cards c3" style="margin-top:20px;height:auto;gap:22px">
+      <div class="card ice"><span class="tag">Idempotence · cours</span><p style="font-size:21px">Livraison <b>au moins une fois</b> : un doublon est possible, jamais une perte.</p></div>
+      <div class="card ice"><span class="tag">DLQ · cours</span><p style="font-size:21px">3 échecs → ligne <code>dead</code>, rejouable par runbook.</p></div>
+      <div class="card ice"><span class="tag">Ack · cours</span><p style="font-size:21px">Envoi hors transaction, puis marquage <code>sent</code> ; bail de 2 min.</p></div>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Une bonne asynchronie, c’est aussi la plus simple : une table, un worker, aucun broker.</div>
+  <div class="foot"><span>Source : docs/adrs/0003 · docs/runbooks/mail-outbox-rejouer.md</span><span></span></div>
+  <aside class="notes">Les cinq options de l’ADR : envoi dans la route (la décision dépend du SMTP), envoi sans await (aucune persistance), outbox d’événements avec worker qui compose (le worker doit charger le métier), outbox + relay + SQS (second saut, DLQ, table d’idempotence pour un seul consommateur), et enfin outbox d’e-mails (retenue). Reprendre les définitions du cours 2 : broker, consumer, ack, DLQ, idempotence. SQS seulement si un autre service doit un jour recevoir l’événement.</aside>
+</section>
+
+<!-- 16 · CONTRAT -->
+<section class="slide content" data-title="Contrat d'API">
+  <div class="num">15</div>
+  <div class="pad"><div class="kicker">ADR 0004 · contrat d’API</div><h2>Le contrat ne change pas : il s’enrichit</h2><p class="sub">Erreurs en RFC 9457, de façon additive.</p></div>
+  <div class="body" style="top:265px">
+    <div class="cols" style="grid-template-columns:1fr 1fr;gap:36px;height:auto">
+      <div class="card"><span class="tag">Avant</span>
+        <pre class="mono" style="font-size:21px;line-height:1.5;color:#26364d">500 { "error": "…",
+      "stack": "C:\…\route.ts:42" }
+403 / 401 incohérents
+id invalide, corps illisible → 500</pre>
+        <p style="margin-top:12px;font-size:21px">Stack exposée (F26), codes d’autorisation inconsistants (F27), entrée malformée en 500 (F42).</p></div>
+      <div class="card fill"><span class="tag">Après</span>
+        <pre class="mono" style="font-size:21px;line-height:1.5;color:#EAF5FB">application/problem+json
+{ "error": "…",            // conservé
+  "type", "title",
+  "status", "detail" }       // ajoutés</pre>
+        <p style="margin-top:12px;font-size:21px">401 = pas de session, 403 = mauvais rôle, 400 = entrée invalide. Jamais de stack.</p></div>
+    </div>
+    <p style="margin-top:22px;font-size:23px"><b>Garde-fous :</b> <code>docs/api/openapi.yaml</code> est la référence, <code>oasdiff breaking</code> compare à <code>main</code> en CI, <code>CHANGELOG.md</code> consigne chaque écart.</p>
+  </div>
+  <div class="take"><b>À retenir</b>Contract first : on corrige les erreurs sans casser un seul client existant.</div>
+  <div class="foot"><span>Sources : docs/adrs/0004 · CHANGELOG.md · docs/api/openapi.yaml</span><span></span></div>
+  <aside class="notes">Remplacer { error } par un RFC 9457 aurait cassé les clients qui lisent « error » : on l’ajoute en plus (option 3 de l’ADR), version MINOR. Retrait possible dans une version majeure. Lien cours : « Contract First » du slide 40 (valable pour les messages comme pour les API). Une route ne construit jamais une réponse d’erreur : elle lève, route() traduit.</aside>
+</section>
+
+<!-- 17 · INTERCALAIRE 3 -->
+<section class="slide cover section" data-title="03 · Résultats">
+  <div class="num">16</div><div class="big">03</div><div class="kicker">Résultats &amp; limites</div>
+  <h2>Ce qui est prouvé, et ses limites</h2>
+  <p class="sub">Chiffres, tests, mesures — avec leurs limites.</p>
+  <img class="ill" src="assets/chart.webp" style="right:110px;top:240px;width:520px" alt="">
+</section>
+
+<!-- 18 · COUVERTURE AUDIT -->
+<section class="slide content" data-title="Couverture de l'audit">
+  <div class="num">17</div>
+  <div class="pad"><div class="kicker">Couverture de l’audit</div><h2>29 constats corrigés sur 46</h2><p class="sub">Chaque constat est traité (avec un test de non-régression) ou écarté avec sa raison. Aucun critique ni élevé n’est écarté.</p></div>
+  <div class="body" style="top:285px">
+    <div class="cols" style="grid-template-columns:420px 1fr;gap:50px">
+      <div>
+        <svg viewBox="0 0 420 420" width="420" height="420" role="img" aria-label="Couverture : 29 traités, 1 déjà traité, 1 partiel, 15 hors périmètre">
+          <g transform="rotate(-90 210 210)" fill="none" stroke-width="56">
+            <circle cx="210" cy="210" r="150" stroke="#C1D2E6"/>
+            <circle cx="210" cy="210" r="150" stroke="#2A3B8C" stroke-dasharray="594 943" />
+            <circle cx="210" cy="210" r="150" stroke="#45BBEC" stroke-dasharray="21 943" stroke-dashoffset="-594"/>
+            <circle cx="210" cy="210" r="150" stroke="#98D6E1" stroke-dasharray="21 943" stroke-dashoffset="-615"/>
+          </g>
+          <text x="210" y="222" text-anchor="middle" font-size="86" font-weight="800" fill="#2A3B8C">29</text>
+          <text x="210" y="262" text-anchor="middle" font-size="22" fill="#5E7187">sur 46</text>
+        </svg>
+      </div>
+      <div class="cards" style="grid-template-rows:repeat(4,auto);gap:14px;align-content:start;height:auto">
+        <div class="card" style="padding:16px 24px"><span class="pill p-ok">29 traités</span> <span style="font-size:22px">plan 1 : 12 · plan 2 : 16 · plan 3 : 1 — chacun testé</span></div>
+        <div class="card" style="padding:16px 24px"><span class="pill p-mid">1 déjà traité</span> <span style="font-size:22px">F35 (tests, CI) par ARLA-9</span></div>
+        <div class="card" style="padding:16px 24px"><span class="pill p-high">1 partiel</span> <span style="font-size:22px">F21 : OCR atténué (F17, F19), reste synchrone</span></div>
+        <div class="card" style="padding:16px 24px"><span class="pill" style="background:#e4e9f1;color:#41526b">15 hors périmètre</span> <span style="font-size:22px">validations, pagination, débit, fonctionnalités manquantes…</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Les 4 critiques et les 8 élevés sont traités ; le hors-périmètre est écrit, justifié et sans risque critique.</div>
+  <div class="foot"><span>Source : spec architecture cible, « Couverture de l’audit »</span><span></span></div>
+  <aside class="notes">Exemples traités : F1/F2/F3/F25 (plan 1), F9 (UPDATE … WHERE status='pending'), F30 (cycle d’organigramme, verrou par entreprise), F31 (rôle relu en base à chaque requête), F10 (reçu d’abord, note ensuite), F15 (outbox). Plan 1 = socle, plan 2 = modules, plan 3 = notification. Hors périmètre : F6, F7, F8, F13, F18, F20, F28, F29, F32, F36, F37, F38, F40, F45, F46 — jamais critique ni élevé.</aside>
+</section>
+
+
+<!-- ANNEXE · Plan 1 (1/2) -->
+<section class="slide content" data-title="Plan 1 (1/2)">
+  <div class="num">18</div>
+  <div class="pad"><div class="kicker">Les 29 corrigés · plan 1 : 12 constats</div><h2>Plan 1 — le socle (1/2)</h2><p class="sub">Sécurité, isolation et contrat : ce qui ne dépend pas de l’architecture choisie.</p></div>
+  <div class="body" style="top:232px;bottom:146px"><div class="fgrid"><div class="fx"><span class="pill p-crit">F1 · Critique</span><b>Reçus lisibles d'une autre entreprise</b><span class="fd">contrôle d'accès sur <code>receipt-url</code> et RLS d'isolation, puis <code>canDecide</code> au plan 2</span></div><div class="fx"><span class="pill p-crit">F2 · Critique</span><b>RLS contournée (superuser)</b><span class="fd">rôle <code>expense_app</code></span></div><div class="fx"><span class="pill p-crit">F3 · Critique</span><b>Injection via <code>?sort=</code></b><span class="fd">liste blanche</span></div><div class="fx"><span class="pill p-high">F16 · Élevé</span><b>Aucun index</b><span class="fd">quatre index, gain mesuré avec <code>EXPLAIN</code></span></div><div class="fx"><span class="pill p-crit">F25 · Critique</span><b>Secret en dur</b><span class="fd"><code>shared/config</code></span></div><div class="fx"><span class="pill p-high">F26 · Élevé</span><b>Stack dans les 500</b><span class="fd"><code>shared/problem</code></span></div></div></div>
+  <div class="take"><b>À retenir</b>Le plan 1 ferme les 4 critiques avant toute restructuration.</div>
+  <div class="foot"><span>Source : spec architecture cible, « Couverture de l’audit » · docs/audit/AUDIT.md</span><span></span></div>
+  <aside class="notes">Plan 1 = socle et harnais agent : rôle Postgres non-superuser (expense_app), RLS d’isolation sur toutes les tables, liste blanche du tri, secret lu depuis shared/config, erreurs RFC 9457, 401/403 cohérents, index, limite de taille du corps.</aside>
+</section>
+
+<!-- ANNEXE · Plan 1 (2/2) -->
+<section class="slide content" data-title="Plan 1 (2/2)">
+  <div class="num">19</div>
+  <div class="pad"><div class="kicker">Les 29 corrigés · plan 1 : 12 constats</div><h2>Plan 1 — le socle (2/2)</h2><p class="sub">Erreurs, entrées malformées et isolation complète.</p></div>
+  <div class="body" style="top:232px;bottom:146px"><div class="fgrid"><div class="fx"><span class="pill p-mid">F27 · Faible</span><b>401 et 403 incohérents</b><span class="fd"><code>shared/http</code></span></div><div class="fx"><span class="pill p-mid">F34 · Moyen</span><b>Corps lu avant le contrôle de taille</b><span class="fd"><code>Content-Length</code> vérifié dans <code>shared/http</code></span></div><div class="fx"><span class="pill p-mid">F41 · Moyen</span><b>Corps illisible = employé détaché</b><span class="fd"><code>400</code> si <code>managerId</code> est absent</span></div><div class="fx"><span class="pill p-mid">F42 · Faible</span><b>Entrée malformée → 500</b><span class="fd"><code>400</code></span></div><div class="fx"><span class="pill p-mid">F43 · Faible</span><b><code>withUserScope</code> sans <code>await</code></b><span class="fd"><code>return await</code></span></div><div class="fx"><span class="pill p-mid">F44 · Moyen</span><b>RLS incomplète</b><span class="fd">RLS d'isolation sur toutes les tables métier</span></div></div></div>
+  <div class="take"><b>À retenir</b>Chaque constat corrigé a au moins un test qui échouerait s’il revenait.</div>
+  <div class="foot"><span>Source : spec architecture cible, « Couverture de l’audit » · docs/audit/AUDIT.md</span><span></span></div>
+  <aside class="notes">Plan 1 = socle et harnais agent : rôle Postgres non-superuser (expense_app), RLS d’isolation sur toutes les tables, liste blanche du tri, secret lu depuis shared/config, erreurs RFC 9457, 401/403 cohérents, index, limite de taille du corps.</aside>
+</section>
+
+<!-- ANNEXE · Plan 2 (1/2) -->
+<section class="slide content" data-title="Plan 2 (1/2)">
+  <div class="num">20</div>
+  <div class="pad"><div class="kicker">Les 29 corrigés · plan 2 : 16 constats</div><h2>Plan 2 — les modules (1/2)</h2><p class="sub">Les règles métier écrites une seule fois, dans iam et expenses.</p></div>
+  <div class="body" style="top:232px;bottom:146px"><div class="fgrid"><div class="fx"><span class="pill p-high">F4 · Élevé</span><b>Premier inscrit d'un domaine = RH</b><span class="fd">domaines de messagerie publique refusés ; l'usurpation d'un domaine d'entreprise reste possible (F6)</span></div><div class="fx"><span class="pill p-high">F5 · Élevé</span><b>Manager d'une autre entreprise</b><span class="fd"><code>assignManager</code></span></div><div class="fx"><span class="pill p-high">F9 · Élevé</span><b>Décisions concurrentes</b><span class="fd"><code>UPDATE … WHERE status = 'pending'</code></span></div><div class="fx"><span class="pill p-mid">F10 · Moyen</span><b>Note sans reçu</b><span class="fd">reçu d'abord, note ensuite</span></div><div class="fx"><span class="pill p-mid">F11 · Moyen</span><b>Entreprise orpheline à l'inscription</b><span class="fd">une transaction</span></div><div class="fx"><span class="pill p-mid">F12 · Faible</span><b>Course sur l'email à l'inscription</b><span class="fd">violation d'unicité traduite en message</span></div><div class="fx"><span class="pill p-mid">F14 · Moyen</span><b>Notes d'un RH sans validateur</b><span class="fd"><code>ApprovalPolicy</code> ; le RH seul reste une limite documentée</span></div><div class="fx"><span class="pill p-high">F17 · Élevé</span><b>OCR : moteur recréé à chaque appel</b><span class="fd">moteur réutilisé, concurrence plafonnée ; l'OCR reste synchrone (D2)</span></div></div></div>
+  <div class="take"><b>À retenir</b>Une règle à un seul endroit ne peut plus diverger.</div>
+  <div class="foot"><span>Source : spec architecture cible, « Couverture de l’audit » · docs/audit/AUDIT.md</span><span></span></div>
+  <aside class="notes">Plan 2 = modules hexagonaux. F9 : UPDATE … WHERE status='pending' donne un 200 puis un 409. F30 : parcours de l’organigramme sous verrou par entreprise. F31 : acteur relu en base à chaque requête. F10 : reçu d’abord, note ensuite. F4 : domaines de messagerie publique refusés.</aside>
+</section>
+
+<!-- ANNEXE · Plan 2 (2/2) -->
+<section class="slide content" data-title="Plan 2 (2/2)">
+  <div class="num">21</div>
+  <div class="pad"><div class="kicker">Les 29 corrigés · plan 2 : 16 constats</div><h2>Plan 2 — les modules (2/2)</h2><p class="sub">Robustesse, code mort et règles de validation.</p></div>
+  <div class="body" style="top:232px;bottom:146px"><div class="fgrid"><div class="fx"><span class="pill p-high">F19 · Élevé</span><b>OCR sans limite de taille</b><span class="fd">plafond de 10 Mo</span></div><div class="fx"><span class="pill p-mid">F22 · Moyen</span><b>Couche hexagonale morte</b><span class="fd">modules branchés, code mort supprimé</span></div><div class="fx"><span class="pill p-mid">F23 · Faible</span><b><code>toExpenseNote</code> dupliqué</b><span class="fd">un seul mapper dans <code>expenses</code></span></div><div class="fx"><span class="pill p-mid">F24 · Faible</span><b>Utilitaires morts</b><span class="fd">supprimés</span></div><div class="fx"><span class="pill p-high">F30 · Élevé</span><b>Cycle dans l'organigramme</b><span class="fd"><code>assignManager</code> (parcours de l'organigramme sous un verrou par entreprise)</span></div><div class="fx"><span class="pill p-mid">F31 · Moyen</span><b>Rôle figé dans le JWT</b><span class="fd"><code>getActor</code> relu à chaque requête</span></div><div class="fx"><span class="pill p-mid">F33 · Moyen</span><b>Employé sans manager, notes sans validateur</b><span class="fd"><code>ApprovalPolicy</code> ; suppose F4</span></div><div class="fx"><span class="pill p-mid">F39 · Moyen</span><b>Note orpheline exposant le bucket</b><span class="fd">plus de note sans clé (F10) et <code>404</code></span></div></div></div>
+  <div class="take"><b>À retenir</b>Le code mort et les doublons disparaissent : un seul mapper, des modules branchés.</div>
+  <div class="foot"><span>Source : spec architecture cible, « Couverture de l’audit » · docs/audit/AUDIT.md</span><span></span></div>
+  <aside class="notes">Plan 2 = modules hexagonaux. F9 : UPDATE … WHERE status='pending' donne un 200 puis un 409. F30 : parcours de l’organigramme sous verrou par entreprise. F31 : acteur relu en base à chaque requête. F10 : reçu d’abord, note ensuite. F4 : domaines de messagerie publique refusés.</aside>
+</section>
+
+<!-- ANNEXE · Plan 3, déjà traité, partiel -->
+<section class="slide content" data-title="Plan 3, déjà traité, partiel">
+  <div class="num">22</div>
+  <div class="pad"><div class="kicker">Les 29 corrigés · plan 3 et nuances</div><h2>Plan 3, déjà traité et partiel</h2><p class="sub">1 constat par le plan 3, 1 déjà traité, 1 traité à moitié.</p></div>
+  <div class="body" style="top:232px;bottom:146px"><div class="cards c3" style="height:auto;gap:24px"><div class="card"><span class="pill p-ok">Plan 3 · traité</span><h3 style="margin-top:12px">F15 — Notification jamais envoyée</h3><p>Outbox d’e-mails : décision et e-mail écrits dans la même transaction ; un worker livre, réessaie, puis passe en <code>dead</code> après 3 échecs.</p></div><div class="card"><span class="pill p-mid">Déjà traité</span><h3 style="margin-top:12px">F35 — Aucun test ni CI</h3><p>La suite de caractérisation ARLA-9 (plus de 140 tests) existait avant la refacto ; elle a été complétée par un test de non-régression par constat.</p></div><div class="card"><span class="pill p-high">Partiel</span><h3 style="margin-top:12px">F21 — OCR et hachage dans la requête</h3><p>OCR atténué (F17 moteur réutilisé, F19 plafond de 10 Mio, 503 si saturé) mais toujours synchrone : l’asynchrone changerait le contrat. Le coût de bcrypt est voulu.</p></div></div></div>
+  <div class="take"><b>À retenir</b>29 = 12 (plan 1) + 16 (plan 2) + 1 (plan 3). F35 et F21 sont comptés à part.</div>
+  <div class="foot"><span>Source : spec architecture cible, « Couverture de l’audit » · docs/audit/AUDIT.md</span><span></span></div>
+  <aside class="notes">Arithmétique : 12 + 16 + 1 = 29 traités ; + F35 (déjà traité) + F21 (partiel) + 15 hors périmètre = 46.</aside>
+</section>
+
+<!-- ANNEXE · Hors périmètre (1/2) -->
+<section class="slide content" data-title="Hors périmètre (1/2)">
+  <div class="num">23</div>
+  <div class="pad"><div class="kicker">Hors périmètre</div><h2>Les 15 écartés, avec leur raison (1/2)</h2><p class="sub">Aucun n’est critique ni élevé : chacun est écarté pour une raison écrite.</p></div>
+  <div class="body" style="top:232px;bottom:146px"><div class="fgrid"><div class="fx"><span class="pill p-mid">F6 · Moyen</span><b>Un domaine = une entreprise</b><span class="fd">modèle d'identité d'entreprise (invitations, vérification du domaine) : une fonctionnalité, pas une refacto</span></div><div class="fx"><span class="pill p-mid">F7 · Moyen</span><b>Email sensible à la casse</b><span class="fd">correction de données et de comportement, sans effet sur l'architecture ; à planifier après</span></div><div class="fx"><span class="pill p-mid">F8 · Faible</span><b>Un employé ne devient jamais manager</b><span class="fd">fonctionnalité manquante</span></div><div class="fx"><span class="pill p-mid">F13 · Moyen</span><b>Montant hors <code>numeric(10,2)</code></b><span class="fd">resserrement des validations ; la 500 perd sa stack (F26)</span></div><div class="fx"><span class="pill p-mid">F18 · Moyen</span><b>Pas de pagination</b><span class="fd">changerait la forme des réponses, donc le contrat (consigne)</span></div><div class="fx"><span class="pill p-mid">F20 · Moyen</span><b>Pas de limitation de débit</b><span class="fd">sujet transverse d'infrastructure (reverse proxy ou passerelle), pas du code applicatif</span></div><div class="fx"><span class="pill p-mid">F28 · Faible</span><b>Décisions irréversibles, sans piste d'audit</b><span class="fd">fonctionnalité</span></div><div class="fx"><span class="pill p-mid">F29 · Faible</span><b>Défauts d'affichage</b><span class="fd">cosmétique ; l'UI reste libre pour le live coding</span></div></div></div>
+  <div class="take"><b>À retenir</b>Écarter, c’est décider : contrat figé, simple validation ou fonctionnalité manquante.</div>
+  <div class="foot"><span>Source : spec architecture cible, « Couverture de l’audit » · docs/audit/AUDIT.md</span><span></span></div>
+  <aside class="notes">Familles de raisons : (1) changerait le contrat (F18) ; (2) resserrement de validations (F13, F32, F37, F40, F45) ; (3) fonctionnalités manquantes (F8, F28, F38) ; (4) infrastructure ou cosmétique (F20, F29, F46) ; F6 et F7 : modèle d’identité d’entreprise, à planifier.</aside>
+</section>
+
+<!-- ANNEXE · Hors périmètre (2/2) -->
+<section class="slide content" data-title="Hors périmètre (2/2)">
+  <div class="num">24</div>
+  <div class="pad"><div class="kicker">Hors périmètre</div><h2>Les 15 écartés, avec leur raison (2/2)</h2><p class="sub">Fonctionnalités, validations et sujets d’infrastructure.</p></div>
+  <div class="body" style="top:232px;bottom:146px"><div class="fgrid"><div class="fx"><span class="pill p-mid">F32 · Moyen</span><b><code>expenseDate</code> non validée</b><span class="fd">resserrement des validations ; la 500 perd sa stack</span></div><div class="fx"><span class="pill p-mid">F36 · Faible</span><b>Énumération des comptes</b><span class="fd">sécurité, faible ; à planifier après</span></div><div class="fx"><span class="pill p-mid">F37 · Faible</span><b>Type du reçu non vérifié</b><span class="fd">resserrement des validations</span></div><div class="fx"><span class="pill p-mid">F38 · Faible</span><b>Fonctions métier manquantes</b><span class="fd">candidates au live coding</span></div><div class="fx"><span class="pill p-mid">F40 · Moyen</span><b>Saisie corrompue sans erreur</b><span class="fd">resserrement des validations</span></div><div class="fx"><span class="pill p-mid">F45 · Faible</span><b>Reçu vide accepté</b><span class="fd">resserrement des validations</span></div><div class="fx"><span class="pill p-mid">F46 · Faible</span><b>Pages <code>/manager</code> et <code>/hr</code> servies à tous</b><span class="fd">UI, sans risque de données (les API refusent)</span></div></div></div>
+  <div class="take"><b>À retenir</b>Chaque exclusion est tracée dans la spec et reprise telle quelle dans l’audit chiffré.</div>
+  <div class="foot"><span>Source : spec architecture cible, « Couverture de l’audit » · docs/audit/AUDIT.md</span><span></span></div>
+  <aside class="notes">Familles de raisons : (1) changerait le contrat (F18) ; (2) resserrement de validations (F13, F32, F37, F40, F45) ; (3) fonctionnalités manquantes (F8, F28, F38) ; (4) infrastructure ou cosmétique (F20, F29, F46) ; F6 et F7 : modèle d’identité d’entreprise, à planifier.</aside>
+</section>
+
+<!-- 19 · PREUVES -->
+<section class="slide content" data-title="Preuves et mesures">
+  <div class="num">25</div>
+  <div class="pad"><div class="kicker">Preuves</div><h2>Tests, règles et SonarQube</h2><p class="sub">Ce qui permet d’affirmer « ça marche » sans nous croire sur parole.</p></div>
+  <div class="body" style="top:265px">
+    <div class="cards c4" style="height:auto">
+      <div class="card"><div class="bignum" style="font-size:68px">643</div><p>tests Vitest verts (<code>npm run verify</code>)</p></div>
+      <div class="card"><div class="bignum" style="font-size:68px">38/38</div><p>scénarios E2E Playwright, dont l’e-mail de décision dans Mailpit</p></div>
+      <div class="card"><div class="bignum" style="font-size:68px">0</div><p>violation de dépendance (depcruise) et de frontière SQL</p></div>
+      <div class="card fill"><div class="bignum" style="font-size:68px">OK</div><p>quality gate SonarQube sur le dépôt, en local et en CI</p></div>
+    </div>
+    <table style="margin-top:16px">
+      <tr><th>SonarQube</th><th>Avant (88cbfee, 18/10)</th><th>Après (run local, 20/10)</th></tr>
+      <tr><td>Bugs · code smells · vulnérabilités</td><td>4 · 3 · 0</td><td><b>0 · 0 · 0</b></td></tr>
+      <tr><td>Duplication</td><td>9,3 %</td><td><b>0,0 %</b></td></tr>
+      <tr><td>Couverture · lignes de code</td><td>66,4 % · 1 970</td><td><b>75,1 %</b> · 2 809</td></tr>
+    </table>
+  </div>
+  <div class="take"><b>À retenir</b>Plus de code (le métier est désormais testable) mais zéro bug, zéro duplication, plus de couverture.</div>
+  <div class="foot"><span>Sources : docs/audit/sonarqube-avant-apres.md · répétition du 20/10 · run Sonar local (sonar-report.json)</span><span></span></div>
+  <aside class="notes">À vérifier avant la soutenance : les chiffres « Après » viennent du rapport local sonar-report.json (non commité, ignoré par git), car le document sonarqube-avant-apres.md indique encore « Après : non mesuré ». Relancer l’analyse sur le commit de main (npm run sonar) et mettre à jour le doc pour avoir une source versionnée. La couverture Sonar porte sur tout src/, donc seules les comparaisons Sonar contre Sonar sont significatives. Les lignes de code augmentent : plus de fichiers (ports, use cases) — c’est le coût annoncé dans l’ADR.</aside>
+</section>
+
+<!-- 20 · LIMITES -->
+<section class="slide content" data-title="Limites assumées">
+  <div class="num">26</div>
+  <div class="pad"><div class="kicker">Limites assumées</div><h2>Ce qu’on n’a pas fait, volontairement</h2><p class="sub">KISS : toute absence est un choix écrit, pas un oubli.</p></div>
+  <div class="body" style="top:265px">
+    <div class="cards c2" style="height:auto;gap:22px">
+      <div class="card"><h3>OCR toujours synchrone</h3><p>Un endpoint <code>202</code> + polling changerait le contrat. Atténué : moteur réutilisé, 10 Mio max, concurrence plafonnée, <code>503 Retry-After</code>.</p></div>
+      <div class="card"><h3>Pagination &amp; limitation de débit</h3><p>Pagination = nouvelle forme de réponse (contrat). Rate limiting = sujet d’infrastructure (reverse proxy), pas de code applicatif.</p></div>
+      <div class="card"><h3>RH seul dans son entreprise</h3><p>Il peut soumettre une note mais n’a aucun validateur tant qu’un second RH n’existe pas — conséquence de la consigne « tout le monde peut créer une note ».</p></div>
+      <div class="card"><h3>Mesure « après » du benchmark</h3><p>Non prise : la machine de développement n’est pas celle de la mesure de référence. Une comparaison entre deux machines n’aurait aucune valeur.</p></div>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Savoir dire non, et l’écrire, fait partie de l’architecture.</div>
+  <div class="foot"><span>Sources : spec architecture cible · ADR 0002 · baseline.md</span><span></span></div>
+  <aside class="notes">Préparer les questions du jury sur ces quatre points : ils ont tous une raison liée au contrat figé ou à la méthode. Autres limites connues : F6 (un domaine = une entreprise, usurpation possible), livraison d’e-mail « au moins une fois » (doublon possible), données personnelles dans mail_outbox (purge à 30 jours).</aside>
+</section>
+
+<!-- 21 · INTERCALAIRE 4 -->
+<section class="slide cover section" data-title="04 · Live coding">
+  <div class="num">27</div><div class="big">04</div><div class="kicker">Live coding assisté par IA</div>
+  <h2>Une fonctionnalité, un prompt</h2>
+  <p class="sub">Un dépôt « agentic ready » : l’architecture guide l’agent.</p>
+  <img class="ill" src="assets/chip.webp" style="right:110px;top:230px;width:540px" alt="">
+</section>
+
+<!-- 22 · HARNAIS -->
+<section class="slide content" data-title="Harnais agent">
+  <div class="num">28</div>
+  <div class="pad"><div class="kicker">Agentic ready</div><h2>Le harnais qui guide l’agent</h2><p class="sub">La même source de vérité pour tous les agents : Claude Code, Codex, Cursor, OpenCode.</p></div>
+  <div class="body" style="top:265px">
+    <div class="cards c4" style="height:auto">
+      <div class="card"><div class="bubble">1</div><h3>AGENTS.md</h3><p>Court, chargé à chaque session : architecture, règles, commandes.</p></div>
+      <div class="card"><div class="bubble">2</div><h3>Skills</h3><p><code>ajouter-une-fonctionnalite</code>, <code>envoyer-un-email</code>, <code>verifier-avant-de-livrer</code>, <code>utiliser-la-doc</code>.</p></div>
+      <div class="card"><div class="bubble">3</div><h3>Sous-agent</h3><p><code>revue-architecture</code> relit le diff contre les règles avant de conclure.</p></div>
+      <div class="card fill"><div class="bubble">4</div><h3>Garde-fous</h3><p><code>npm run verify</code> : lint, types, depcruise, SQL, 643 tests.</p></div>
+    </div>
+    <p style="margin-top:22px;font-size:22px"><b>La recette en 10 étapes, TDD :</b> domaine → use case → port/adapter → export → route mince → contrat + CHANGELOG → test d’intégration → UI → E2E → e-mail.</p>
+  </div>
+  <div class="take"><b>À retenir</b>Une architecture claire est le meilleur des prompts : l’agent sait où aller sans qu’on le lui dise.</div>
+  <div class="foot"><span>Sources : AGENTS.md · .agents/skills/ · docs/architecture/conventions.md</span><span></span></div>
+  <aside class="notes">Lien cours : « les standards de développement : TDD, patterns, conventions, BMAD » (slide 14). Les skills sont au format Agent Skills, copiés vers .claude/skills par npm run agents:sync (pas de lien symbolique, à cause des clones Windows, ADR 0001). Les règles de dépendance servent aussi de garde-fou pour l’IA : elle ne peut pas contourner l’architecture sans casser le CI.</aside>
+</section>
+
+<!-- 23 · RÉPÉTITION -->
+<section class="slide content" data-title="Répétition du live coding">
+  <div class="num">29</div>
+  <div class="pad"><div class="kicker">Répétition du 20/10</div><h2>12 minutes, zéro intervention</h2><p class="sub">Demande : « un validateur peut indiquer un motif quand il rejette une note ; l’employé le voit dans sa liste et dans l’e-mail ».</p></div>
+  <div class="body" style="top:285px">
+    <div class="cols" style="grid-template-columns:1fr 1fr;gap:36px">
+      <div class="cards c2" style="height:auto;gap:18px;align-content:start">
+        <div class="card"><div class="bignum" style="font-size:64px">≈ 12 min</div><p>jusqu’à <code>verify</code> vert</p></div>
+        <div class="card"><div class="bignum" style="font-size:64px">0</div><p>intervention humaine</p></div>
+        <div class="card"><div class="bignum" style="font-size:64px">643</div><p>tests verts, E2E 38/38</p></div>
+        <div class="card"><div class="bignum" style="font-size:64px">0</div><p>constat bloquant à la revue</p></div>
+      </div>
+      <div class="card ice"><span class="tag">Ce que la répétition a corrigé dans le harnais</span>
+        <ul style="font-size:21px"><li><code>migrate:up</code> à lancer après une migration (base de démo)</li><li>champ de DTO optionnel : absent, jamais <code>null</code></li><li>un test existant qui fige une route prime sur la recommandation de revue</li><li><code>.gitattributes</code> contre les fins de ligne CRLF</li><li>helper <code>mailText(id)</code> pour vérifier le corps d’un e-mail</li></ul></div>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>On a répété, mesuré, puis corrigé le harnais : la démo n’a rien d’improvisé.</div>
+  <div class="foot"><span>Source : docs/audit/repetition-live-coding.md</span><span></span></div>
+  <aside class="notes">Précisions honnêtes : clone isolé avec ses propres bases et bucket, dépendances déjà installées (la durée n’inclut pas npm install). Le sous-agent revue-architecture a relevé 2 points à corriger (1 corrigé, 1 refusé avec justification) et 4 remarques. La fonctionnalité de répétition a été jetée : seuls le compte rendu et les corrections du harnais ont été commités. Critère de succès 7 de la spec tenu.</aside>
+</section>
+
+<!-- 24 · DÉROULÉ LIVE -->
+<section class="slide content" data-title="Déroulé du live coding">
+  <div class="num">30</div>
+  <div class="pad"><div class="kicker">Déroulé de la démo</div><h2>Ce que vous allez voir</h2><p class="sub">15 minutes : un prompt détaillé, l’agent, la preuve en direct.</p></div>
+  <div class="body" style="top:265px">
+    <div class="cards c4" style="height:auto">
+      <div class="card"><div class="bubble">1</div><h3>Cadrer</h3><p>Prompt détaillé : qui, quoi, sur quelle ressource, avec quelle règle.</p></div>
+      <div class="card"><div class="bubble">2</div><h3>Construire</h3><p>L’agent suit la recette : test d’abord, module, route, contrat.</p></div>
+      <div class="card"><div class="bubble">3</div><h3>Vérifier</h3><p><code>npm run verify</code>, puis la revue d’architecture sur le diff.</p></div>
+      <div class="card fill"><div class="bubble">4</div><h3>Prouver</h3><p>La fonctionnalité tourne dans l’application, avec l’e-mail dans Mailpit.</p></div>
+    </div>
+    <div class="card ice" style="margin-top:26px"><span class="tag">Environnement de démonstration</span>
+      <p style="font-size:22px">Application <code>localhost:3000</code> · Mailpit <code>localhost:8025</code> · entreprise <code>expense.io</code> avec RH, deux managers, trois employés et des notes de démo (runbook <code>demo-live-preparer</code>).</p></div>
+  </div>
+  <div class="take"><b>À retenir</b>Un prompt précis, une architecture qui guide, des tests qui prouvent.</div>
+  <div class="foot"><span>Source : docs/runbooks/demo-live-preparer.md</span><span></span></div>
+  <aside class="notes">À adapter avec la vraie fonctionnalité demandée le jour J. Détailler les prompts à voix haute, comme demandé par la consigne (slide 49 du cours 2). Plan B si le temps manque : montrer verify vert puis la fonctionnalité dans l’UI. Avant de commencer : branche de démo propre, docker compose up, make dev (ou npm run dev + npm run worker), npm run verify déjà vert.</aside>
+</section>
+
+<!-- 25 · CONCLUSION -->
+<section class="slide content" data-title="Conclusion">
+  <div class="num">31</div>
+  <div class="pad"><div class="kicker">Conclusion</div><h2>Ce que nous retenons</h2></div>
+  <div class="body" style="top:230px;bottom:190px">
+    <div class="cards c3" style="height:400px">
+      <div class="card"><div class="bubble">1</div><h3>Décider, puis écrire</h3><p>Quatre options comparées, trois ADR : chaque choix est expliqué par les contraintes du projet, pas par la mode.</p></div>
+      <div class="card"><div class="bubble">2</div><h3>Découpler</h3><p>Deux modules, un hexagone, des règles vérifiées en CI et une seule <code>ApprovalPolicy</code>.</p></div>
+      <div class="card"><div class="bubble">3</div><h3>Prouver</h3><p>46 constats, 29 corrigés et testés, SonarQube au vert, et une fonctionnalité en un prompt.</p></div>
+    </div>
+  </div>
+  <img class="ill" src="assets/rocket.webp" style="right:210px;top:40px;width:130px" alt="">
+  <div class="take" style="max-width:1100px"><b>Merci</b>Place aux questions — puis au live coding.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Louis Bertrand &amp; Maxime</span></div>
+  <aside class="notes">Conclure en 30 secondes, puis enchaîner sur les questions de l’audit (5 minutes maximum) avant le live coding. Anticiper : « pourquoi pas des microservices ? », « pourquoi l’OCR reste synchrone ? », « que se passe-t-il si le worker plante ? », « comment prouvez-vous que l’API n’a pas changé ? ».</aside>
+</section>
+
+</div></div>
+
+<div id="notes"><h4>Notes de l’orateur</h4><div id="notesbody"></div></div>
+<div id="grid"></div>
+<div id="hint">← → naviguer · N notes · G vue d’ensemble · F plein écran · P imprimer en PDF</div>
+
+<script>
+(function(){
+  var stage=document.getElementById('stage');
+  var slides=[].slice.call(document.querySelectorAll('.slide'));
+  var bar=document.getElementById('bar'), notes=document.getElementById('notes'),
+      nbody=document.getElementById('notesbody'), grid=document.getElementById('grid');
+  var cur=0;
+
+  function fit(){
+    var s=Math.min(innerWidth/1600,innerHeight/900);
+    stage.style.transform='translate(-50%,-50%) scale('+s+')';
+  }
+  function show(i,push){
+    cur=Math.max(0,Math.min(slides.length-1,i));
+    slides.forEach(function(el,k){el.classList.toggle('active',k===cur)});
+    bar.style.width=((cur+1)/slides.length*100)+'%';
+    var n=slides[cur].querySelector('.notes');
+    nbody.textContent=n?n.textContent:'';
+    if(push!==false){try{history.replaceState(null,'','#'+(cur+1))}catch(e){}}
+    document.title='Expense.io — '+slides[cur].getAttribute('data-title');
+  }
+  function buildGrid(){
+    grid.innerHTML='';
+    slides.forEach(function(el,k){
+      var b=document.createElement('button');
+      var t=document.createElement('div');t.className='t';
+      var c=el.cloneNode(true);c.classList.add('active');c.style.cssText='position:absolute;left:0;top:0;opacity:1;visibility:visible';
+      var w=document.createElement('div');w.appendChild(c);t.appendChild(w);
+      var l=document.createElement('div');l.className='l';l.textContent=(k+1)+' · '+el.getAttribute('data-title');
+      b.appendChild(t);b.appendChild(l);if(k===cur)b.className='cur';
+      b.onclick=function(){grid.classList.remove('on');show(k)};
+      grid.appendChild(b);
+    });
+    var tw=grid.querySelector('.t');
+    if(tw){var sc=tw.clientWidth/1600;[].forEach.call(grid.querySelectorAll('.t>div'),function(d){d.style.transform='scale('+sc+')'})}
+  }
+  addEventListener('resize',fit);
+  addEventListener('keydown',function(e){
+    if(e.ctrlKey||e.metaKey||e.altKey)return;
+    var k=e.key;
+    if(grid.classList.contains('on')){if(k==='Escape'||k==='g'||k==='G'){grid.classList.remove('on')}return}
+    if(k==='ArrowRight'||k==='PageDown'||k===' '||k==='Enter'){e.preventDefault();show(cur+1)}
+    else if(k==='ArrowLeft'||k==='PageUp'||k==='Backspace'){e.preventDefault();show(cur-1)}
+    else if(k==='Home')show(0); else if(k==='End')show(slides.length-1);
+    else if(k==='n'||k==='N')notes.classList.toggle('on');
+    else if(k==='g'||k==='G'){buildGrid();grid.classList.add('on')}
+    else if(k==='f'||k==='F'){if(!document.fullscreenElement)document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();else document.exitFullscreen()}
+    else if(k==='p'||k==='P')print();
+  });
+  var x0=null;
+  addEventListener('touchstart',function(e){x0=e.touches[0].clientX},{passive:true});
+  addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTouches[0].clientX-x0;if(Math.abs(dx)>50)show(cur+(dx<0?1:-1));x0=null});
+  addEventListener('click',function(e){if(e.target.closest('#grid,#notes'))return;show(cur+(e.clientX<innerWidth*0.2?-1:1))});
+  addEventListener('hashchange',function(){var n=parseInt(location.hash.slice(1),10);if(n)show(n-1,false)});
+  fit();
+  var n=parseInt(location.hash.slice(1),10);show(n?n-1:0,false);
+  document.getElementById('hint').style.display=slides.length?'block':'none';
+  setTimeout(function(){document.getElementById('hint').style.opacity=.0;},6000);
+})();
+</script>
+</body>
+</html>
