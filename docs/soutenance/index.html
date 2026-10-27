@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expense.io — Soutenance ARLA</title>
+<style>
+:root{
+  --navy:#071426; --indigo:#2A3B8C; --sky:#45BBEC; --blue:#3D9FD7; --pale:#98D6E1;
+  --ice:#EAF5FB; --slate:#5E7187; --line:#C1D2E6; --deep:#122347; --soft:#6C8BC6;
+  --ok:#1f9d6b; --warn:#e08a1e; --bad:#d6455d;
+  --font:"Aptos","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0b0f1a;overflow:hidden;font-family:var(--font);color:var(--navy)}
+#viewport{position:fixed;inset:0}
+#stage{width:1600px;height:900px;position:absolute;left:50%;top:50%;transform-origin:center center}
+.slide{position:absolute;inset:0;width:1600px;height:900px;overflow:hidden;background:#fff center/cover no-repeat;
+  opacity:0;visibility:hidden;transition:opacity .25s ease}
+.slide.active{opacity:1;visibility:visible}
+
+/* ---------- gabarits ---------- */
+.content{background-image:url(assets/bg-light-left.jpg)}
+.cover{background-image:url(assets/bg-cover-light.jpg)}
+.dark{background-image:url(assets/bg-dark.jpg);color:#fff}
+.blue{background-image:url(assets/bg-blue.jpg);color:#fff}
+.pad{position:absolute;left:96px;right:96px;top:70px;bottom:150px}
+.kicker{font-size:20px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;color:var(--blue)}
+.dark .kicker,.blue .kicker{color:var(--sky)}
+h1{font-size:92px;line-height:1.02;font-weight:800;color:var(--indigo);letter-spacing:-.02em}
+h2{font-size:56px;line-height:1.08;font-weight:800;color:var(--indigo);letter-spacing:-.015em;margin-top:10px}
+.dark h2,.blue h2{color:#fff}
+.sub{font-size:26px;color:var(--slate);margin-top:12px;max-width:1100px}
+.dark .sub,.blue .sub{color:var(--line)}
+.body{position:absolute;left:96px;right:96px;top:250px;bottom:160px}
+.foot{position:absolute;left:96px;right:96px;bottom:34px;display:flex;justify-content:space-between;
+  font-size:16px;color:var(--slate);letter-spacing:.04em}
+.dark .foot,.blue .foot{color:var(--line)}
+.take{position:absolute;left:96px;bottom:78px;max-width:1010px;display:flex;align-items:center;gap:18px;
+  background:var(--navy);color:#fff;border-radius:14px;padding:14px 26px 14px 14px;font-size:22px;line-height:1.25}
+.take b{background:var(--sky);color:var(--navy);font-size:14px;letter-spacing:.14em;text-transform:uppercase;
+  padding:8px 12px;border-radius:8px;white-space:nowrap}
+.dark .take,.blue .take{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25)}
+.num{position:absolute;right:96px;top:50px;font-size:18px;font-weight:700;color:var(--slate);letter-spacing:.12em}
+.dark .num,.blue .num{color:var(--pale)}
+.ill{position:absolute;pointer-events:none}
+aside.notes{display:none}
+.archi{--exp:#2563EB;--exp-soft:#E7EEFD;--iam:#D4560B;--iam-soft:#FCEDE2;--pres:#15803D;--pres-soft:#E3F3E8;--async:#7C3AED;--async-soft:#EFE8FD;--sunk:#ECEEF2;--surface:#fff;--line-strong:#A6AEBB;--muted:#586273;--fg:#17202C;--bg:#fff}
+.archi .diagram{border:1px solid var(--line);border-radius:14px;background:#fff;padding:8px}
+.archi .dg{display:block;width:100%;height:auto}
+.dg text{font-family:var(--font);font-size:13px;fill:var(--fg)}
+.dg .lbl{font-weight:600;font-size:15.5px}.dg .sub{fill:var(--muted);font-size:14px}.dg .sm{font-size:13px}
+.dg .mono{font-family:"Cascadia Mono",Consolas,monospace;font-size:13px}
+.dg .cap{font-family:"Cascadia Mono",Consolas,monospace;font-size:12px;fill:var(--muted);letter-spacing:.06em}
+.dg .hex{fill:var(--sunk);stroke:var(--fg);stroke-width:2}.dg .n{fill:#fff;stroke:var(--line-strong);stroke-width:1.5}
+.dg .n.pres{fill:var(--pres-soft);stroke:var(--pres)}.dg .n.async{fill:var(--async-soft);stroke:var(--async)}
+.dg .mod{stroke-width:1.5}.dg .mod.exp{fill:var(--exp-soft);stroke:var(--exp)}.dg .mod.iam{fill:var(--iam-soft);stroke:var(--iam)}
+.dg .dom{fill:#fff;stroke:var(--line-strong);stroke-width:1.2}
+.dg .mod-lbl{font-family:"Cascadia Mono",Consolas,monospace;font-size:13px;font-weight:600}.dg .mod-lbl.exp{fill:var(--exp)}.dg .mod-lbl.iam{fill:var(--iam)}
+.dg .new{fill:var(--async);font-weight:600}.dg .port{fill:#fff;stroke:var(--fg);stroke-width:2}
+.dg .e{fill:none;stroke:var(--muted);stroke-width:1.5;marker-end:url(#arrow)}.dg .e.async{stroke:var(--async);marker-end:url(#arrow-async)}
+.dg .e.loop{stroke:var(--async);stroke-dasharray:6 4;marker-end:url(#arrow-async);marker-start:url(#arrow-async)}
+.dg .proc{fill:none;stroke:var(--line-strong);stroke-width:1.5;stroke-dasharray:6 5}.dg .rim{fill:none;stroke:var(--line-strong);stroke-width:1.5;stroke-dasharray:4 4}
+.dg .badge circle{fill:var(--async)}.dg .badge text{fill:#fff;font:600 11px "Cascadia Mono",Consolas,monospace;text-anchor:middle}
+.arrowhead{fill:#586273}.arrowhead.async{fill:#7C3AED}
+.steps{margin:0;padding:0;list-style:none;counter-reset:st;display:flex;flex-direction:column;gap:14px}
+.steps li{counter-increment:st;position:relative;padding-left:42px;font-size:20.5px;line-height:1.34;color:#26364d}
+.steps li::before{content:counter(st);position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;background:#7C3AED;color:#fff;font:600 15px/28px "Cascadia Mono",Consolas,monospace;text-align:center}
+.steps code{font-size:.85em}
+
+.strip{display:flex;gap:16px;margin-bottom:18px}
+.strip div{flex:1;background:var(--ice);border-radius:14px;padding:10px 18px;font-size:21px;color:#26364d;display:flex;align-items:center;gap:12px}
+.strip .bubble{width:38px;height:38px;font-size:20px;margin:0}
+.stat{background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:16px 22px;box-shadow:0 10px 30px -18px rgba(18,35,71,.35)}
+.stat .bignum{font-size:56px}.stat p{font-size:21px;line-height:1.3;color:#26364d;margin-top:4px}
+.stat.fill{background:var(--indigo);border-color:var(--indigo)}.stat.fill .bignum{color:#fff}.stat.fill p{color:var(--line)}
+.mini li{font-size:24px!important}
+table.big td{font-size:27px;padding:20px 18px}table.big th{font-size:18px}
+.strip.big div{font-size:24px;padding:16px 20px}
+.stat .bignum{font-size:64px}.stat p{font-size:23px}
+.compact table.big td{padding:12px 18px;font-size:25px}.compact .strip.big div{padding:12px 18px;font-size:22px}
+.ready{margin-top:18px;display:flex;gap:14px;align-items:stretch;border:2px solid var(--indigo);border-radius:14px;padding:12px 18px;font-size:20px;color:#26364d;line-height:1.3}
+.ready b{color:var(--indigo);font-size:21px;align-self:center;white-space:nowrap}.ready span{flex:1;border-left:1.5px solid var(--line);padding-left:14px}
+.risk{display:block;margin-top:10px;padding-top:10px;border-top:1.5px solid var(--line);font-size:18px;line-height:1.3;color:#5E7187}
+.risk b{color:#d6455d}
+
+#notes{max-height:55vh}
+.dg .fut{opacity:0;pointer-events:none}
+.dg .fut.on{opacity:1;animation:plug .7s ease-out}
+.dg .fut[data-step="2"].on{animation-name:plugr}
+@keyframes plug{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
+@keyframes plugr{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+@media print{.dg .fut{opacity:1!important;animation:none!important}}
+@media (prefers-reduced-motion:reduce){.dg .fut.on{animation:none}}
+#notes .qa{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px 28px}
+#notes .qa div{border-left:3px solid var(--sky);padding-left:12px}
+#notes .qa b{display:block;color:#fff}
+.proof td{font-size:20px;padding:10px 14px;line-height:1.25}
+.proof th{padding:8px 14px}
+
+.fgrid{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:8px 20px;height:100%}
+.fx{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:6px 16px 7px;font-size:18px;line-height:1.25;color:#26364d;box-shadow:0 8px 22px -16px rgba(18,35,71,.35)}
+.fx b{display:block;font-size:21px;color:var(--indigo);margin:2px 0 1px}
+.fx .fd{display:block;color:#3b4d66}
+.fx .pill{font-size:14px;padding:2px 10px}
+.fx code{font-size:.9em}
+
+
+/* ---------- briques ---------- */
+.cards{display:grid;gap:26px;height:100%}
+.c2{grid-template-columns:repeat(2,1fr)} .c3{grid-template-columns:repeat(3,1fr)} .c4{grid-template-columns:repeat(4,1fr)}
+.card{background:#fff;border:1.5px solid var(--line);border-radius:20px;padding:28px 30px;position:relative;
+  box-shadow:0 10px 30px -18px rgba(18,35,71,.35)}
+.card.fill{background:var(--indigo);color:#fff;border-color:var(--indigo)}
+.card.ice{background:var(--ice);border-color:#d3e8f4}
+.dark .card,.blue .card{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.22);box-shadow:none}
+.card h3{font-size:32px;line-height:1.15;color:var(--indigo);margin-bottom:10px}
+.card.fill h3,.dark .card h3,.blue .card h3{color:#fff}
+.card p,.card li{font-size:25px;line-height:1.38;color:#26364d}
+.card.fill p,.card.fill li,.dark .card p,.dark .card li,.blue .card p{color:var(--line)}
+.card ul{list-style:none}
+.card li{padding-left:22px;position:relative;margin:7px 0}
+.card li::before{content:"";position:absolute;left:0;top:.62em;width:9px;height:9px;border-radius:2px;background:var(--sky);transform:rotate(45deg)}
+.tag{display:inline-block;font-size:15px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--blue);margin-bottom:10px}
+.dark .tag,.card.fill .tag{color:var(--sky)}
+.bignum{font-size:96px;font-weight:800;line-height:1;color:var(--indigo);letter-spacing:-.03em}
+.dark .bignum,.card.fill .bignum{color:#fff}
+.bubble{width:52px;height:52px;border-radius:50%;background:var(--sky);color:var(--navy);font-weight:800;font-size:26px;
+  display:grid;place-items:center;margin-bottom:14px;flex:none}
+.pill{display:inline-block;padding:4px 12px;border-radius:99px;font-size:17px;font-weight:700}
+.p-crit{background:#fde3e8;color:#a3223a}.p-high{background:#fdeed7;color:#9a5a0b}
+.p-ok{background:#dcf3e8;color:#12714c}.p-mid{background:var(--ice);color:var(--indigo)}
+code,.mono{font-family:"Cascadia Mono","Consolas",ui-monospace,monospace;font-size:.88em}
+code{background:var(--ice);color:var(--indigo);padding:1px 7px;border-radius:6px}
+.dark code,.card.fill code{background:rgba(255,255,255,.14);color:#fff}
+table{border-collapse:collapse;width:100%}
+th{font-size:16px;letter-spacing:.1em;text-transform:uppercase;color:var(--slate);text-align:left;padding:10px 16px;border-bottom:2px solid var(--line)}
+td{font-size:23px;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.3}
+tr.win td{background:var(--ice);font-weight:600}
+tr.win td:first-child{border-left:6px solid var(--sky)}
+.cols{display:grid;gap:40px;height:100%}
+svg text{font-family:var(--font)}
+
+/* ---------- couverture ---------- */
+.cover .logo{left:96px;top:70px;width:150px}
+.cover .org{position:absolute;left:96px;top:300px;font-size:22px;letter-spacing:.28em;font-weight:700;color:var(--slate);line-height:1.6}
+.cover h1{position:absolute;left:96px;top:380px;width:900px}
+.cover .rule{position:absolute;left:96px;top:700px;width:180px;height:5px;background:var(--blue);border-radius:3px}
+.cover .who{position:absolute;left:96px;top:728px;font-size:26px;font-weight:700;color:var(--indigo)}
+.cover .meta{position:absolute;left:290px;top:100px;font-size:20px;color:var(--slate);letter-spacing:.06em}
+
+/* ---------- intercalaires ---------- */
+.section .big{position:absolute;left:110px;top:150px;font-size:330px;font-weight:800;line-height:1;color:rgba(61,159,215,.16);letter-spacing:-.05em}
+.section .kicker{position:absolute;left:110px;top:430px}
+.section h2{color:var(--indigo);position:absolute;left:110px;top:470px;font-size:84px;width:880px;line-height:1.04}
+.section .sub{color:var(--slate);position:absolute;left:110px;top:760px;font-size:28px;width:760px}
+
+/* ---------- barres ---------- */
+.bars .row{display:grid;grid-template-columns:400px 1fr 130px;align-items:center;gap:18px;margin:10px 0}
+.bars .lab{font-size:21px;color:#26364d} .bars .lab code{font-size:18px}
+.bars .track{height:26px;border-radius:13px;background:var(--ice);overflow:hidden}
+.bars .fillb{height:100%;border-radius:13px;background:linear-gradient(90deg,var(--indigo),var(--sky))}
+.bars .val{font-size:22px;font-weight:700;color:var(--indigo)}
+
+/* ---------- notes ---------- */
+#notes{position:fixed;left:0;right:0;bottom:0;max-height:34vh;overflow:auto;background:rgba(7,20,38,.96);color:#e5eefb;
+  padding:16px 28px 20px;font-size:17px;line-height:1.5;display:none;z-index:9;border-top:3px solid var(--sky)}
+#notes.on{display:block}
+#notes h4{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--sky);margin-bottom:6px}
+#bar{position:fixed;left:0;top:0;height:4px;background:var(--sky);z-index:10;transition:width .25s}
+#hint{position:fixed;right:14px;bottom:10px;font-size:13px;color:#8aa0c4;z-index:8;opacity:.8}
+#grid{position:fixed;inset:0;background:rgba(7,20,38,.97);z-index:20;display:none;overflow:auto;padding:30px;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;align-content:start}
+#grid.on{display:grid}
+#grid button{all:unset;cursor:pointer;display:block;border:2px solid #2a3b60;border-radius:10px;overflow:hidden;background:#fff}
+#grid button:hover,#grid button.cur{border-color:var(--sky)}
+#grid .t{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden}
+#grid .t>div{width:1600px;height:900px;transform-origin:0 0;position:absolute;left:0;top:0}
+#grid .l{font-size:13px;padding:6px 10px;background:#0e1c34;color:#cfe0f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- impression PDF : une slide par page ---------- */
+@page{size:1600px 900px;margin:0}
+@media print{
+  html,body{overflow:visible;height:auto;background:#fff}
+  #viewport{position:static;display:block}
+  #stage{transform:none!important;position:static;width:1600px;height:auto}
+  .slide{position:relative;opacity:1;visibility:visible;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #notes,#bar,#hint,#grid{display:none!important}
+}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="viewport"><div id="stage">
+<!-- 1 · COUVERTURE -->
+<section class="slide cover" data-title="Couverture">
+  <img class="ill logo" src="assets/logo.webp" alt="EPITA SIGL">
+  <div class="meta">Expense.io &nbsp;/&nbsp; SIGL Promo 2027 &nbsp;/&nbsp; 30 octobre 2026</div>
+  <div class="org">SYSTÈMES D’INFORMATION<br>&amp; GÉNIE LOGICIEL — ARLA</div>
+  <h1>Expense.io :<br>audit et refacto<br>d’architecture</h1>
+  <div class="rule"></div>
+  <div class="who">Équipe 1Pacte</div>
+  <aside class="notes">[0:30] Format : 15 min d’audit et de choix d’architecture, puis 15 min de live coding assisté par IA. Fil rouge, une seule phrase : « vendable sans craindre la fuite, évolutif sans tout casser ». Chaque slide prouve l’une des deux promesses ; le live coding prouve la seconde. Plan : ce qu’on a trouvé (3-4), ce qu’on a décidé (5-6), la preuve (7), la démonstration (8).</aside>
+</section>
+
+<!-- 2 · SYNTHÈSE -->
+<section class="slide content" data-title="Synthèse exécutive">
+  <div class="num">02</div>
+  <div class="pad"><div class="kicker">Synthèse exécutive</div><h2>L’essentiel du projet</h2>
+    <p class="sub">L’application marchait, mais elle exposait nos clients et coûtait cher à faire évoluer. Elle est maintenant sûre et prête pour la suite, sans rien changer pour nos clients.</p></div>
+  <div class="body" style="top:300px;bottom:170px">
+    <div class="cards c3">
+      <div class="card"><div class="bubble">1</div><h3>Le risque métier</h3><p>Une entreprise cliente pouvait lire les <b>justificatifs d’une autre</b> : perte de confiance, données personnelles exposées, contrats B2B en jeu. <b>4 failles critiques</b> sur 46 constats.</p></div>
+      <div class="card"><div class="bubble">2</div><h3>Ce qu’on a fait</h3><p>Une <b>isolation des clients garantie</b> par la base, une architecture <b>en modules</b> et des e-mails fiables même si le serveur mail tombe. <b>Aucun client à réécrire</b> : l’API ne change pas.</p></div>
+      <div class="card"><div class="bubble">3</div><h3>Ce que ça apporte</h3><p><b>Risque critique éliminé</b> : 12 failles critiques et élevées corrigées, prouvées par 620 tests. Des évolutions <b>plus rapides et moins risquées</b> : une fonctionnalité complète en un prompt.</p></div>
+    </div>
+  </div>
+  <img class="ill" src="assets/target.webp" style="right:190px;top:28px;width:130px" alt="">
+  <div class="take"><b>Pour l’entreprise</b>Vendable sans craindre la fuite, évolutif sans tout casser.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">[1:30] Parler à notre CTO : risque, réponse, valeur métier. Pas de jargon ici, la technique vient aux slides suivantes. Lien cours 2 : le « premier incident » de Manu (fuite entreprise A → B) n’est pas théorique ici : F1 et F2 le rendent possible. Annoncer le plan : ce qu’on a trouvé, ce qu’on a décidé, la preuve, puis la démonstration en direct. Le bandeau est la phrase qu’on répétera à la fin.</aside>
+</section>
+
+<!-- 3 · AUDIT -->
+<section class="slide content" data-title="Audit">
+  <div class="num">03</div>
+  <div class="pad"><div class="kicker">1 · Ce qu’on a trouvé</div><h2>46 constats : l’isolation des clients d’abord</h2><p class="sub">Classés par impact métier × facilité d’exploitation, tous rejoués dans l’app.</p></div>
+  <div class="body" style="top:245px;bottom:150px">
+    <div class="strip">
+      <div><span class="bubble">1</span><span><b>Lire</b> l’existant</span></div>
+      <div><span class="bubble">2</span><span><b>Rejouer</b> l’app, rôle par rôle</span></div>
+      <div><span class="bubble">3</span><span><b>Figer</b> : +140 tests de caractérisation</span></div>
+    </div>
+    <div class="cols" style="grid-template-columns:400px 1fr;gap:36px;height:auto">
+      <div style="display:grid;gap:14px;align-content:start">
+      <svg viewBox="0 0 400 200" width="400" height="200" role="img" aria-label="Répartition par gravité : 4 critiques, 8 élevés, 20 moyens, 14 faibles">
+        <g font-size="22" fill="#26364d">
+          <text x="0" y="30">Critique</text><rect x="110" y="8" width="40" height="30" rx="8" fill="#d6455d"/><text x="162" y="32" font-weight="700">4</text>
+          <text x="0" y="80">Élevé</text><rect x="110" y="58" width="80" height="30" rx="8" fill="#e08a1e"/><text x="202" y="82" font-weight="700">8</text>
+          <text x="0" y="130">Moyen</text><rect x="110" y="108" width="200" height="30" rx="8" fill="#3D9FD7"/><text x="322" y="132" font-weight="700">20</text>
+          <text x="0" y="180">Faible</text><rect x="110" y="158" width="140" height="30" rx="8" fill="#98D6E1"/><text x="262" y="182" font-weight="700">14</text></g>
+      </svg>
+        <div class="card" style="padding:14px 20px"><span class="pill p-high">8 élevés</span><p style="font-size:18px;margin-top:6px">Rôles usurpables, double décision acceptée, OCR qui sature le serveur, chemins serveur exposés.</p></div>
+      </div>
+      <div style="display:grid;gap:14px;align-content:start">
+      <div class="cards c2" style="gap:14px;height:auto">
+        <div class="card" style="padding:14px 22px"><span class="pill p-crit">Critique</span><h3 style="font-size:23px;margin:6px 0 2px">Reçus d’une autre entreprise</h3><p style="font-size:19px">Un manager ouvre le justificatif d’un salarié d’une autre entreprise.</p></div>
+        <div class="card" style="padding:14px 22px"><span class="pill p-crit">Critique</span><h3 style="font-size:23px;margin:6px 0 2px">Filet de la base désactivé</h3><p style="font-size:19px">L’app se connecte en superuser : l’isolation par entreprise ne s’applique jamais.</p></div>
+        <div class="card" style="padding:14px 22px"><span class="pill p-crit">Critique</span><h3 style="font-size:23px;margin:6px 0 2px">Injection dans le tri des notes</h3><p style="font-size:19px"><code>?sort=</code> exécute du SQL, avec les droits superuser.</p></div>
+        <div class="card" style="padding:14px 22px"><span class="pill p-crit">Critique</span><h3 style="font-size:23px;margin:6px 0 2px">Secret de session dans le code</h3><p style="font-size:19px">Qui lit le dépôt peut fabriquer une session RH de n’importe quelle entreprise.</p></div>
+      </div>
+        <div class="card" style="padding:12px 22px;border-color:#7C3AED"><p style="font-size:19px"><b>Et pour l’utilisateur :</b> le salarié n’est <b>jamais prévenu</b> de la décision (e-mails codés, jamais envoyés), et la note d’un employé sans manager n’a <b>aucun validateur</b>.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="take"><b>Pour nos clients</b>Le justificatif d’un salarié pouvait être lu par une autre entreprise.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">[2:30] Méthode en 20 s : on lit, on rejoue l’app avec les vrais cookies de chaque rôle, on fige les défauts dans des tests [as-is]. Puis les 4 critiques, chacune dite en conséquence pour Expense.io : F1 + F2 se combinent (la seule barrière est le WHERE de chaque route, et la RLS est contournée) ; F3, l’injection est dans le tri de la liste des notes et s’exécute en superuser ; F25, avec le secret du dépôt on signe soi-même un jeton de session RH. Les 8 élevés : F4 + F5 + F30 (rôles usurpables : premier inscrit d’un domaine = RH, manager d’une autre entreprise, cycle dans l’organigramme), F9 (approve et reject tous deux acceptés), F16 + F17 + F19 (pas d’index, OCR synchrone sans limite de taille), F26 (stack et chemins serveur dans les 500). Le cadre violet justifie l’asynchrone de la slide 6 : F15 (décision jamais notifiée) et F33 (employé sans manager = note sans validateur, le cas par défaut à l’inscription). Les 34 autres sont moyens ou faibles. Pour nos clients : un salarié dont le justificatif (RIB, adresse, montant) est lisible par une autre entreprise, c’est la perte de confiance d’un client B2B.</aside>
+</section>
+
+<!-- 4 · DÉPART -->
+<section class="slide content" data-title="État de départ">
+  <div class="num">04</div>
+  <div class="pad"><div class="kicker">1 · Ce qu’on a trouvé · architecture as-is</div><h2>Un monolithe où tout se mélange</h2><p class="sub">La couche hexagonale existait, mais personne ne l’importait.</p></div>
+  <div class="body" style="top:250px;bottom:150px">
+    <div class="cols" style="grid-template-columns:1010px 1fr;gap:30px;height:auto">
+      <svg viewBox="0 0 1400 490" width="1010" height="354" role="img" aria-label="Architecture de départ">
+        <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2A3B8C"/></marker></defs>
+        <rect x="0" y="40" width="240" height="150" rx="16" fill="#EAF5FB" stroke="#C1D2E6" stroke-width="2"/>
+        <text x="120" y="90" text-anchor="middle" font-size="26" font-weight="700" fill="#2A3B8C">Pages React</text>
+        <text x="120" y="125" text-anchor="middle" font-size="18" fill="#5E7187">/expenses · /manager · /hr</text>
+        <rect x="320" y="0" width="620" height="400" rx="20" fill="#fff" stroke="#2A3B8C" stroke-width="3"/>
+        <text x="630" y="40" text-anchor="middle" font-size="24" font-weight="700" fill="#2A3B8C">Next.js — un seul process Node.js</text>
+        <rect x="350" y="70" width="560" height="190" rx="14" fill="#2A3B8C"/>
+        <text x="630" y="108" text-anchor="middle" font-size="25" font-weight="700" fill="#fff">Route handlers (api/)</text>
+        <g font-size="21" fill="#EAF5FB" text-anchor="middle"><text x="630" y="146">SQL brut + règles d’accès</text><text x="630" y="176">recopiés dans chaque route</text><text x="630" y="214">OCR synchrone · upload S3</text></g>
+        <rect x="350" y="285" width="560" height="90" rx="14" fill="#fff" stroke="#9aa9bd" stroke-width="2" stroke-dasharray="8 6"/>
+        <text x="630" y="322" text-anchor="middle" font-size="22" font-weight="700" fill="#5E7187">domain/ · ports/ · adapters/</text>
+        <text x="630" y="352" text-anchor="middle" font-size="20" fill="#5E7187">présents, jamais importés</text>
+        <rect x="1090" y="0" width="310" height="110" rx="16" fill="#EAF5FB" stroke="#C1D2E6" stroke-width="2"/>
+        <text x="1245" y="48" text-anchor="middle" font-size="25" font-weight="700" fill="#2A3B8C">PostgreSQL 16</text><text x="1245" y="82" text-anchor="middle" font-size="19" fill="#5E7187">RLS contournée (superuser)</text>
+        <rect x="1090" y="150" width="310" height="100" rx="16" fill="#EAF5FB" stroke="#C1D2E6" stroke-width="2"/>
+        <text x="1245" y="196" text-anchor="middle" font-size="25" font-weight="700" fill="#2A3B8C">Stockage S3</text><text x="1245" y="228" text-anchor="middle" font-size="19" fill="#5E7187">reçus</text>
+        <rect x="1090" y="290" width="310" height="100" rx="16" fill="#fff" stroke="#9aa9bd" stroke-width="2" stroke-dasharray="8 6"/>
+        <text x="1245" y="336" text-anchor="middle" font-size="25" font-weight="700" fill="#5E7187">Notifications</text><text x="1245" y="368" text-anchor="middle" font-size="19" fill="#5E7187">jamais appelées</text>
+        <g stroke="#2A3B8C" stroke-width="3" fill="none" marker-end="url(#a1)"><path d="M240 115H320"/><path d="M910 110H1090"/><path d="M910 190H1090"/></g>
+      </svg>
+      <div style="display:grid;gap:14px;align-content:start">
+        <div class="stat fill"><div class="bignum">7×</div><p>règles d’accès recopiées, une par route</p></div>
+        <div class="stat"><div class="bignum">0</div><p>filet dans la base : l’app s’y connecte en superuser</p></div>
+        <div class="stat"><div class="bignum">0</div><p>e-mail envoyé : les notifications ne sont jamais appelées</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="take"><b>Pour nos clients</b>Une règle oubliée dans une route : un client voit les données d’un autre.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">[2:00] Ce qu’il faut faire comprendre : la sécurité ne tient qu’à la discipline de chaque route. Les règles d’accès sont recopiées 7 fois (F22, F23) et la base, qui pourrait servir de filet, est contournée (F2). Cours slide 48 : « on peut retrouver les idées mais pas forcément bien implémentées » : les dossiers domain/ports/adapters existent mais sont du code mort. Les notifications existent aussi, mais rien ne les appelle (F15). Performance, seulement si on demande : benchmark k6 sur 15 000 notes, 360–560 req/s sans erreur ; c’est ce chiffre qui écarte les microservices à la slide suivante.</aside>
+</section>
+
+<!-- 5 · CHOIX -->
+<section class="slide content" data-title="Choix d'architecture">
+  <div class="num">05</div>
+  <div class="pad"><div class="kicker">2 · Ce qu’on a décidé</div><h2>Des frontières nettes, sans distribuer</h2><p class="sub">Trois besoins tirés de l’audit : isoler les clients, ne rien casser chez eux, prévenir sans bloquer.</p></div>
+  <div class="body compact" style="top:255px;bottom:140px">
+    <table class="big">
+      <tr><th style="width:470px">Option</th><th>Apport</th><th style="width:560px">Limite</th></tr>
+      <tr><td><b>A</b> · Monolithe en couches nettoyé</td><td>Léger.</td><td>Règles d’accès toujours éparpillées.</td></tr>
+      <tr><td><b>B</b> · Monolithe modulaire hexagonal</td><td>Frontières nettes, métier testable.</td><td>Un serveur mail en panne bloque la validation.</td></tr>
+      <tr class="win"><td><b>C</b> · B + file d’e-mails ✔</td><td>Répond aux 3 besoins.</td><td>Un process de plus à exploiter (worker).</td></tr>
+      <tr><td><b>D</b> · Microservices</td><td>Déploiement indépendant.</td><td>Réseau et exploitation ×N, pour aucun besoin de charge.</td></tr>
+    </table>
+    <div class="strip big" style="margin-top:22px;margin-bottom:0">
+      <div><span><b>Isoler</b> : la base l’impose</span></div>
+      <div><span><b>Ne rien casser</b> : API figée</span></div>
+      <div><span><b>Charge</b> : 360–560 req/s suffisent</span></div>
+      <div><span><b>Choix écrit</b> : ADR 0002</span></div>
+    </div>
+  </div>
+  <div class="take"><b>Pour l’entreprise</b>Une seule application à exploiter, découpée pour accueillir la suite.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">[2:30] Partir des trois besoins de l’audit, pas du cours : isoler les clients (slide 3, critiques), ne rien casser chez eux (contrat d’API figé), prévenir le salarié sans bloquer le manager (F15). A ne règle pas l’éparpillement ; B ne règle pas l’e-mail (envoyé dans la requête, une panne mail fait échouer la validation) ; D coûte réseau, déploiements et monitoring sans besoin de charge (k6 : 360–560 req/s, cours slide 31). C est B plus une file d’e-mails : un seul process de plus. Critères de tradeoff du cours (slide 20) si on demande : time to market, maturité, sécurité, scalabilité. Hexagonal plutôt que Clean (slide 47) : moins guidé, mais un fichier par use case lève l’ambiguïté. La suite (facturation, nouvelles notifications) se montre sur la slide suivante.</aside>
+</section>
+
+<!-- 6 · CIBLE -->
+<section class="slide content archi" data-title="Architecture cible">
+  <div class="num">06</div>
+  <div class="pad"><div class="kicker">2 · Ce qu’on a décidé · architecture cible</div><h2>Isolée par la base, découpée, fiable</h2></div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="arrow-async" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead async" d="M0,0 L10,5 L0,10 z"/></marker></defs></svg>
+  <div class="body" style="top:175px;bottom:140px">
+    <div class="cols" style="grid-template-columns:900px 1fr;gap:20px;height:auto">
+      <div class="diagram"><svg class="dg" viewBox="0 0 1110 700" width="884" height="557" role="img" aria-label="Deux process. Le process web contient les pages et routes HTTP, puis le cœur métier avec les modules expenses et iam. À droite, les adapters de sortie : base de données, file d’e-mails, reçus et OCR. Le worker d’e-mails, dans un second process, lit la file d’e-mails et envoie au serveur mail. En pointillés, ce qui se branche demain : un module billing, une nouvelle notification, un port de paiement."><rect class="proc" x="10" y="48" width="842" height="482" rx="12"/><text class="cap" x="26" y="70" text-anchor="start" style="font-size:14px;">PROCESS WEB</text><text class="cap" x="975" y="40" text-anchor="middle" style="font-size:14px;">SYSTÈMES EXTERNES</text><polygon class="hex" points="300,300 380,90 740,90 820,300 740,510 380,510"/><text class="cap" x="560" y="114" text-anchor="middle" style="font-size:14px;">CŒUR MÉTIER</text><rect class="mod exp" x="385" y="130" width="350" height="130" rx="8"/><text class="mod-lbl exp" x="400" y="154" text-anchor="start" style="font-size:17px;">module expenses</text><text class="lbl" x="560" y="198" text-anchor="middle" style="font-size:26px;">Notes de frais</text><text class="sub" x="560" y="230" text-anchor="middle" style="font-size:18px;">soumettre · valider · reçus</text><path class="e" d="M560,260 L560,296"/><text class="sub mono" x="574" y="284" text-anchor="start" style="font-size:15px;">index.ts</text><rect class="mod iam" x="385" y="298" width="350" height="130" rx="8"/><text class="mod-lbl iam" x="400" y="322" text-anchor="start" style="font-size:17px;">module iam</text><text class="lbl" x="560" y="366" text-anchor="middle" style="font-size:26px;">Comptes et droits</text><text class="sub" x="560" y="398" text-anchor="middle" style="font-size:18px;">qui peut valider qui</text><text class="sub" x="560" y="468" text-anchor="middle" style="font-size:16px;">dépendances vérifiées en CI</text><rect class="n pres" x="30" y="165" width="200" height="90" rx="8"/><text class="lbl" x="130" y="205" text-anchor="middle" style="font-size:22px;">Pages &amp; routes</text><text class="sub" x="130" y="234" text-anchor="middle" style="font-size:16px;">adapters d’entrée</text><path class="e" d="M230,210 L324,210"/><circle class="port" cx="334" cy="210" r="7"/><g class="fut" data-step="1"><rect class="rim" x="30" y="320" width="230" height="150" rx="10" style="stroke:#7C3AED"/><text class="cap" x="145" y="344" text-anchor="middle" style="font-size:14px;fill:#7C3AED">DEMAIN</text><text class="lbl" x="145" y="382" text-anchor="middle" style="font-size:22px;">module billing</text><text class="lbl" x="145" y="420" text-anchor="middle" style="font-size:22px;">nouvelle notification</text><text class="sub" x="145" y="446" text-anchor="middle" style="font-size:15px;">via l’outbox existante</text><path class="e async" d="M260,395 L326,395" style="stroke-dasharray:5 4"/><circle class="port" cx="338" cy="395" r="7"/></g><rect class="n " x="880" y="106" width="190" height="64" rx="8" style="stroke:#1F9D55;stroke-width:3"/><text class="lbl" x="975" y="132" text-anchor="middle" style="font-size:21px;">Base de données</text><text class="sub" x="975" y="157" text-anchor="middle" style="font-size:15px;fill:#1F7A45;font-weight:700">filtrée par entreprise</text><path class="e" d="M765,138 L878,138"/><circle class="port" cx="758" cy="138" r="7"/><rect class="n async" x="880" y="185" width="190" height="56" rx="8"/><text class="lbl new" x="975" y="209" text-anchor="middle" style="font-size:21px;">File d’e-mails</text><text class="sub mono" x="975" y="232" text-anchor="middle" style="font-size:15px;">mail_outbox</text><path class="e async" d="M794,213 L878,213"/><circle class="port" cx="787" cy="213" r="7"/><rect class="n " x="880" y="260" width="190" height="56" rx="8"/><text class="lbl" x="975" y="284" text-anchor="middle" style="font-size:21px;">Reçus</text><text class="sub" x="975" y="307" text-anchor="middle" style="font-size:15px;">S3</text><path class="e" d="M822,288 L878,288"/><circle class="port" cx="815" cy="288" r="7"/><rect class="n " x="880" y="335" width="190" height="56" rx="8"/><text class="lbl" x="975" y="359" text-anchor="middle" style="font-size:21px;">Lecture OCR</text><text class="sub" x="975" y="382" text-anchor="middle" style="font-size:15px;">Tesseract</text><path class="e" d="M803,363 L878,363"/><circle class="port" cx="796" cy="363" r="7"/><g class="fut" data-step="2"><rect class="rim" x="880" y="410" width="190" height="56" rx="8" style="stroke:#7C3AED"/><text class="lbl" x="975" y="434" text-anchor="middle" style="font-size:21px;">Paiement</text><text class="sub" x="975" y="456" text-anchor="middle" style="font-size:15px;">demain : un port</text><path class="e async" d="M774,438 L878,438" style="stroke-dasharray:5 4"/><circle class="port" cx="767" cy="438" r="7"/></g><path class="e loop" d="M1070,213 L1094,213 L1094,553 L460,553 L460,588"/><text class="sub" x="780" y="545" text-anchor="middle" style="font-size:16px;">seul lien entre les process : la file d’e-mails</text><rect class="proc" x="10" y="570" width="842" height="118" rx="12"/><text class="cap" x="26" y="678" text-anchor="start" style="font-size:14px;">PROCESS WORKER</text><text class="sub" x="150" y="616" text-anchor="middle" style="font-size:16px;">hors de</text><text class="sub" x="150" y="636" text-anchor="middle" style="font-size:16px;">l’hexagone</text><rect class="n async" x="300" y="590" width="320" height="64" rx="8"/><text class="lbl new" x="460" y="618" text-anchor="middle" style="font-size:22px;">Worker d’e-mails</text><text class="sub" x="460" y="641" text-anchor="middle" style="font-size:15px;">n’importe aucun module</text><rect class="n" x="880" y="599" width="190" height="46" rx="8"/><text class="lbl" x="975" y="629" text-anchor="middle" style="font-size:21px;">Serveur mail</text><path class="e async" d="M620,622 L878,622"/><text class="sub mono" x="790" y="610" text-anchor="middle" style="font-size:15px;">SMTP</text><g class="badge"><circle cx="836" cy="138" r="13"/><text x="836" y="143" style="font-size:15px">1</text></g><g class="badge"><circle cx="530" cy="278" r="13"/><text x="530" y="283" style="font-size:15px">2</text></g><g class="badge"><circle cx="560" cy="553" r="13"/><text x="560" y="558" style="font-size:15px">3</text></g></svg></div>
+      <ol class="steps">
+        <li><b>Isoler les clients.</b> Chaque requête passe par la base, qui ne rend que les données de l’entreprise de l’utilisateur. Un oubli dans le code ne fuit plus.</li>
+        <li><b>Évoluer sans casser.</b> Un module n’expose qu’une porte ; la CI refuse tout import interdit. Le nouveau se branche à côté.</li>
+        <li><b>Prévenir sans bloquer.</b> Décision et e-mail sont enregistrés ensemble ; un worker séparé envoie. Serveur mail en panne : la validation passe, l’e-mail part plus tard.</li>
+      </ol>
+    </div>
+  </div>
+  <div class="take"><b>Pour nos clients</b>Leurs données restent chez eux, et le salarié est toujours prévenu.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">[2:30] Un besoin par pastille, dans l’ordre de l’audit. (1) Isoler : l’app se connecte avec un rôle soumis à la RLS (expense_app) et chaque transaction fixe l’entreprise de l’acteur (unité de travail) ; la base est le filet si une route oublie un contrôle. C’est la réponse à F1 + F2. (2) Évoluer : au centre le cœur métier, deux modules ; les ronds sur le bord sont les ports, tout ce qui est dehors est un adapter remplaçable ; un module ne voit l’autre que par son index.ts, et dependency-cruiser bloque la CI sinon. Animation : un clic fait apparaître « module billing + nouvelle notification », un second clic le port de paiement : ils se branchent sans rien modifier (facturation Stripe prévue dans l’existant, ADR 0002). Flèche gauche les retire. (3) Prévenir : outbox ; le worker est un second process qui ne fait qu’envoyer, et ne connaît que mail_outbox. Doublon possible, perte jamais. Détails (SKIP LOCKED, bail de 2 min, essais à 10 s puis 1 min, dead après 3 échecs, rôles Postgres) : annexe 10, seulement si on creuse.</aside>
+</section>
+
+<!-- 7 · RÉSULTATS -->
+<section class="slide content" data-title="Résultats et limites">
+  <div class="num">07</div>
+  <div class="pad"><div class="kicker">3 · La preuve</div><h2>Les 4 failles critiques fermées</h2><p class="sub">Chaque correction est tenue par un test qui échouerait si le défaut revenait.</p></div>
+  <div class="body" style="top:245px;bottom:150px">
+    <div class="cols" style="grid-template-columns:1fr 430px;gap:28px;height:auto;align-items:start">
+      <div style="display:grid;gap:14px;align-content:start">
+      <table class="proof">
+        <tr><th style="width:290px">Faille</th><th>Correction</th><th style="width:330px">Preuve (test)</th></tr>
+        <tr><td><b>Reçus d’une autre entreprise</b></td><td>Accès vérifié par le module, puis par la base</td><td>chaque rôle, autre entreprise → 404</td></tr>
+        <tr><td><b>Filet de la base désactivé</b></td><td>Rôle applicatif soumis à l’isolation</td><td>sans entreprise, rien n’est visible</td></tr>
+        <tr><td><b>Injection dans le tri</b></td><td>Liste blanche des colonnes</td><td><code>?sort=</code> inconnu → tri par défaut</td></tr>
+        <tr><td><b>Secret dans le code</b></td><td>Secret obligatoire à l’environnement</td><td>sans secret, l’app refuse de démarrer</td></tr>
+      </table>
+        <div class="card" style="padding:12px 22px"><p style="font-size:19px"><span class="tag">Moyens et faibles</span>&nbsp; <b>17 corrigés sur 34</b> (11 moyens, 6 faibles). Les 15 écartés le sont pour une raison écrite : contrat, simple validation, fonctionnalité ou infrastructure.</p></div>
+        <div class="card" style="padding:12px 22px"><p style="font-size:19px"><span class="tag">Limite assumée</span>&nbsp; L’OCR reste synchrone : le rendre asynchrone changerait l’API. Risque atténué (taille et concurrence plafonnées, annexe 16).</p></div>
+      </div>
+      <div style="display:grid;gap:12px;align-content:start">
+        <div class="stat fill"><div class="bignum" style="font-size:72px">12/12</div><p>critiques et élevés corrigés · 29 défauts au total</p></div>
+        <div class="stat"><div class="bignum" style="font-size:56px">10 → 0</div><p>parcours E2E en échec : l’app d’origine en ratait 10 sur 37, la nôtre passe <b>37/37</b></p></div>
+        <div class="stat"><div class="bignum" style="font-size:56px">99,8 %</div><p>des lignes du cœur métier et de l’API, par <b>620 tests</b>. Sonar, sur tout <code>src/</code> : <b>75 %</b>, l’écart étant l’interface testée en E2E.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="take"><b>Pour nos clients</b>Mêmes parcours, même API, et des données enfin isolées entre entreprises.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">[2:30] Revenir aux 4 cartes de la slide 3, une ligne chacune : la faille, ce qu’on a changé, le test qui la tient. Preuves exactes si on demande : F1, tests d’intégration des routes receipt-url rôle par rôle, dont « employé d’une autre entreprise » ; F2, tests/integration/rls.test.ts (« expense_app n’est ni superutilisateur ni BYPASSRLS », « sans portée, rien n’est visible ») ; F3, E2E api-auth « ?sort= hors liste blanche : 200 et tri par défaut » ; F25, tests/unit/config.test.ts (AUTH_SECRET manquant ou trop court → erreur au démarrage).<br><br>Le « 10 → 0 », mesuré le 27/10 : on a lancé nos 37 E2E (boîte noire, en HTTP) contre l’application d’origine (commit 265924b). 11 échouent ; l’un ne tient qu’à un titre de section renommé, on ne le compte pas. Les 10 restants sont de vrais défauts : 5 contrôles d’accès (401/403 incohérents, erreurs sans format), l’injection du tri, un corps JSON qui fait une 500 avec la stack, l’e-mail de décision jamais envoyé, la note d’un employé sans manager et celle d’une RH sans validateur. Une seule adaptation pour que l’original tourne sur le schéma actuel : company_id rempli à l’insertion. La fuite de reçus (F1) n’est pas un E2E : elle est prouvée en intégration.<br><br>12/12 : les 4 critiques et les 8 élevés. 29 corrections = 12 (socle) + 16 (modules) + 1 (notification). Pas corrigés : aucun critique ni élevé ; le reste aurait changé le contrat (pagination), relève de simples validations, de fonctionnalités nouvelles ou de l’infrastructure. Couverture, mesurée le 27/10 sur le code de main : 620 tests, 99,82 % des lignes (564 sur 565), 97,4 % des branches, 100 % des fonctions, sur le périmètre Vitest (modules, shared, routes API, server actions). SonarQube annonce 75 % parce qu’il compte tout src/ : 15 fichiers hors de ce périmètre, surtout les pages et composants React et l’authentification, exercés par les 37 E2E Playwright qui ne mesurent pas la couverture. Détail : annexe 13. SonarQube « après » (0 bug, 0 smell, 0 % de duplication, 75,1 %) : run local du 20/10. Moyens et faibles : annexe 14. Plus de lignes (1 970 → 2 809) : coût annoncé dans l’ADR. Performance, seulement si on demande : « les temps de réponse suivent le besoin utilisateur ; on n’a pas refait la mesure sur la machine de référence, donc on ne revendique pas de gain ».</aside>
+</section>
+
+<!-- 8 · LIVE CODING -->
+<section class="slide content" data-title="Live coding">
+  <div class="num">08</div>
+  <div class="pad"><div class="kicker">4 · La démonstration</div><h2>Une fonctionnalité, un prompt</h2><p class="sub">Chaque outil ferme un risque précis : l’agent intègre, il n’improvise pas.</p></div>
+  <div class="body" style="top:235px;bottom:150px">
+    <div class="cards c4" style="height:auto">
+      <div class="card"><div class="bubble">1</div><h3>AGENTS.md</h3><p>Architecture, règles et commandes, chargés à chaque session.</p><span class="risk"><b>Évite :</b> du code posé au mauvais endroit</span></div>
+      <div class="card"><div class="bubble">2</div><h3>Skills</h3><p>Recette TDD en 10 étapes : <code>ajouter-une-fonctionnalite</code>.</p><span class="risk"><b>Évite :</b> un test, le contrat d’API ou la doc oubliés</span></div>
+      <div class="card"><div class="bubble">3</div><h3>Revue</h3><p>Sous-agent <code>revue-architecture</code> sur le diff.</p><span class="risk"><b>Évite :</b> une règle contournée qui compile quand même</span></div>
+      <div class="card"><div class="bubble">4</div><h3>Garde-fous</h3><p><code>npm run verify</code> : lint, types, depcruise, 620 tests.</p><span class="risk"><b>Évite :</b> un import interdit ou une régression</span></div>
+    </div>
+    <div class="ready" style="margin-top:20px"><b>Lisible par l’humain aussi</b><span>ADR : pourquoi chaque choix</span><span>Conventions : où va chaque fichier</span><span>Runbooks et CHANGELOG du contrat</span></div>
+    <div class="strip" style="margin-top:20px;margin-bottom:0">
+      <div><b>Déjà testé</b></div><div>≈ 12 min jusqu’au vert</div><div>0 intervention humaine</div><div>0 constat bloquant</div>
+    </div>
+  </div>
+  <div class="take"><b>Merci</b>Questions, puis live coding.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">[0:30 + questions] Transition vers la 2e partie (15 min). « Déjà testé » : on a fait l’exercice une fois avant la soutenance, sur une vraie fonctionnalité (motif de rejet saisi par le validateur, visible dans la liste et l’e-mail) — 12 min, 0 intervention, 646 tests verts avec la fonctionnalité ajoutée (620 sur main). <h4 style="margin-top:12px">Fiche questions-réponses</h4><div class="qa"><div><b>Pourquoi pas de microservices ?</b>Aucune charge ne le justifie (360–560 req/s suffisent) ; une architecture distribuée ajoute déploiements, réseau et monitoring (cours slide 31). Les modules ont déjà des frontières nettes : on pourra en extraire un le jour où un besoin le justifie. → slide 5.</div><div><b>Pourquoi l’OCR reste synchrone ?</b>La route de suggestion renvoie le résultat dans sa réponse : passer en asynchrone change le contrat d’API, interdit. Risques atténués : moteurs réutilisés, 2 analyses en parallèle au plus, 10 Mio max, 503 avec Retry-After si saturé. Demain, ReceiptReader est un port : un adapter asynchrone le remplace sans toucher au métier. → annexe 16.</div><div><b>Et si le worker plante ?</b>Les e-mails restent dans mail_outbox ; le bail de 2 min expire et la ligne est reprise. Livraison au moins une fois : doublon possible, perte jamais. Après 3 échecs, dead (notre DLQ). → slide 6.</div><div><b>Comment prouvez-vous que l’API n’a pas changé ?</b>openapi.yaml figé, oasdiff en CI qui refuse tout changement cassant, et les E2E d’avant la refacto toujours verts. Les erreurs RFC 9457 sont additives : le champ error est conservé.</div><div><b>Pourquoi hexagonal plutôt que Clean ?</b>Moins de couches pour un petit domaine ; l’ambiguïté de l’hexagonal est levée par une règle simple, un fichier par use case, et vérifiée par dependency-cruiser.</div><div><b>Pourquoi pas SQS pour les e-mails ?</b>Un second saut réseau et une écriture non transactionnelle pour un seul consommateur ; l’outbox garantit que décision et e-mail sont enregistrés ensemble.</div><div><b>Pourquoi plus de lignes de code (1 970 → 2 809) ?</b>Coût assumé dans l’ADR : plus de fichiers, mais chacun petit et testable ; la duplication passe de 9,3 % à 0 %.</div><div><b>Et ce qui n’est pas corrigé ?</b>Aucun critique ni élevé. Le reste aurait changé le contrat (pagination), relève de simples validations, de fonctionnalités nouvelles ou de l’infrastructure. Détail dans annexes.html.</div><div><b>Pas de benchmark après ?</b>La mesure de départ a été prise sur une machine de référence non disponible ; comparer deux machines aurait été trompeur. C’est la prochaine mesure à prendre, sur la même machine.</div><div><b>Comment l’IA ne casse-t-elle pas l’architecture ?</b>Elle lit AGENTS.md, suit la recette du skill, le sous-agent relit le diff, et npm run verify bloque tout import interdit : l’erreur est rattrapée par la machine, pas par la chance.</div></div></aside>
+</section>
+
+<!-- 9 · ANNEXES (SÉPARATEUR) -->
+<section class="slide cover section" data-title="Annexes">
+  <div class="num">09</div><div class="big">+</div><div class="kicker">Annexes</div>
+  <h2>Pour aller plus loin</h2>
+  <p class="sub">Architecture détaillée, méthode d’audit, gravité, couverture, moyens et faibles, ADR 0002, OCR.</p>
+  <img class="ill" src="assets/gears.webp" style="right:120px;top:240px;width:520px" alt="">
+  <aside class="notes">Séparateur : rien à dire. Les annexes ne se présentent pas, on y va quand une question tombe (touche G, puis la slide). 10 architecture détaillée · 11 méthode d’audit · 12 critique ou élevé · 13 couverture · 14 moyens et faibles · 15 ADR 0002 · 16 OCR synchrone.</aside>
+</section>
+
+<!-- 9 · ANNEXE : ARCHITECTURE DÉTAILLÉE -->
+<section class="slide content archi" data-title="Annexe : architecture détaillée">
+  <div class="num">10</div>
+  <div class="pad"><div class="kicker">Annexe · architecture détaillée</div><h2>Monolithe modulaire, hexagonal, avec outbox</h2></div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="arrow-async" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead async" d="M0,0 L10,5 L0,10 z"/></marker></defs></svg>
+  <div class="body" style="top:175px;bottom:140px">
+    <div class="cols" style="grid-template-columns:900px 1fr;gap:20px;height:auto">
+      <div class="diagram"><svg class="dg" viewBox="0 0 1110 700" width="884" height="557" role="img" aria-label="Deux process. Le process web contient les adapters d'entrée (pages, routes HTTP, server actions) et le cœur hexagonal (module expenses, module iam, shared). À droite, cinq adapters de sortie derrière des ports : Postgres pour les notes et OutboxMailer qui écrit dans mail_outbox, dans la même transaction, puis S3, Tesseract, et Postgres avec bcrypt pour les utilisateurs. En bas, le process worker contient le worker de livraison, hors de l'hexagone, qui lit et marque mail_outbox et envoie en SMTP direct à Mailpit.">
+        <!-- Process web -->
+        <rect class="proc" x="10" y="48" width="842" height="482" rx="12"/>
+        <text class="cap" x="26" y="70">PROCESS WEB · next start</text>
+        <text class="cap" x="975" y="40" text-anchor="middle">SYSTÈMES EXTERNES</text>
+
+        <!-- Cœur -->
+        <polygon class="hex" points="300,300 380,90 740,90 820,300 740,510 380,510"/>
+        <text class="cap" x="560" y="112" text-anchor="middle">CŒUR MÉTIER</text>
+
+        <!-- Module expenses -->
+        <rect class="mod exp" x="385" y="124" width="350" height="160" rx="8"/>
+        <text class="mod-lbl exp" x="398" y="142">module expenses</text>
+        <text class="sub" x="560" y="168" text-anchor="middle">submit · listMine · listPending · decide</text>
+        <text class="sub" x="560" y="189" text-anchor="middle">getReceiptUrl · suggestFromReceipt</text>
+        <text class="mono new" x="560" y="212" text-anchor="middle">decisionEmail · compose l'e-mail</text>
+        <rect class="dom" x="465" y="230" width="190" height="38" rx="6"/>
+        <text class="sub mono" x="560" y="253" text-anchor="middle">domaine : ExpenseNote</text>
+
+        <!-- Lien entre modules -->
+        <path class="e" d="M560,284 L560,328"/>
+        <text class="sub mono" x="572" y="310">iam/index.ts</text>
+
+        <!-- Module iam -->
+        <rect class="mod iam" x="385" y="330" width="350" height="120" rx="8"/>
+        <text class="mod-lbl iam" x="398" y="348">module iam</text>
+        <text class="lbl" x="560" y="372" text-anchor="middle">ApprovalPolicy</text>
+        <text class="sub sm" x="560" y="393" text-anchor="middle">getActor · signUp · authenticate · assignManager</text>
+        <text class="sub mono" x="560" y="414" text-anchor="middle">approveesOf · canDecide · getContact</text>
+        <text class="sub sm" x="560" y="436" text-anchor="middle">domaine : User · Company</text>
+
+        <!-- shared -->
+        <rect class="n" x="388" y="462" width="344" height="30" rx="6"/>
+        <text class="sub mono" style="font-size:11px" x="560" y="481" text-anchor="middle">shared · unitOfWork · Mailer · problem · logger</text>
+
+        <!-- Entrées -->
+        <rect class="n pres" x="24" y="115" width="96" height="50" rx="8"/>
+        <text class="lbl" x="72" y="137" text-anchor="middle">Pages</text>
+        <text class="sub sm" x="72" y="154" text-anchor="middle">UI React</text>
+
+        <rect class="n" x="140" y="115" width="160" height="50" rx="8"/>
+        <text class="lbl" x="220" y="136" text-anchor="middle">Route handlers</text>
+        <text class="sub sm" x="220" y="154" text-anchor="middle">adapter d'entrée HTTP</text>
+
+        <rect class="n" x="140" y="185" width="160" height="50" rx="8"/>
+        <text class="lbl" x="220" y="206" text-anchor="middle">Server actions</text>
+        <text class="sub sm" x="220" y="224" text-anchor="middle">signup · login</text>
+
+        <path class="e" d="M120,140 L138,140"/>
+        <path class="e" d="M72,165 L72,210 L138,210"/>
+        <path class="e" d="M300,140 L352,140"/>
+        <path class="e" d="M300,210 L325,210"/>
+
+        <!-- Sorties -->
+        <rect class="rim" x="870" y="72" width="212" height="138" rx="10"/>
+        <text class="cap" x="976" y="88" text-anchor="middle">MÊME TRANSACTION</text>
+
+        <rect class="n" x="880" y="98" width="190" height="46" rx="8"/>
+        <text class="sub mono" x="975" y="116" text-anchor="middle">NoteRepository</text>
+        <text class="lbl" x="975" y="135" text-anchor="middle">Postgres · notes</text>
+
+        <rect class="n async" x="880" y="152" width="190" height="46" rx="8"/>
+        <text class="sub mono" x="975" y="170" text-anchor="middle">Mailer → OutboxMailer</text>
+        <text class="lbl new" x="975" y="189" text-anchor="middle">Postgres · mail_outbox</text>
+
+        <rect class="n" x="880" y="222" width="190" height="46" rx="8"/>
+        <text class="sub mono" x="975" y="240" text-anchor="middle">ReceiptStorage</text>
+        <text class="lbl" x="975" y="259" text-anchor="middle">S3 · LocalStack</text>
+
+        <rect class="n" x="880" y="278" width="190" height="46" rx="8"/>
+        <text class="sub mono" x="975" y="296" text-anchor="middle">ReceiptReader</text>
+        <text class="lbl" x="975" y="315" text-anchor="middle">Tesseract</text>
+
+        <rect class="n" x="880" y="334" width="190" height="46" rx="8"/>
+        <text class="sub mono" x="975" y="352" text-anchor="middle">UserRepository · Hasher</text>
+        <text class="lbl" x="975" y="371" text-anchor="middle">Postgres · bcrypt</text>
+
+        <path class="e" d="M760,121 L878,121"/>
+        <path class="e async" d="M780,175 L878,175"/>
+        <path class="e" d="M800,245 L878,245"/>
+        <path class="e" d="M820,301 L878,301"/>
+        <path class="e" d="M812,357 L878,357"/>
+
+        <!-- Ports -->
+        <circle class="port" cx="361" cy="140" r="6"/>
+        <circle class="port" cx="334" cy="210" r="6"/>
+        <circle class="port" cx="753" cy="121" r="6"/>
+        <circle class="port" cx="774" cy="175" r="6"/>
+        <circle class="port" cx="794" cy="245" r="6"/>
+        <circle class="port" cx="815" cy="301" r="6"/>
+        <circle class="port" cx="806" cy="357" r="6"/>
+
+        <!-- Seul lien entre les deux process -->
+        <path class="e loop" d="M1072,175 L1094,175 L1094,553 L460,553 L460,588"/>
+        <text class="sub" x="780" y="545" text-anchor="middle">seul lien entre les process : le worker lit et marque <tspan class="mono">mail_outbox</tspan></text>
+
+        <!-- Process worker -->
+        <rect class="proc" x="10" y="570" width="842" height="118" rx="12"/>
+        <text class="cap" x="26" y="676">PROCESS WORKER · node mail-worker.ts</text>
+        <text class="sub" x="150" y="612" text-anchor="middle">infrastructure,</text>
+        <text class="sub" x="150" y="630" text-anchor="middle">hors de l'hexagone</text>
+
+        <rect class="n async" x="300" y="590" width="320" height="64" rx="8"/>
+        <text class="lbl new" x="460" y="612" text-anchor="middle">Worker de livraison</text>
+        <text class="sub sm" x="460" y="630" text-anchor="middle">réserve 5 lignes (bail 2 min) · envoie · marque</text>
+        <text class="sub sm" x="460" y="646" text-anchor="middle">aucun import de modules/ · rôle expense_mailer</text>
+
+        <rect class="n" x="880" y="599" width="190" height="46" rx="8"/>
+        <text class="lbl" x="975" y="619" text-anchor="middle">Mailpit</text>
+        <text class="sub sm" x="975" y="636" text-anchor="middle">serveur SMTP</text>
+
+        <path class="e async" d="M620,622 L878,622"/>
+        <text class="sub mono" x="790" y="612" text-anchor="middle">SMTP direct</text>
+
+        <!-- Étapes -->
+        <g class="badge"><circle cx="326" cy="140" r="10"/><text x="326" y="144">1</text></g>
+        <g class="badge"><circle cx="544" cy="306" r="10"/><text x="544" y="310">2</text></g>
+        <g class="badge"><circle cx="832" cy="175" r="10"/><text x="832" y="179">3</text></g>
+        <g class="badge"><circle cx="1094" cy="420" r="10"/><text x="1094" y="424">4</text></g>
+        <g class="badge"><circle cx="680" cy="622" r="10"/><text x="680" y="626">5</text></g>
+        <g class="badge"><circle cx="560" cy="553" r="10"/><text x="560" y="557">6</text></g>
+      </svg></div>
+      <ol class="steps">
+        <li>Le manager valide une note : <b>l’API répond comme avant</b>.</li>
+        <li>« Qui peut valider » est écrit <b>à un seul endroit</b> ; deux validations simultanées, une seule gagne.</li>
+        <li>La décision et l’e-mail sont enregistrés <b>ensemble</b> : jamais l’un sans l’autre.</li>
+        <li>Un process séparé prend les e-mails en attente ; <b>s’il plante, il reprend</b> où il en était.</li>
+        <li>Une panne du serveur mail <b>ne bloque jamais</b> une validation.</li>
+        <li>Échec : nouvel essai, puis mise de côté. <b>Un doublon est possible, une perte jamais.</b></li>
+      </ol>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Règles vérifiées en CI ; les deux process ne se parlent que via <code>mail_outbox</code>.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">[Annexe, à ouvrir seulement si on creuse] Détail technique : (1) POST …/approve, 200 inchangé. (2) decide vérifie ApprovalPolicy puis UPDATE … WHERE status = 'pending' (la seconde validation concurrente ne trouve plus de ligne en attente). (3) même transaction : OutboxMailer écrit dans mail_outbox via le port Mailer. (4) le worker réserve 5 lignes avec SKIP LOCKED et un bail de 2 min (s’il meurt, le bail expire et la ligne est reprise). (5) envoi SMTP hors transaction. (6) sent, ou nouvel essai à 10 s puis 1 min, puis dead après 3 échecs. Lecture du schéma : les ronds sur le bord de l’hexagone sont les ports ; tout ce qui est dehors est un adapter, remplaçable sans toucher au métier ; le violet marque le flux de notification. Côté utilisateur : le manager valide sans attendre le serveur mail et le salarié finit toujours par être prévenu. Règles vérifiées en CI : les deux process ne se parlent que via mail_outbox. Process web (rôle Postgres expense_app, soumis à la RLS) et process worker (rôle expense_mailer, droits limités à mail_outbox) ne s’appellent jamais. Inversion des dépendances (cours slide 47) : domain n’importe rien ; un module n’en voit un autre que par son index.ts ; le worker n’importe jamais modules/. ApprovalPolicy : manager direct, sinon RH de l’entreprise, jamais sa propre note. Outbox : livraison au moins une fois (doublon possible, jamais de perte) ; idempotence, DLQ (dead) et ack du cours. SQS écarté : second saut pour un seul consommateur. Contrat : erreurs RFC 9457 additives, error conservé.</aside>
+</section>
+
+<!-- 10 · ANNEXE : MÉTHODE D’AUDIT -->
+<section class="slide content" data-title="Annexe : méthode d’audit">
+  <div class="num">11</div>
+  <div class="pad"><div class="kicker">Annexe · méthode d’audit</div><h2>Cinq étapes, chaque constat prouvé</h2><p class="sub">Avant de toucher au code : comprendre, rejouer, mesurer, figer, puis classer.</p></div>
+  <div class="body" style="top:245px;bottom:150px">
+    <div class="cards c3" style="height:auto;gap:18px;grid-template-columns:repeat(5,1fr)">
+      <div class="card" style="padding:18px"><div class="bubble">1</div><h3 style="font-size:23px">Cartographier</h3><p style="font-size:18px">Lecture des routes, de l’authentification et des migrations. Schéma as-is.</p></div>
+      <div class="card" style="padding:18px"><div class="bubble">2</div><h3 style="font-size:23px">Rejouer</h3><p style="font-size:18px">App lancée en local, parcourue dans un vrai navigateur pour chaque rôle ; API rejouée avec le cookie réel de chaque rôle.</p></div>
+      <div class="card" style="padding:18px"><div class="bubble">3</div><h3 style="font-size:23px">Mesurer</h3><p style="font-size:18px">k6 sur 15 000 notes (169 147 requêtes) ; SonarQube et couverture de départ.</p></div>
+      <div class="card" style="padding:18px"><div class="bubble">4</div><h3 style="font-size:23px">Figer</h3><p style="font-size:18px">+140 tests de caractérisation sur Postgres et S3 réels. Les tests <code>[as-is]</code> ont révélé 8 constats de plus.</p></div>
+      <div class="card" style="padding:18px"><div class="bubble">5</div><h3 style="font-size:23px">Classer</h3><p style="font-size:18px">Gravité = impact métier × facilité d’exploitation (annexe 12).</p></div>
+    </div>
+    <div class="strip big" style="margin-top:22px">
+      <div><span><b>19 confirmés</b> : reproduits sur l’app</span></div>
+      <div><span><b>20 établis par le code</b> : lecture</span></div>
+      <div><span><b>7 par un test</b> : suite de caractérisation</span></div>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Chaque constat a un niveau de preuve, les 4 critiques compris.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">Méthode détaillée dans docs/audit/AUDIT.md. Les comptes manager et RH, impossibles à créer depuis l’interface, ont été créés en base. Statut de preuve : « Confirmé » = reproduit sur l’application en marche ; « Code » = établi par lecture ; « Test » = reproduit par un test automatisé de la suite de caractérisation, dont le fichier est cité. F1, F2 et F3 sont confirmés ; F25 (secret en dur) est établi par le code, car il se lit directement dans lib/auth.ts. Les tests [as-is] figent un défaut tel qu’il est ; corriger le défaut, c’est modifier ce test exprès. F39 à F46 sont nés de cette suite.</aside>
+</section>
+
+<!-- 11 · ANNEXE : CRITIQUE OU ÉLEVÉ -->
+<section class="slide content" data-title="Annexe : critique ou élevé">
+  <div class="num">12</div>
+  <div class="pad"><div class="kicker">Annexe · grille de gravité</div><h2>Critique ou élevé : la condition d’exploitation</h2><p class="sub">Même impact possible ; ce qui les sépare, c’est ce qu’il faut pour l’exploiter.</p></div>
+  <div class="body" style="top:245px;bottom:150px">
+    <div class="cols" style="grid-template-columns:1fr 1fr;gap:28px;height:auto">
+      <div class="card" style="padding:20px 26px"><span class="pill p-crit">Critique · 4</span><h3 style="font-size:25px;margin:10px 0 6px">Sans condition</h3><p style="font-size:19px">N’importe quel utilisateur, en une requête, sur toutes les entreprises ; ou la défense elle-même désactivée.</p>
+        <ul class="mini" style="font-size:18px"><li><b>F1</b> : tout manager lit les reçus de toute entreprise</li><li><b>F2</b> : la base ne protège plus rien</li><li><b>F3</b> : un paramètre exécute du SQL superuser</li><li><b>F25</b> : avec le dépôt, toute session se fabrique</li></ul></div>
+      <div class="card" style="padding:20px 26px"><span class="pill p-high">Élevé · 8</span><h3 style="font-size:25px;margin:10px 0 6px">Grave, mais sous condition</h3><p style="font-size:19px">Il faut un rôle, un moment ou une charge particulière, ou l’impact reste indirect.</p>
+        <ul class="mini" style="font-size:18px"><li><b>F4, F5, F30</b> : être le premier inscrit, ou RH qui agit</li><li><b>F9</b> : deux décisions au même instant</li><li><b>F16, F17, F19</b> : saturer le serveur (charge, gros fichier)</li><li><b>F26</b> : une stack exposée, qui aide une attaque</li></ul></div>
+    </div>
+    <p style="font-size:19px;margin-top:16px;color:#41526b"><b>Moyen</b> : impact métier net, sans fuite (ex. salarié jamais prévenu, note sans validateur). <b>Faible</b> : correction souhaitable (affichage, validations fines).</p>
+  </div>
+  <div class="take"><b>À retenir</b>F1 et F5 exposent une autre entreprise ; seul F1 n’exige rien.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">Définitions de l’audit : Critique = compromission ou corruption directe ; Élevé = fuite inter-entreprises, déni de service réaliste ou perte de donnée ; Moyen = impact métier net ; Faible = correction souhaitable. La frontière critique/élevé se joue sur la facilité d’exploitation, la seconde moitié de « impact × facilité ». Cas limite à citer : F5 (une RH rattache son employé au manager d’une autre entreprise) est une fuite inter-entreprises, mais il faut qu’une RH le fasse ; F1 ne demande qu’un compte manager et un identifiant de note, d’autant que les reçus sont numérotés à la suite. F2 n’ouvre rien seul, mais il supprime le filet qui aurait arrêté F1 : c’est pour ça qu’il est critique.</aside>
+</section>
+
+<!-- 12 · ANNEXE : COUVERTURE -->
+<section class="slide content" data-title="Annexe : couverture">
+  <div class="num">13</div>
+  <div class="pad"><div class="kicker">Annexe · couverture des tests</div><h2>99,8 % mesuré, 75 % dans Sonar</h2><p class="sub">Même suite de tests, deux périmètres : l’écart vient de ce que Vitest ne mesure pas.</p></div>
+  <div class="body" style="top:235px;bottom:150px">
+    <table class="proof">
+      <tr><th style="width:380px">Zone</th><th>Testée par</th><th style="width:380px">Couverture</th></tr>
+      <tr><td><b>Cœur métier, API, server actions</b><br><span style="font-size:17px">modules/, shared/, app/api/, app/actions/</span></td><td>Vitest : 620 tests, Postgres et S3 réels</td><td><b>99,8 %</b> des lignes · 97,4 % des branches · 100 % des fonctions</td></tr>
+      <tr><td><b>Pages et composants React</b><br><span style="font-size:17px">7 pages, 4 composants</span></td><td>Playwright : 37 parcours E2E</td><td>non mesurée, comptée à 0 % par Sonar</td></tr>
+      <tr><td><b>Authentification</b><br><span style="font-size:17px">lib/auth.ts, proxy.ts, route Auth.js</span></td><td>Playwright : vraies sessions</td><td>non mesurée</td></tr>
+      <tr><td><b>Worker d’e-mails</b><br><span style="font-size:17px">worker/mail-worker.ts</span></td><td>Vitest (intégration) et E2E Mailpit</td><td>testé, hors du périmètre mesuré</td></tr>
+    </table>
+  </div>
+  <div class="take"><b>À retenir</b>On n’a pas exclu l’interface de Sonar pour gonfler le chiffre : on montre les deux.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">Mesuré le 27/10 sur le code de main (npm run test:coverage) : 52 fichiers de test, 620 tests, 564 lignes couvertes sur 565. Le périmètre est fixé dans vitest.config.ts (include) : ce que Vitest exécute réellement ; l’authentification y est simulée, donc couverte par Playwright avec de vraies sessions. SonarQube lit le même rapport lcov mais analyse tout src/ : les 15 fichiers hors périmètre comptent pour 0 %. Le worker et problem-message ont des tests Vitest mais ne sont pas dans le périmètre mesuré : les y ajouter ferait monter le chiffre Sonar, c’est la prochaine étape. Seuils bloquants en CI : 97 % des lignes, 94 % des branches, 100 % des fonctions.</aside>
+</section>
+
+<!-- 13 · ANNEXE : MOYENS ET FAIBLES -->
+<section class="slide content" data-title="Annexe : moyens et faibles">
+  <div class="num">14</div>
+  <div class="pad"><div class="kicker">Annexe · moyens et faibles</div><h2>Moyens et faibles : 17 corrigés sur 34</h2><p class="sub">Rien n’est oublié : chaque constat est corrigé ou écarté pour une raison écrite.</p></div>
+  <div class="body" style="top:235px;bottom:150px">
+    <table class="proof">
+      <tr><th style="width:200px">Gravité</th><th style="width:330px">Corrigés</th><th>Écartés, et pourquoi</th></tr>
+      <tr><td><b>Moyen · 20</b></td><td><b>11</b> corrigés, dont e-mails (F15), notes sans validateur (F14, F33)<br>+ 1 déjà traité (F35), 1 partiel (F21)</td><td><b>7</b> : pagination = contrat (F18) ; validations (F13, F32, F40) ; débit = infrastructure (F20) ; identité d’entreprise à concevoir (F6, F7)</td></tr>
+      <tr><td><b>Faible · 14</b></td><td><b>6</b> corrigés</td><td><b>8</b> : fonctionnalités manquantes (F8, F28, F38) ; validations (F37, F45) ; affichage (F29, F46) ; énumération des comptes (F36)</td></tr>
+    </table>
+    <div class="strip big" style="margin-top:20px">
+      <div><span><b>Contrat figé</b> : rien qui change l’API</span></div>
+      <div><span><b>Fonctionnalités</b> : candidates au live</span></div>
+      <div><span><b>Aucun</b> critique ni élevé écarté</span></div>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Écarter, c’est décider : chaque exclusion est écrite dans la spec, avec sa raison.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">Arithmétique : 12 critiques et élevés + 11 moyens + 6 faibles = 29 corrigés ; + F35 déjà traité (la suite de caractérisation existait avant la refacto) + F21 partiel (OCR atténué mais synchrone) + 15 écartés = 46. Les fonctionnalités manquantes de F38 (motif de rejet, modifier ou annuler une note) sont justement de bonnes candidates au live coding. Ne pas dire « 29 sur 46 » comme un score : le 46 est notre décompte.</aside>
+</section>
+
+<!-- 14 · ANNEXE : ADR 0002 -->
+<section class="slide content" data-title="Annexe : ADR 0002">
+  <div class="num">15</div>
+  <div class="pad"><div class="kicker">Annexe · ADR 0002</div><h2>ADR 0002 : monolithe modulaire hexagonal</h2><p class="sub">Acceptée le 16/10/2026 · docs/adrs/0002-monolithe-modulaire-hexagonal.md</p></div>
+  <div class="body" style="top:235px;bottom:150px">
+    <div class="cols" style="grid-template-columns:1fr 1fr;gap:24px;height:auto">
+      <div style="display:grid;gap:14px;align-content:start">
+        <div class="card" style="padding:16px 22px"><span class="tag">Contexte</span><p style="font-size:19px;margin-top:6px">Routes qui portent le SQL et les règles d’accès, recopiées 7 fois ; couche hexagonale présente mais jamais branchée. Contrainte : ne pas casser l’API.</p></div>
+        <div class="card" style="padding:16px 22px"><span class="tag">Options</span><p style="font-size:19px;margin-top:6px"><b>A</b> couches nettoyées · <b>B</b> modulaire hexagonal · <b>C</b> B + flux asynchrone · <b>D</b> microservices</p></div>
+        <div class="card" style="padding:16px 22px"><span class="tag">Décision : C</span><p style="font-size:19px;margin-top:6px">Modules <code>expenses</code> et <code>iam</code> (domain, application, ports, infrastructure) et <code>shared/</code>. Un module ne voit l’autre que par son <code>index.ts</code>, vérifié par dependency-cruiser. <b>ApprovalPolicy</b> seule décide qui valide ; la RLS n’assure que l’isolation entre entreprises.</p></div>
+      </div>
+      <div style="display:grid;gap:14px;align-content:start">
+        <div class="card" style="padding:16px 22px"><span class="tag">Conséquences +</span><p style="font-size:19px;margin-top:6px">Une règle métier écrite une fois ; une recette fixe pour ajouter une fonctionnalité.</p></div>
+        <div class="card" style="padding:16px 22px"><span class="tag">Conséquences −</span><p style="font-size:19px;margin-top:6px">Plus de fichiers. Une RH seule dans son entreprise n’a pas de validateur tant qu’une seconde RH n’existe pas (limite assumée).</p></div>
+        <div class="card" style="padding:16px 22px"><span class="tag">Suivi</span><p style="font-size:19px;margin-top:6px">La facturation ira dans <code>src/modules/billing</code>, avec un port <code>PaymentProvider</code>.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Le choix est écrit, daté, avec ses coûts : n’importe qui (humain ou agent) peut le relire.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">Format ADR : statut, contexte, options, décision, conséquences, suivi. Origine : la spec d’architecture cible (docs/specs/2026-10-15-architecture-cible.md) et l’étude docs/architecture/options-refacto.md. La limite « une RH seule n’a pas de validateur » est assumée : la consigne est que tout le monde peut créer une note. C’est aussi l’ADR qu’AGENTS.md cite à l’agent de code : la décision guide le live coding.</aside>
+</section>
+
+<!-- 15 · ANNEXE : OCR SYNCHRONE -->
+<section class="slide content" data-title="Annexe : OCR synchrone">
+  <div class="num">16</div>
+  <div class="pad"><div class="kicker">Annexe · OCR synchrone</div><h2>L’OCR : borné plutôt que déplacé</h2><p class="sub">Le risque était la saturation (F17, F19), pas la lenteur : plafonnée sans toucher à l’API.</p></div>
+  <div class="body" style="top:235px;bottom:150px">
+    <div class="cols" style="grid-template-columns:470px 1fr;gap:26px;height:auto;align-items:start">
+      <div style="display:grid;gap:14px;align-content:start">
+        <div class="card" style="padding:12px 20px"><span class="tag">Pourquoi synchrone</span><p style="font-size:18px;margin-top:4px">La suggestion renvoie montant et date <b>dans sa réponse</b>. En asynchrone : 202 puis une route de résultat, donc <b>les clients existants cassent</b>.</p></div>
+        <div class="card" style="padding:12px 20px"><span class="tag">Ce que coûte l’OCR</span><p style="font-size:18px;margin-top:4px"><b>≈ 450 ms</b> par reçu (k6), acceptable pour une saisie humaine.</p></div>
+        <div class="card" style="padding:12px 20px;border-color:#7C3AED"><span class="tag">Demain, si la charge l’exige</span><p style="font-size:18px;margin-top:4px"><code>ReceiptReader</code> est un port : un adapter avec file d’attente remplace Tesseract sans toucher au métier.</p></div>
+      </div>
+      <table class="proof">
+        <tr><th style="width:300px">Avant</th><th>Après</th></tr>
+        <tr><td>Un moteur Tesseract créé puis détruit <b>à chaque reçu</b> (F17)</td><td>Moteurs <b>créés une fois, réutilisés</b></td></tr>
+        <tr><td>Autant d’analyses que de requêtes simultanées</td><td><b>2 analyses au plus</b> en parallèle (<code>OCR_MAX_CONCURRENCY</code>), les autres attendent leur tour, 30 s au plus</td></tr>
+        <tr><td>Saturé : le serveur ralentit pour tout le monde</td><td><b>503 + Retry-After : 5 s</b>, « réessaie dans quelques secondes » ; ajouté au contrat</td></tr>
+        <tr><td>Aucune limite de taille (F19)</td><td><b>10 Mio</b>, corps coupé dès le dépassement, <b>400</b> sans analyse</td></tr>
+        <tr><td>OCR en échec</td><td><b>Suggestion vide</b> : le salarié saisit à la main, rien ne bloque</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="take"><b>À retenir</b>Borné aujourd’hui, déplaçable demain, sans casser l’API.</div>
+  <div class="foot"><span>Expense.io · SIGL Promo 2027 · 30/10/2026</span><span>Équipe 1Pacte</span></div>
+  <aside class="notes">Si on te demande « pourquoi l’OCR est encore synchrone ? » : (1) le contrat : POST /api/expense-notes/receipt-suggestion renvoie { amount, expenseDate } en 200 ; le passer en asynchrone, c’est un 202 et une route de résultat, donc un changement cassant, interdit par la consigne (oasdiff le refuserait en CI). (2) Le coût est connu : ≈ 450 ms par reçu, mesuré avec k6 (2,2 reçus/s pour 1 utilisateur, 7,6 reçus/s à 4). (3) Le vrai danger était la saturation : F17 (un moteur neuf par requête, qui charge son modèle à chaque fois) et F19 (pas de limite de taille). Corrigé dans src/modules/expenses/infrastructure/TesseractReceiptReader.ts (pool de moteurs, plafond de concurrence, file d’attente de 30 s, puis Unavailable = 503 avec Retry-After: 5) et suggest-from-receipt.ts (10 Mio, même plafond qu’à la création ; panne OCR = suggestion vide, journalisée). Le 400 et le 503 sont décrits dans openapi.yaml et le CHANGELOG : ce sont des ajouts. Il reste F21 (OCR dans le process web), compté « partiel ». Côté utilisateur : au pire, un salarié attend quelques secondes ou relance la suggestion ; les autres ne sont plus bloqués par une rafale de reçus. Si on pousse : « pourquoi pas tout de suite asynchrone avec un nouvel endpoint ? » : rien ne le justifie à la charge mesurée, et ça ajoute un process et un état à exploiter. Le port permet de le faire le jour où la charge l’exige.</aside>
+</section>
+</div></div>
+
+<div id="notes"><h4>Notes de l’orateur</h4><div id="notesbody"></div></div>
+<div id="grid"></div>
+<div id="hint">← → naviguer · N notes · G vue d’ensemble · F plein écran · P imprimer en PDF</div>
+
+<script>
+(function(){
+  var stage=document.getElementById('stage');
+  var slides=[].slice.call(document.querySelectorAll('.slide'));
+  var bar=document.getElementById('bar'), notes=document.getElementById('notes'),
+      nbody=document.getElementById('notesbody'), grid=document.getElementById('grid');
+  var cur=0;
+
+  function fit(){
+    var s=Math.min(innerWidth/1600,innerHeight/900);
+    stage.style.transform='translate(-50%,-50%) scale('+s+')';
+  }
+  function show(i,push){
+    cur=Math.max(0,Math.min(slides.length-1,i));
+    slides.forEach(function(el,k){el.classList.toggle('active',k===cur)});
+    bar.style.width=((cur+1)/slides.length*100)+'%';
+    var n=slides[cur].querySelector('.notes');
+    nbody.innerHTML=n?n.innerHTML:'';
+    if(push!==false){try{history.replaceState(null,'','#'+(cur+1))}catch(e){}}
+    document.title='Expense.io — '+slides[cur].getAttribute('data-title');
+  }
+  function buildGrid(){
+    grid.innerHTML='';
+    slides.forEach(function(el,k){
+      var b=document.createElement('button');
+      var t=document.createElement('div');t.className='t';
+      var c=el.cloneNode(true);c.classList.add('active');c.style.cssText='position:absolute;left:0;top:0;opacity:1;visibility:visible';
+      var w=document.createElement('div');w.appendChild(c);t.appendChild(w);
+      var l=document.createElement('div');l.className='l';l.textContent=(k+1)+' · '+el.getAttribute('data-title');
+      b.appendChild(t);b.appendChild(l);if(k===cur)b.className='cur';
+      b.onclick=function(){grid.classList.remove('on');show(k)};
+      grid.appendChild(b);
+    });
+    var tw=grid.querySelector('.t');
+    if(tw){var sc=tw.clientWidth/1600;[].forEach.call(grid.querySelectorAll('.t>div'),function(d){d.style.transform='scale('+sc+')'})}
+  }
+  addEventListener('resize',fit);
+  addEventListener('keydown',function(e){
+    if(e.ctrlKey||e.metaKey||e.altKey)return;
+    var k=e.key;
+    if(grid.classList.contains('on')){if(k==='Escape'||k==='g'||k==='G'){grid.classList.remove('on')}return}
+    if(k==='ArrowRight'||k==='PageDown'||k===' '||k==='Enter'){e.preventDefault();next()}
+    else if(k==='ArrowLeft'||k==='PageUp'||k==='Backspace'){e.preventDefault();prev()}
+    else if(k==='Home')show(0); else if(k==='End')show(slides.length-1);
+    else if(k==='n'||k==='N')notes.classList.toggle('on');
+    else if(k==='g'||k==='G'){buildGrid();grid.classList.add('on')}
+    else if(k==='f'||k==='F'){if(!document.fullscreenElement)document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();else document.exitFullscreen()}
+    else if(k==='p'||k==='P')print();
+  });
+  function next(){var p=slides[cur].querySelector('.fut:not(.on)');if(p){var st=p.getAttribute('data-step');slides[cur].querySelectorAll('.fut[data-step="'+st+'"]').forEach(function(x){x.classList.add('on')});return}show(cur+1)}
+  function prev(){var o=slides[cur].querySelectorAll('.fut.on');if(o.length){var st=o[o.length-1].getAttribute('data-step');slides[cur].querySelectorAll('.fut[data-step="'+st+'"]').forEach(function(x){x.classList.remove('on')});return}show(cur-1)}
+  var x0=null;
+  addEventListener('touchstart',function(e){x0=e.touches[0].clientX},{passive:true});
+  addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTouches[0].clientX-x0;if(Math.abs(dx)>50)show(cur+(dx<0?1:-1));x0=null});
+  addEventListener('click',function(e){if(e.target.closest('#grid,#notes'))return;if(e.clientX<innerWidth*0.2)prev();else next()});
+  addEventListener('hashchange',function(){var n=parseInt(location.hash.slice(1),10);if(n)show(n-1,false)});
+  fit();
+  var n=parseInt(location.hash.slice(1),10);show(n?n-1:0,false);
+  document.getElementById('hint').style.display=slides.length?'block':'none';
+  setTimeout(function(){document.getElementById('hint').style.opacity=.0;},6000);
+})();
+</script>
+</body>
+</html>
