@@ -91,7 +91,9 @@ Ici tu parles **à notre CTO** : risque, réponse, valeur métier. Pas de jargon
 
 **Le cadre violet, à ne pas sauter :** *« Et côté utilisateur, le salarié n'est jamais prévenu de la décision : les e-mails sont codés mais jamais envoyés. Et un employé sans manager, c'est le cas par défaut à l'inscription, n'a personne pour valider ses notes. »* C'est ce qui justifie la file d'e-mails de la slide 6.
 
-**Bandeau :** *« Pour nos clients : leurs justificatifs étaient lisibles par d'autres entreprises. »*
+**Bandeau :** *« Pour nos clients : le justificatif d'un salarié pouvait être lu par une autre entreprise. »*
+
+**Si on te demande la méthode ou la frontière critique/élevé :** annexes 11 (méthode en cinq étapes, niveau de preuve de chaque constat) et 12 (critique = exploitable sans condition ; élevé = grave mais sous condition : un rôle, un moment, une charge). L'exemple à donner : F1 et F5 exposent tous deux une autre entreprise, mais F1 ne demande qu'un compte manager, alors que F5 exige qu'une RH agisse.
 
 **Transition :** *« Pourquoi c'était possible ? À cause de la forme même de l'application. »*
 
@@ -156,7 +158,7 @@ Ici tu parles **à notre CTO** : risque, réponse, valeur métier. Pas de jargon
 
 **Bandeau :** *« Pour nos clients : leurs données restent chez eux, et le salarié est toujours prévenu. »*
 
-**Attention aux clics :** il faut deux clics de plus sur cette slide avant de passer à la 7 ; flèche gauche retire les blocs. Le schéma détaillé (scénario en 6 étapes, noms des ports) est la **slide 9 (annexe)** : n'y va que si on te questionne (touche G).
+**Attention aux clics :** il faut deux clics de plus sur cette slide avant de passer à la 7 ; flèche gauche retire les blocs. Le schéma détaillé (scénario en 6 étapes, noms des ports) est la **slide 10 (annexe)** : n'y va que si on te questionne (touche G).
 
 **Si on creuse :** réservation de 5 lignes à la fois (`SKIP LOCKED`), bail de 2 minutes (s'il expire, la ligne est reprise), essais à 10 secondes puis 1 minute, puis `dead` après 3 échecs. Le worker a son propre rôle Postgres, limité à `mail_outbox`.
 
@@ -179,13 +181,17 @@ Ici tu parles **à notre CTO** : risque, réponse, valeur métier. Pas de jargon
 
 - **12/12** : les 4 critiques et les 8 élevés sont corrigés, 29 défauts au total.
 - **10 → 0** : *« On a lancé nos 37 parcours E2E contre l'application d'origine : 10 échouaient, sur des défauts réels. Aujourd'hui, 37 sur 37. »*
-- **620 tests**, SonarQube : bugs et smells 7 → 0, duplication 9,3 % → 0 %, couverture 66 % → 75 %.
+- **99,8 %** : *« Nos 620 tests couvrent 99,8 % des lignes du cœur métier et de l'API. SonarQube affiche 75 %, parce qu'il compte aussi l'interface, testée par nos parcours E2E, qui ne mesurent pas la couverture. »* Détail en annexe 13. SonarQube par ailleurs : 0 bug, 0 smell, 0 % de duplication (run local du 20/10).
+
+**Moyens et faibles (cadre sous le tableau) :** *« Sur les 34 moyens et faibles, 17 sont corrigés : 11 moyens, dont l'e-mail et les notes sans validateur, et 6 faibles. Les 15 autres sont écartés pour une raison écrite : changer l'API, une simple validation, une fonctionnalité nouvelle ou de l'infrastructure. Aucun critique ni élevé n'est écarté. »* Détail en annexe 14. Les fonctionnalités manquantes (motif de rejet, modifier ou annuler une note) sont des candidates au live coding.
 
 **Comment on a mesuré le « 10 → 0 » (si on demande) :** le 27/10, les 37 E2E de `main` (boîte noire, en HTTP) contre l'application du commit d'origine `265924b`. 11 échecs ; l'un ne tient qu'à un titre de section renommé, on ne le compte pas. Les 10 restants : 5 contrôles d'accès (401/403 incohérents, erreurs sans format), l'injection du tri, un corps JSON qui fait une 500 avec la stack, l'e-mail de décision jamais envoyé, la note d'un employé sans manager et celle d'une RH sans validateur. Une seule adaptation pour faire tourner l'original sur le schéma actuel : `company_id` rempli à l'insertion. La fuite de reçus n'est pas couverte par un E2E : elle est prouvée en intégration.
 
-**À expliquer sur la couverture (la question va venir) :** *« SonarQube compte aussi les pages React, l'authentification et le worker, testés par Playwright, qui ne mesure pas la couverture. Sur le cœur métier et l'API, on est à 99,8 %. On n'a pas exclu l'interface pour gonfler le chiffre. »*
+**À expliquer sur la couverture (la question va venir) :** mesurée le 27/10 sur le code de `main` : 620 tests, 564 lignes couvertes sur 565, 97,4 % des branches, 100 % des fonctions, sur le périmètre fixé dans `vitest.config.ts` (modules, shared, routes API, server actions). SonarQube lit le même rapport mais analyse tout `src/` : 15 fichiers hors périmètre comptent pour 0 % (7 pages, 4 composants, l'authentification, le worker). *« On n'a pas exclu l'interface de Sonar pour gonfler le chiffre : on montre les deux. »* Si on insiste : le worker a des tests Vitest mais n'est pas dans le périmètre mesuré ; l'y ajouter est la prochaine étape.
 
 **La limite, à dire sans gêne :** *« L'OCR reste synchrone : le passer en asynchrone changerait l'API, ce qu'on s'est interdit. On a plafonné la taille et la concurrence. »*
+
+**Si on creuse l'OCR (annexe 16) :** *« Le risque n'était pas la lenteur, environ 450 millisecondes par reçu, mais la saturation : un moteur neuf à chaque requête et aucune limite de taille. Aujourd'hui, les moteurs sont réutilisés, deux analyses au plus tournent en parallèle, les fichiers sont plafonnés à 10 Mio. Au-delà, l'utilisateur reçoit "réessaie dans quelques secondes" au lieu d'un serveur qui tombe. Et si l'OCR échoue, la suggestion est vide : le salarié saisit à la main. Demain, si la charge l'exige, l'OCR est derrière un port : on le passe en file d'attente sans toucher au métier. »* Si on pousse sur « pourquoi pas tout de suite » : rien ne le justifie à la charge mesurée, et ça ajoute un process et un état à exploiter.
 
 **Performance, seulement si on demande :** *« Les temps de réponse suivent le besoin utilisateur. On n'a pas refait la mesure sur la machine de référence, donc on ne revendique pas de gain. »* Ne dis jamais que la performance s'est améliorée.
 
@@ -212,7 +218,7 @@ Ici tu parles **à notre CTO** : risque, réponse, valeur métier. Pas de jargon
 
 **Répartition pendant le live (coaching) :** une personne tape le prompt et pilote l'agent ; l'autre commente à voix haute (quel module est touché, quelle règle l'agent respecte, ce que la revue a vérifié, ce que l'utilisateur y gagne). Décidez qui fait quoi avant vendredi, et préparez un prompt court et simple.
 
-**La répétition :** le « ≈ 12 min » de la slide date d'une répétition précédente. Rechronomètre avant vendredi, ou ne cite pas le chiffre.
+**Le bandeau « Déjà testé » :** *« On a déjà fait l'exercice une fois, sur une vraie fonctionnalité : environ 12 minutes jusqu'aux tests verts, sans intervention humaine. »* Le « ≈ 12 min » date de cet essai. Rechronomètre avant vendredi, ou ne cite pas le chiffre.
 
 **Transition vers le live :** *« Merci. On passe aux questions, puis à la démonstration. »*
 
@@ -223,5 +229,5 @@ Ici tu parles **à notre CTO** : risque, réponse, valeur métier. Pas de jargon
 - **La phrase à ne pas rater :** vendable sans craindre la fuite, évolutif sans tout casser.
 - **Trois faits à ne pas rater :** les 4 critiques de la slide 3 sont fermées et testées ; 10 parcours échouaient sur l'original, 37/37 aujourd'hui ; le contrat d'API n'a pas changé.
 - **Ne pas dire :** « 29 sur 46 ». Le 46 est notre décompte, pas un chiffre officiel ; parle de « 29 corrections ». Ne pas dire non plus que la performance s'est améliorée.
-- **Garder en réserve :** la slide 9 (annexe), `annexes.html` pour les constats non traités, et la fiche questions-réponses dans les notes de la slide 8 (touche **N**).
+- **Garder en réserve (annexes, touche G pour y sauter) :** 9 séparateur « Annexes » · 10 architecture détaillée · 11 méthode d'audit · 12 critique ou élevé · 13 couverture 99,8 % contre 75 % · 14 moyens et faibles · 15 ADR 0002 · 16 OCR synchrone. Et la fiche questions-réponses dans les notes de la slide 8 (touche **N**).
 - **Avant vendredi :** relancer `npm run verify` et les E2E sur `main`, confirmer les chiffres SonarQube « après » sur `main`, vérifier le HTML en plein écran (touche **F**), et répéter le chronomètre à la main.
